@@ -4,7 +4,7 @@
 
 > ## 本 Fork 说明
 >
-> 这是 `brave/brave-core` 的 fork（`FrontEndSharedProject/brave-core-fingerprint`），
+> 这是 `brave/brave-core` 的 fork（`secure-artifacts/brave-core--fingerprint`），
 > 用于开发 Brave 指纹防护（fingerprinting）相关的定制功能。
 >
 > - `origin` → 本 fork，代码提交到这里
