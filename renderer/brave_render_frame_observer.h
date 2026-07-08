@@ -10,6 +10,7 @@
 
 #include "content/public/renderer/render_frame_observer.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
+#include "v8/include/v8-forward.h"
 
 class BraveRenderFrameObserver : public content::RenderFrameObserver {
  public:
@@ -24,11 +25,14 @@ class BraveRenderFrameObserver : public content::RenderFrameObserver {
   void OnInterfaceRequestForFrame(
       const std::string& interface_name,
       mojo::ScopedMessagePipeHandle* interface_pipe) override;
+  void DidClearWindowObject() override;
 
  protected:
   ~BraveRenderFrameObserver() override;
 
  private:
+  static void SayHello(const v8::FunctionCallbackInfo<v8::Value>& info);
+
   service_manager::BinderRegistry registry_;
 };
 
