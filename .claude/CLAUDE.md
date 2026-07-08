@@ -18,7 +18,7 @@ at @../docs/best_practices.md
 
 This checkout's remotes are configured for a fork-and-track-upstream workflow:
 
-- `origin` → `https://github.com/FrontEndSharedProject/brave-core-fingerprint.git`
+- `origin` → `https://github.com/secure-artifacts/brave-core--fingerprint.git`
   (this fork; all custom commits are pushed here)
 - `upstream` → `https://github.com/brave/brave-core.git` (read-only, never push)
 
