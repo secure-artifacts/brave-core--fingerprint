@@ -2,6 +2,18 @@
 
 # Brave Core
 
+> ## 本 Fork 说明
+>
+> 这是 `brave/brave-core` 的 fork（`FrontEndSharedProject/brave-core-fingerprint`），
+> 用于开发 Brave 指纹防护（fingerprinting）相关的定制功能。
+>
+> - `origin` → 本 fork，代码提交到这里
+> - `upstream` → 官方 `brave/brave-core`，只读，不 push
+> - `master` 分支：纯 upstream 镜像，不放任何自定义 commit
+> - `fingerprint` 分支：所有自定义改动在这里开发
+>
+> 同步 upstream 更新的方法、详细约定见 [`.claude/CLAUDE.md`](./.claude/CLAUDE.md#fork--upstream-sync-this-checkout)。
+
 Brave Core is a set of changes, APIs, and scripts used for customizing Chromium
 to make the Brave browser. Please also check
 https://github.com/brave/brave-browser which only holds the issues, releases and
