@@ -60,9 +60,31 @@
 ## 关键代码锚点(调研已定位,省下次重查)
 
 **Farbling 引擎**
-- `third_party/blink/renderer/core/farbling/brave_session_cache.{h,cc}` — 核心。
-  seed 派生 `MakePseudoRandomGenerator(FarbleKey)`;farbling level 枚举
-  `brave_shields::mojom::FarblingLevel{OFF,BALANCED,MAXIMUM}`。改造点:让值取自 persona 而非 PRNG。
+- farbling token **真正来源在 browser 侧**:`components/brave_shields/core/browser/brave_shields_utils.cc`
+  的 `GetFarblingToken()`(per-URL 随机、持久于 BRAVE_SHIELDS_METADATA website-setting),经
+  `chromium_src/chrome/browser/content_settings/content_settings_manager_delegate.cc`(按 top_frame_url)
+  下发。persona 派生须在此下沉(使 token per-Profile 恒定、site-invariant)。⚠️ 亦被
+  `brave_reduce_language_network_delegate_helper.cc`(Accept-Language farbling)共享消费,改动须评估连带。
+  ⚠️ token 还被两处二次变换、会在 Profile 内分叉,须一并处理:(a) `GetFarblingToken(additional_entropy)`
+  XOR per-Container id(`kContainers` 默认开于 Win/Mac);(b) `brave_session_cache.cc:245-257` 构造时
+  XOR storage-key nonce(fenced frame/credentialless iframe 分区上下文)。
+- **根部原则(关键)**:persona 派生 + Container/nonce 中和须下沉到最低公共点 `GetFarblingToken()` 内部
+  (`additional_entropy` XOR 之前),使所有下发路径自动收敛,避免逐路径漏改。`default_shields_settings_`
+  喂入路径至少三条,各自重建 container-id:(1) 文档导航 `brave_shields_web_contents_observer.cc::SendShieldsSettings()`;
+  (2) Dedicated Worker → `content_settings_manager_delegate.cc::GetBraveShieldsSettingsOnUI`(⚠️ **确有调用方**);
+  (3) Shared/Service Worker(含 MV3 扩展 SW)→ `brave_content_browser_client.cc::WorkerGetBraveShieldSettings`(`:874-911`)。
+  不在根部收敛则 Worker 内 OffscreenCanvas/AudioContext 指纹与主文档不一致。
+- `third_party/blink/renderer/core/farbling/brave_session_cache.{h,cc}` — renderer 侧核心。
+  `MakePseudoRandomGenerator(FarbleKey)` 是**部分**面的种子入口;但 canvas/audio/WebGL-extension 噪声
+  **直接读** `default_shields_settings_->farbling_token`(`:288/306/345`),不经该函数——改造须覆盖 token 所有消费点。
+  farbling level 枚举 `brave_shields::mojom::FarblingLevel{OFF,BALANCED,MAXIMUM}`;persona 接管前须**逐面**检查
+  `GetBraveFarblingLevel(BRAVE_WEBCOMPAT_CANVAS/_AUDIO/...)==OFF`(含逐面 webcompat 例外)则保留真实值。
+- 更多已挂钩、persona 须覆盖的面:pointer/touch screenX/screenY(`kPointerScreenX/Y`,现丢真实值)、
+  `mediastream/media_devices.cc`(enumerateDevices)、`speech/speech_synthesis.cc`(voices)、WebUSB serial。
+- ⚠️ **UA wire 头独立路径**:JS `navigator.userAgent`(经 `navigator_base.cc`,仅加尾随空格)与真正发到网络的
+  `User-Agent:` HTTP 头是**两条路**。wire 头出自 `embedder_support::GetUserAgent()`/`ChromeContentBrowserClient::GetUserAgent()`,
+  Brave **未覆盖**(browsertest 证各级别 wire 头=真实 UA)。persona 须同时接 wire 头,否则服务端每请求可见真实宿主 UA。
+  `GetUserAgent()`/`GetUserAgentMetadata()` 签名无 Profile 参,须解决多 Profile 并发挂载点。
 - 各面拦截(`chromium_src/.../` override):canvas=`base_rendering_context_2d.cc`(PerturbPixels);
   WebGL=`webgl_rendering_context_base.cc`;WebGPU=`modules/webgpu/gpu_adapter.cc`;
   audio=`webaudio/audio_buffer.cc` + `platform/brave_audio_farbling_helper.cc`;
@@ -92,5 +114,8 @@
 - 时区:`base/i18n/timezone.cc`(读 OS,不知代理);可 ICU 级 override 或 CDP `Emulation.setTimezoneOverride`。
 - WebRTC 防漏:`--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
   (pref `webrtc.ip_handling_policy`);唯一能彻底防公网 IP 泄漏的值(代价:UDP WebRTC 断)。
-- Accept-Language:pref `intl.accept_languages` / `--lang`。
-- geo:CDP `Emulation.setGeolocationOverride` + 关 OS 定位权限。
+- Accept-Language:pref `intl.accept_languages` / `--lang`。⚠️ Strict 模式(`ControlType::BLOCK`)下
+  `brave_reduce_language_network_delegate_helper.cc:147-151` 硬编码 "en-US,en;q=0.9",会盖掉 geo 语言,须协调。
+- geo:需**生产级 per-Profile override**(Profile 级 `GeolocationContext` 拦截/权限层覆盖)。
+  CDP `Emulation.setGeolocationOverride` 仅 per-tab/DevTools 测试用,非生产机制。+ 关 OS 定位权限。
+- WebRTC pref `webrtc.ip_handling_policy` 已由 brave://settings 暴露给用户,覆盖前须存原值、关代理时恢复。
