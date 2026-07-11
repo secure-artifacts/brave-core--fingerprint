@@ -211,6 +211,11 @@ repack("resources") {
     sources += [ "$root_gen_dir/brave/components/playlist/content/browser/resources/playlist_generated.pak" ]
   }
 
+  if (!is_android) {
+    deps += [ "//brave/components/fingerprint_browser/resources" ]
+    sources += [ "$root_gen_dir/brave/components/fingerprint_browser/resources/fingerprint_test_resources.pak" ]
+  }
+
   output = "$root_gen_dir/components/brave_components_resources.pak"
 }
 
