@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Fingerprint Test</title>
+  <link rel="stylesheet" href="chrome://resources/css/text_defaults.css">
+  <script src="chrome://resources/js/load_time_data_deprecated.js"></script>
+  <script src="/strings.js"></script>
+  <script defer src="/fingerprint_test.bundle.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      background: var(--color-new-tab-page-background, Canvas);
+      color: var(--color-new-tab-page-foreground, CanvasText);
+    }
+
+    main {
+      box-sizing: border-box;
+      margin: 0 auto;
+      max-width: 1120px;
+      padding: 32px 24px 56px;
+    }
+
+    header {
+      align-items: flex-start;
+      border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+      display: flex;
+      gap: 20px;
+      justify-content: space-between;
+      padding-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin: 0 0 8px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+
+    p {
+      color: color-mix(in srgb, currentColor 72%, transparent);
+      line-height: 1.5;
+      margin: 0;
+      max-width: 720px;
+    }
+
+    .actions {
+      display: flex;
+      flex: 0 0 auto;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button,
+    .button-link {
+      appearance: none;
+      background: transparent;
+      border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+      border-radius: 4px;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      padding: 8px 12px;
+      text-decoration: none;
+    }
+
+    button:hover,
+    .button-link:hover {
+      background: color-mix(in srgb, currentColor 9%, transparent);
+    }
+
+    .summary {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      margin: 24px 0;
+    }
+
+    .summary-item,
+    section {
+      border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+      border-radius: 6px;
+    }
+
+    .summary-item {
+      padding: 14px;
+    }
+
+    .summary-label {
+      color: color-mix(in srgb, currentColor 62%, transparent);
+      display: block;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .summary-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    section {
+      margin-top: 18px;
+      overflow: hidden;
+      padding: 18px;
+    }
+
+    .status {
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .status[data-state="pass"] {
+      color: #137333;
+    }
+
+    .status[data-state="warn"] {
+      color: #9a6700;
+    }
+
+    .status[data-state="fail"] {
+      color: #b3261e;
+    }
+
+    table {
+      border-collapse: collapse;
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: color-mix(in srgb, currentColor 66%, transparent);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    td:first-child {
+      font-weight: 600;
+      width: 16%;
+    }
+
+    td:nth-child(2),
+    td:nth-child(3) {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+      width: 37%;
+    }
+
+    .row-status {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      width: 10%;
+    }
+
+    .row-status[data-state="pass"] {
+      color: #137333;
+    }
+
+    .row-status[data-state="fail"] {
+      color: #b3261e;
+    }
+
+    .row-status[data-state="na"] {
+      color: color-mix(in srgb, currentColor 56%, transparent);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .status[data-state="pass"],
+      .row-status[data-state="pass"] {
+        color: #7ee787;
+      }
+
+      .status[data-state="warn"] {
+        color: #e3b341;
+      }
+
+      .status[data-state="fail"],
+      .row-status[data-state="fail"] {
+        color: #ff7b72;
+      }
+    }
+
+    @media (max-width: 720px) {
+      header {
+        flex-direction: column;
+      }
+
+      main {
+        padding: 24px 16px 40px;
+      }
+
+      table,
+      tbody,
+      tr,
+      th,
+      td {
+        display: block;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tr {
+        border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+        padding: 10px 0;
+      }
+
+      td {
+        border: 0;
+        padding: 3px 0;
+        width: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Fingerprint test</h1>
+        <p>Compare this profile's assigned Persona with the most recently opened website.</p>
+      </div>
+      <div class="actions">
+        <button id="refresh" type="button">Test last webpage</button>
+        <a class="button-link" href="brave://profile-picker">Create profile</a>
+      </div>
+    </header>
+
+    <div class="summary" id="summary"></div>
+
+    <section>
+      <h2>Verification</h2>
+      <div class="status" id="status" data-state="warn">Loading test data...</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Persona</th>
+            <th>Web page</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="comparison"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Additional observed values</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th colspan="3">Web page value</th>
+          </tr>
+        </thead>
+        <tbody id="observed"></tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# Copyright (c) 2026 The Brave Authors. All rights reserved.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import("//brave/components/common/typescript.gni")
+import("//brave/resources/brave_grit.gni")
+import("//tools/grit/repack.gni")
+
+transpile_web_ui("fingerprint_test") {
+  output_module = false
+  entry_points = [ [
+        "fingerprint_test",
+        rebase_path("fingerprint_test.ts"),
+      ] ]
+
+  resource_name = "fingerprint_test"
+  imports_from = [ "//brave/components/fingerprint_browser/resources/" ]
+}
+
+pack_web_resources("generated_resources") {
+  resource_name = "fingerprint_test"
+  output_dir = "$root_gen_dir/brave/components/fingerprint_browser/resources"
+  deps = [ ":fingerprint_test" ]
+}
+
+brave_grit("static_resources") {
+  source = "fingerprint_test_static_resources.grd"
+
+  outputs = [
+    "grit/fingerprint_test_resources.h",
+    "fingerprint_test_static.pak",
+  ]
+}
+
+repack("resources") {
+  public_deps = [
+    ":generated_resources",
+    ":static_resources",
+  ]
+
+  sources = [
+    "$root_gen_dir/brave/components/fingerprint_browser/resources/fingerprint_test_generated.pak",
+    "$root_gen_dir/brave/components/fingerprint_browser/resources/fingerprint_test_static.pak",
+  ]
+
+  output = "$root_gen_dir/brave/components/fingerprint_browser/resources/fingerprint_test_resources.pak"
+}
