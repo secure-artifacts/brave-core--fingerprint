@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/views/user_education/browser_user_education_service.cc b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
+index afcb9344fe3ca5e9aa1fc7ffeebd49f494d5857b..b7244e0602670d382e366151317a2a46f2cd3a29 100644
+--- a/chrome/browser/ui/views/user_education/browser_user_education_service.cc
++++ b/chrome/browser/ui/views/user_education/browser_user_education_service.cc
+@@ -364,6 +364,7 @@ void MaybeRegisterChromeFeaturePromos(
+           feature_engagement::kIPHWebUiHelpBubbleTestFeature)) {
+     return;
+   }
++  BRAVE_MAYBE_REGISTER_CHROME_FEATURE_PROMOS
+ 
+   // kIPHAutofillCreditCardBenefitFeature:
+   registry.RegisterFeature(std::move(

@@ -1,0 +1,40 @@
+diff --git a/third_party/blink/renderer/platform/runtime_enabled_features.json5 b/third_party/blink/renderer/platform/runtime_enabled_features.json5
+index 48d7b3696764718c70df565b1d9c0df89dd85252..42f6e7f457b0283e65fdc0606e2ae887c4a664ef 100644
+--- a/third_party/blink/renderer/platform/runtime_enabled_features.json5
++++ b/third_party/blink/renderer/platform/runtime_enabled_features.json5
+@@ -966,6 +966,11 @@
+       name: "BoxDecorationBreakCloneLineBreaking",
+       status: "test",
+     },
++    {
++      name: "BraveIsInTorContext",
++      public: true,
++      base_feature: "none",
++    },
+     {
+       name: "BrowserInitiatedAutomaticPictureInPicture",
+       public: true,
+@@ -2934,6 +2939,7 @@
+       // In-development features for the File System Access API.
+       name: "FileSystemAccessAPIExperimental",
+       status: "experimental",
++      base_feature: "none",
+     },
+     {
+       // The FileSystemHandle.getCloudIdentifiers() method (see
+@@ -2948,6 +2954,7 @@
+       // Non-OPFS File System Access API.
+       name: "FileSystemAccessLocal",
+       status: {"default": "stable"},
++      base_feature: "none",
+     },
+     {
+       name: "FileSystemAccessLockingScheme",
+@@ -4103,6 +4110,7 @@
+     {
+       name: "MiddleClickAutoscroll",
+       status: "test",
++      base_feature: "none",
+     },
+     // Killswitch for crbug.com/40062462 fix.
+     {

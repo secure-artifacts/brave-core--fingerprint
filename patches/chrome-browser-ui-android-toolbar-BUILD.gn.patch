@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/ui/android/toolbar/BUILD.gn b/chrome/browser/ui/android/toolbar/BUILD.gn
+index 1e09c2c596117c33fb0e4e387269dc78e2af3661..94d253206a84d85eae30a2528959b1919e11388c 100644
+--- a/chrome/browser/ui/android/toolbar/BUILD.gn
++++ b/chrome/browser/ui/android/toolbar/BUILD.gn
+@@ -226,6 +226,7 @@ android_library("core_java") {
+     "java/src/org/chromium/chrome/browser/toolbar/top/tab_strip/HeightTransitionHandler.java",
+     "java/src/org/chromium/chrome/browser/toolbar/top/tab_strip/TabStripTransitionCoordinator.java",
+   ]
++  sources += brave_browser_ui_android_toolbar_sources
+ 
+   deps = [
+     ":adaptive_features_java",
+@@ -450,6 +451,7 @@ android_resources("java_resources") {
+     "//components/browser_ui/styles/android:java_resources",
+     "//ui/android:ui_java_resources",
+   ]
++  deps += [ "//brave/browser/ui/android/toolbar:java_resources" ]
+ }
+ 
+ robolectric_library("junit") {

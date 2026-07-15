@@ -1,0 +1,10 @@
+diff --git a/third_party/blink/renderer/bindings/scripts/bind_gen/interface.py b/third_party/blink/renderer/bindings/scripts/bind_gen/interface.py
+index 38de3c222757d5b4b4e5ee0d3dcdb12569b292a3..f36195099ffbd7816eaae00beadf24aa3c4e6024 100644
+--- a/third_party/blink/renderer/bindings/scripts/bind_gen/interface.py
++++ b/third_party/blink/renderer/bindings/scripts/bind_gen/interface.py
+@@ -7635,3 +7635,4 @@ def generate_interfaces(task_queue):
+                          "InitIDLInterfacesForTesting",
+                          "init_idl_interfaces_for_testing",
+                          for_testing=True)
++from brave_chromium_utils import inline_chromium_src_override; inline_chromium_src_override(globals(), locals())
+\ No newline at end of file

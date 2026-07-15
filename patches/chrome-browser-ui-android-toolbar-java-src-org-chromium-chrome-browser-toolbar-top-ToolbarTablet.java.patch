@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarTablet.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarTablet.java
+index 7b0092f230ee5d1813266db3381c6a3a55f4754b..4dc28b8f5f0ee11fffd5c424200c2a6c621690e1 100644
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarTablet.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarTablet.java
+@@ -295,6 +295,7 @@ public class ToolbarTablet extends ToolbarLayout {
+         mLocationBar.getTabletCoordinator().tintBackground(textBoxColor);
+         mLocationBar.updateVisualsForState();
+         setToolbarHairlineColor(color);
++        super.onThemeColorChanged(color, shouldAnimate);
+ 
+         // Notify the StatusBarColorController of the toolbar color change. This is to match the
+         // status bar's color with the toolbar color when the tab strip is hidden on a tablet.

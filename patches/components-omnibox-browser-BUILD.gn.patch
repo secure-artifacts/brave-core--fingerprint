@@ -1,0 +1,22 @@
+diff --git a/components/omnibox/browser/BUILD.gn b/components/omnibox/browser/BUILD.gn
+index 500ec84d187ac48101db49d5d3ca68b6b01404f4..a3a51e484a4ba4e7b3a262f205e6ee1d0d2a823e 100644
+--- a/components/omnibox/browser/BUILD.gn
++++ b/components/omnibox/browser/BUILD.gn
+@@ -516,6 +516,9 @@ static_library("browser") {
+     ]
+     deps += [ "//content/public/common" ]
+   }
++  sources += brave_components_omnibox_browser_sources
++  public_deps += brave_components_omnibox_browser_public_deps
++  deps += brave_components_omnibox_browser_deps
+ }
+ 
+ source_set("pref_names") {
+@@ -1088,6 +1091,7 @@ fuzzer_test("search_suggestion_parser_fuzzer") {
+ }
+ 
+ mojom("mojo_bindings") {
++  generate_legacy_js_bindings = true
+   sources = [ "omnibox.mojom" ]
+   webui_module_path = "chrome://resources/mojo/components/omnibox/browser"
+ 

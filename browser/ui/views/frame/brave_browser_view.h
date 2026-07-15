@@ -1,0 +1,334 @@
+/* Copyright (c) 2019 The Brave Authors. All rights reserved.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+#ifndef BRAVE_BROWSER_UI_VIEWS_FRAME_BRAVE_BROWSER_VIEW_H_
+#define BRAVE_BROWSER_UI_VIEWS_FRAME_BRAVE_BROWSER_VIEW_H_
+
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
+#include "brave/browser/ui/commands/accelerator_service.h"
+#include "brave/browser/ui/focus_mode/focus_mode_controller.h"
+#include "brave/browser/ui/tabs/brave_tab_strip_model.h"
+#include "brave/components/brave_vpn/common/buildflags/buildflags.h"
+#include "brave/components/brave_wallet/common/buildflags/buildflags.h"
+#include "brave/components/brave_wayback_machine/buildflags/buildflags.h"
+#include "brave/components/commands/browser/accelerator_pref_manager.h"
+#include "build/build_config.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "components/prefs/pref_member.h"
+#include "ui/base/accelerators/accelerator.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+
+#if BUILDFLAG(ENABLE_BRAVE_VPN)
+#include "brave/browser/ui/views/toolbar/brave_vpn_panel_controller.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SPEEDREADER)
+#include "brave/browser/ui/views/speedreader/reader_mode_toolbar_view.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SPEEDREADER)
+namespace speedreader {
+class SpeedreaderBubbleView;
+class SpeedreaderTabHelper;
+enum class SpeedreaderBubbleLocation : int;
+}  // namespace speedreader
+#endif
+
+namespace sidebar {
+FORWARD_DECLARE_TEST(SidebarBrowserWithSplitViewTest,
+                     ShowSidebarOnMouseOverTest);
+}  // namespace sidebar
+
+namespace content {
+class WebContents;
+}  // namespace content
+
+namespace sidebar {
+class SidebarBrowserTest;
+}  // namespace sidebar
+
+namespace views {
+class Widget;
+}  // namespace views
+
+class BraveBrowser;
+class BraveShieldsToolbarButton;
+class BraveHelpBubbleHostView;
+class BraveMultiContentsView;
+class ContentsLayoutManager;
+class FocusModeTitleBarView;
+class FocusModeTopOverlay;
+class SidebarContainerView;
+class SidePanelEntry;
+class TabStripPlacementCoordinator;
+class BraveVerticalTabStripContainerView;
+
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+class WalletButton;
+#endif
+
+class BraveBrowserView : public BrowserView,
+                         public commands::AcceleratorService::Observer,
+                         public FocusModeController::Observer {
+  METADATA_HEADER(BraveBrowserView, BrowserView)
+ public:
+  explicit BraveBrowserView(Browser* browser);
+  BraveBrowserView(const BraveBrowserView&) = delete;
+  BraveBrowserView& operator=(const BraveBrowserView&) = delete;
+  ~BraveBrowserView() override;
+
+  static BraveBrowserView* From(BrowserView* view);
+  static const BraveBrowserView* From(const BrowserView* view);
+
+  // We use rounded corners even rounded corners setting is disabled.
+  // Call this when we want to know
+  static bool ShouldUseBraveWebViewRoundedCornersForContents(
+      const Browser* browser);
+
+  void SetStarredState(bool is_starred) override;
+  void ShowUpdateChromeDialog() override;
+
+  // Returns the bounding rectangle, in screen coordinates, used to detect
+  // mouse-over events that control sidebar visibility. The bounds of a
+  // specific view are used here so that sidebar show/hide behavior is
+  // consistently tied to that view's on-screen region.
+  gfx::Rect GetBoundingBoxInScreenForMouseOverHandling() const;
+
+  void ShowBraveVPNBubble(bool show_select = false);
+#if BUILDFLAG(ENABLE_BRAVE_WALLET)
+  void CreateWalletBubble();
+  void CreateApproveWalletBubble();
+  void CloseWalletBubble();
+  WalletButton* GetWalletButton();
+  views::View* GetWalletButtonAnchorView();
+#endif
+
+  // BrowserView overrides:
+  void Layout(PassKey) override;
+  void StartTabCycling() override;
+  views::View* GetAnchorViewForBraveVPNPanel();
+  gfx::Rect GetShieldsBubbleRect() override;
+#if BUILDFLAG(ENABLE_SPEEDREADER)
+  // Give active tab's reader mode toolbar.
+  ReaderModeToolbarView* reader_mode_toolbar();
+  speedreader::SpeedreaderBubbleView* ShowSpeedreaderBubble(
+      speedreader::SpeedreaderTabHelper* tab_helper,
+      speedreader::SpeedreaderBubbleLocation location) override;
+  void UpdateReaderModeToolbar() override;
+#endif
+  bool GetTabStripVisible() const override;
+  bool ShouldShowWindowTitle() const override;
+  void OnActiveTabChanged(content::WebContents* old_contents,
+                          content::WebContents* new_contents,
+                          int index,
+                          int reason) override;
+  void UpdateToolbar(content::WebContents* contents) override;
+  bool UpdateToolbarSecurityState() override;
+  bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
+  bool IsInTabDragging() const override;
+  void ReadyToListenFullscreenChanges() override;
+  bool IsWebPanelContents(content::WebContents* contents) override;
+  ClientFrameElementInfo GetFrameElementInfo() const override;
+
+  void OnImmersiveFullscreenExited() override;
+  void OnImmersiveModeControllerDestroyed() override;
+
+#if defined(USE_AURA)
+  views::View* sidebar_host_view() { return sidebar_host_view_; }
+#endif
+
+  void StopListeningFullscreenChanges();
+  bool IsSidebarVisible() const;
+
+  BraveVerticalTabStripContainerView* vertical_tab_strip_container_view() {
+    return vertical_tab_strip_container_view_;
+  }
+  bool ShowBraveHelpBubbleView(const std::string& text) override;
+
+  // commands::AcceleratorService:
+  void OnAcceleratorsChanged(
+      const commands::AcceleratorPrefManager::Accelerators& changed) override;
+
+  // FocusModeController::Observer:
+  void OnFocusModeToggled(bool enabled) override;
+
+  BraveMultiContentsView* GetBraveMultiContentsView() const;
+  void UpdateRoundedCornersUI();
+  void UpdateVerticalTabStripBorder();
+  void UpdateSidebarBorder();
+
+  // Re-applies the side panel border so the content corner radii track the
+  // sidebar control view's visibility. Wired as SidebarContainerView's
+  // control-view-visibility-changed callback.
+  void OnSidebarControlViewVisibilityChanged();
+
+  SidebarContainerView* sidebar_container_view() {
+    return sidebar_container_view_;
+  }
+
+  TabStripPlacementCoordinator* tab_strip_placement_coordinator() {
+    return tab_strip_placement_.get();
+  }
+
+  FocusModeTopOverlay* focus_mode_top_overlay() {
+    return focus_mode_top_overlay_;
+  }
+
+  FocusModeTitleBarView* focus_mode_title_bar_for_testing() {
+    return focus_mode_title_bar_view_;
+  }
+
+  views::View* top_container_separator_for_testing() const {
+    return top_container_separator_;
+  }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Returns the PWA Shields toolbar button, if it exists. Note that this
+  // returns valid pointer only when it's web app browser.
+  BraveShieldsToolbarButton* GetPwaShieldsToolbarButton();
+#endif
+
+ private:
+  class TabCyclingEventHandler;
+  class BrowserWindowMouseEventHandler;
+  friend class WindowClosingConfirmBrowserTest;
+  friend class sidebar::SidebarBrowserTest;
+  friend class VerticalTabStripDragAndDropBrowserTest;
+  friend class SplitViewBrowserTest;
+  friend class BraveBrowserViewTest;
+  friend class VerticalTabStripBrowserTest;
+
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, VisualState);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, Fullscreen);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, VerticalTabLayoutInRTL);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripDragAndDropBrowserTest,
+                           DragTabToReorder);
+  FRIEND_TEST_ALL_PREFIXES(SpeedReaderBrowserTest, Toolbar);
+  FRIEND_TEST_ALL_PREFIXES(SpeedReaderBrowserTest, ToolbarLangs);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedState);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedWidth);
+  FRIEND_TEST_ALL_PREFIXES(SplitViewBrowserTest, BraveMultiContentsViewTest);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest, GetMinimumWidth);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest,
+                           ShouldBeInvisible);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest,
+                           ShowVerticalTabOnMouseOverTest);
+  FRIEND_TEST_ALL_PREFIXES(SplitViewWithRoundedCornersTest,
+                           TabFullscreenStateTest);
+  FRIEND_TEST_ALL_PREFIXES(BraveBrowserViewWithRoundedCornersTest,
+                           ContentsBackgroundEventHandleTest);
+  FRIEND_TEST_ALL_PREFIXES(sidebar::SidebarBrowserWithSplitViewTest,
+                           ShowSidebarOnMouseOverTest);
+
+  static void SetDownloadConfirmReturnForTesting(bool allow);
+
+  // BrowserView overrides:
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
+  void LoadAccelerators() override;
+  void OnTabStripModelChanged(
+      TabStripModel* tab_strip_model,
+      const TabStripModelChange& change,
+      const TabStripSelectionChange& selection) override;
+  views::CloseRequestResult OnWindowCloseRequested() override;
+  void ConfirmBrowserCloseWithPendingDownloads(
+      int download_count,
+      Browser::DownloadCloseType dialog_type,
+      base::OnceCallback<void(bool)> callback) override;
+  bool MaybeUpdateDevtools(content::WebContents* web_contents) override;
+  bool MaybeUpdateSplitView(content::WebContents* web_contents) override;
+  void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
+  void OnWidgetWindowModalVisibilityChanged(views::Widget* widget,
+                                            bool visible) override;
+  void ShowSplitView(bool focus_active_view) override;
+  void HideSplitView() override;
+  void ReparentTopContainerForEndOfImmersive() override;
+  bool ShouldDrawTabStrokes() const override;
+  void UpdateTabSearchBubbleHost() override;
+
+  void HandleBrowserWindowMouseEvent(const ui::MouseEvent& event);
+  void StopTabCycling();
+  void OnCompactModePrefChanged();
+  void OnPreferenceChanged(const std::string& pref_name);
+  void OnWindowClosingConfirmResponse(bool allowed_to_close);
+  BraveBrowser* GetBraveBrowser() const;
+  void UpdateWebViewRoundedCorners();
+  void UpdateFocusModeState();
+  bool ShouldDisableFocusModeForActiveTab() const;
+
+  // FindBarHost is anchored to |find_bar_host_view_|; it must remain the last
+  // child of BrowserView for correct z-order. Call when a child is added after
+  // the ctor reorder (e.g. embedded vertical tab strip in AddedToWidget()).
+  // |find_bar_host_view_| must exist (BrowserView creates it before this
+  // class's ctor body runs).
+  void EnsureFindBarHostViewIsLastChild();
+
+  sidebar::Sidebar* InitSidebar() override;
+  void ToggleSidebar() override;
+  bool HasSelectedURL() const override;
+  void CleanAndCopySelectedURL() override;
+
+#if BUILDFLAG(ENABLE_PLAYLIST_WEBUI)
+  void ShowPlaylistBubble() override;
+#endif
+
+#if BUILDFLAG(ENABLE_BRAVE_WAYBACK_MACHINE)
+  void ShowWaybackMachineBubble() override;
+#endif
+
+  void UpdateSideBarHorizontalAlignment();
+
+  std::unique_ptr<TabStripPlacementCoordinator> tab_strip_placement_;
+  std::unique_ptr<views::Widget> vertical_tab_strip_widget_;
+
+  bool closing_confirm_dialog_activated_ = false;
+  raw_ptr<BraveHelpBubbleHostView> brave_help_bubble_host_view_ = nullptr;
+  raw_ptr<SidebarContainerView> sidebar_container_view_ = nullptr;
+  raw_ptr<views::View> contents_background_view_ = nullptr;
+  raw_ptr<views::View> vertical_tab_strip_host_view_ = nullptr;
+  raw_ptr<BraveVerticalTabStripContainerView>
+      vertical_tab_strip_container_view_ = nullptr;
+  raw_ptr<FocusModeTitleBarView> focus_mode_title_bar_view_ = nullptr;
+  raw_ptr<FocusModeTopOverlay> focus_mode_top_overlay_ = nullptr;
+
+#if defined(USE_AURA)
+  raw_ptr<views::View> sidebar_host_view_ = nullptr;
+#endif
+
+#if BUILDFLAG(ENABLE_BRAVE_VPN)
+  BraveVPNPanelController vpn_panel_controller_{this};
+#endif
+
+#if BUILDFLAG(ENABLE_SPEEDREADER)
+  raw_ptr<ReaderModeToolbarView> reader_mode_toolbar_;
+#endif
+
+  std::unique_ptr<TabCyclingEventHandler> tab_cycling_event_handler_;
+  std::unique_ptr<BrowserWindowMouseEventHandler>
+      browser_window_mouse_event_handler_;
+
+  PrefChangeRegistrar pref_change_registrar_;
+  BooleanPrefMember compact_horizontal_tabs_;
+  base::ScopedObservation<commands::AcceleratorService,
+                          commands::AcceleratorService::Observer>
+      accelerators_observation_{this};
+  base::ScopedObservation<FocusModeController, FocusModeController::Observer>
+      focus_mode_observation_{this};
+
+  base::WeakPtrFactory<BraveBrowserView> weak_ptr_{this};
+};
+
+#endif  // BRAVE_BROWSER_UI_VIEWS_FRAME_BRAVE_BROWSER_VIEW_H_

@@ -1,0 +1,12 @@
+diff --git a/third_party/blink/renderer/core/dom/document.cc b/third_party/blink/renderer/core/dom/document.cc
+index 3e0ab533963ee81aa0a553761d4a522787804a64..db0455f0ea9674ecce70736e00999bac948afb3a 100644
+--- a/third_party/blink/renderer/core/dom/document.cc
++++ b/third_party/blink/renderer/core/dom/document.cc
+@@ -7578,6 +7578,7 @@ KURL Document::CompleteURLWithOverride(
+   if (result.IsEmpty()) {
+     result = Encoding().IsValid() ? KURL(base_url_override, url, Encoding())
+                                   : KURL(base_url_override, url);
++    result = RewriteBraveToChrome(result);
+     url_cache_.Put(base_url_override, url, result);
+   }
+   // If the conditions are met for

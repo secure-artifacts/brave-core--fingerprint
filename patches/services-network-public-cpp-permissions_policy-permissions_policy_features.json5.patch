@@ -1,0 +1,23 @@
+diff --git a/services/network/public/cpp/permissions_policy/permissions_policy_features.json5 b/services/network/public/cpp/permissions_policy/permissions_policy_features.json5
+index ff6980f070aba26fd1aba35c31216cbcb1deb542..a67c682c24bec74bb58611112e264ac183d5f1fc 100644
+--- a/services/network/public/cpp/permissions_policy/permissions_policy_features.json5
++++ b/services/network/public/cpp/permissions_policy/permissions_policy_features.json5
+@@ -663,6 +663,18 @@
+       permissions_policy_name: "writer",
+       depends_on: ["AIWriterAPI"],
+     },
++    {
++      name: "Ethereum",
++      permissions_policy_name: "ethereum"
++    },
++    {
++      name: "Solana",
++      permissions_policy_name: "solana"
++    },
++    {
++      name: "Cardano",
++      permissions_policy_name: "cardano"
++    },
+   ],
+   // LINT.ThenChange(//third_party/blink/public/devtools_protocol/domains/Page.pdl:PermissionsPolicyFeature)
+ }

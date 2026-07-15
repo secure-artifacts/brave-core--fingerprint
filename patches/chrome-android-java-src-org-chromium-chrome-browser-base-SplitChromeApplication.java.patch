@@ -1,0 +1,13 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/base/SplitChromeApplication.java b/chrome/android/java/src/org/chromium/chrome/browser/base/SplitChromeApplication.java
+index c555044cbf9ae19a431fcc9327c5e302e3b26084..7b664c46adc95575b069ca89af068d5e29a0ed6c 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/base/SplitChromeApplication.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/base/SplitChromeApplication.java
+@@ -243,7 +243,7 @@ public class SplitChromeApplication extends SplitCompatApplication {
+                     // fieldtrial_testing_config.json.
+                     ContextUtils.sDoFeatureListInitHookForTesting =
+                             InitializeFeatureList::initializeFeatureList;
+-                } else if (!BuildConfig.IS_CHROME_BRANDED
++                } else if (!true /* BuildConfig.IS_CHROME_BRANDED override for Brave */
+                         || !VariationsSeedFetcher.shouldFetchSeed()) {
+                     // For non-Chrome branded builds, we should initialize the feature list early to
+                     // apply the fieldtrial_testing_config.json. Otherwise, we should initialize the

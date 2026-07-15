@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/resources/extensions/extensions.html b/chrome/browser/resources/extensions/extensions.html
+index bd1ed0b2a147437c579d230ead994c333998030d..1f9c7bacf5b934d49b7165b6c1ba9b7973eb9b5c 100644
+--- a/chrome/browser/resources/extensions/extensions.html
++++ b/chrome/browser/resources/extensions/extensions.html
+@@ -42,6 +42,7 @@
+       background: var(--color-webui-page-background);
+     }
+   </style>
++  <link rel="stylesheet" href="chrome://resources/brave/page_specific/extensions/extensions_loading_shim.css">
+   <script type="module" src="extensions.js"></script>
+ </head>
+ <body>

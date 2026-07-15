@@ -1,0 +1,37 @@
+// Copyright (c) 2021 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// you can obtain one at http://mozilla.org/MPL/2.0/.
+
+#ifndef BRAVE_COMPONENTS_BRAVE_SEARCH_BROWSER_PREFS_H_
+#define BRAVE_COMPONENTS_BRAVE_SEARCH_BROWSER_PREFS_H_
+
+#include "build/build_config.h"
+
+namespace brave_search {
+namespace prefs {
+
+inline constexpr char kDailyAsked[] = "brave.brave_search.daily_asked";
+inline constexpr char kTotalAsked[] = "brave.brave_search.total_asked";
+#if BUILDFLAG(IS_ANDROID)
+inline constexpr char kFetchFromNative[] =
+    "brave.brave_search.fetch_se_from_native";
+#endif
+
+inline constexpr char kBackupResultsLastQueryTime[] =
+    "brave.search.backup_results.last_query_time";
+inline constexpr char kBackupResultsFailuresStorage[] =
+    "brave.search.backup_results.failures_storage";
+inline constexpr char kBackupResultsDailyRequestCount[] =
+    "brave.search.backup_results.daily_request_count";
+inline constexpr char kBackupResultsDailyRequestWindowStart[] =
+    "brave.search.backup_results.daily_request_window_start";
+inline constexpr char kBackupResultsLastViewWidth[] =
+    "brave.search.backup_results.last_view_width";
+inline constexpr char kBackupResultsLastViewHeight[] =
+    "brave.search.backup_results.last_view_height";
+
+}  // namespace prefs
+}  // namespace brave_search
+
+#endif  // BRAVE_COMPONENTS_BRAVE_SEARCH_BROWSER_PREFS_H_

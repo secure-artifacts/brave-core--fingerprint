@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/resources/settings/privacy_page/privacy_page.ts b/chrome/browser/resources/settings/privacy_page/privacy_page.ts
+index 729e80634b958fe1c9ca1b50c3197e578cd4eb56..a2fd8a4bdc89f7ff9b5d0800fb3020e6fd33782c 100644
+--- a/chrome/browser/resources/settings/privacy_page/privacy_page.ts
++++ b/chrome/browser/resources/settings/privacy_page/privacy_page.ts
+@@ -16,6 +16,7 @@ import '../icons.html.js';
+ import '../privacy_icons.html.js';
+ import '../settings_page/settings_section.js';
+ import '../settings_shared.css.js';
++import './personalization_options.js';
+ import './privacy_guide/privacy_guide_dialog.js';
+ 
+ import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';

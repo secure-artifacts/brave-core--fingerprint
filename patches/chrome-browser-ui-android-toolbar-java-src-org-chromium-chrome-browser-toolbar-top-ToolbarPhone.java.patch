@@ -1,0 +1,44 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+index 26a1d62bfe17d157027ee49d601842e8f48e1915..cb9a6c048b891e50611390abe9a2b5e55961408a 100644
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -595,6 +595,7 @@ public class ToolbarPhone extends ToolbarLayout
+         if (mOptionalButtonCoordinator != null) {
+             mOptionalButtonCoordinator.setBackgroundColorFilter(color);
+         }
++        BraveToolbarLayout.class.cast(this).updateModernLocationBarColorImpl(color);
+     }
+ 
+     private void updateModernLocationBarCorners() {
+@@ -1285,6 +1286,7 @@ public class ToolbarPhone extends ToolbarLayout
+      * Tab Page.
+      */
+     private void updateLocationBarLayoutForExpansionAnimation() {
++        if (!BraveToolbarLayout.class.cast(this).isLocationBarValid(mLocationBar)) return;
+         TraceEvent.begin("ToolbarPhone.updateLocationBarLayoutForExpansionAnimation");
+         if (isInTabSwitcherMode()) return;
+ 
+@@ -1702,6 +1704,7 @@ public class ToolbarPhone extends ToolbarLayout
+             }
+         }
+ 
++        BraveToolbarLayout.class.cast(this).drawAnimationOverlay(mToolbarButtonsContainer, canvas);
+         // Draw the tab stack button and associated text if necessary.
+         ToggleTabStackButtonCoordinator tabSwitcherButtonCoordinator =
+                 getTabSwitcherButtonCoordinator();
+@@ -2094,6 +2097,7 @@ public class ToolbarPhone extends ToolbarLayout
+     @Override
+     public void onHomeButtonIsEnabledUpdate(boolean homeButtonEnabled) {
+         mIsHomeButtonEnabled = homeButtonEnabled;
++        mIsHomeButtonEnabled = false;
+         updateButtonVisibility();
+     }
+ 
+@@ -2503,6 +2507,7 @@ public class ToolbarPhone extends ToolbarLayout
+         } else {
+             populateUrlClearExpansionAnimatorSet(animators);
+         }
++        if (!BraveToolbarLayout.class.cast(this).isLocationBarValid(mLocationBar)) return;
+         mUrlFocusLayoutAnimator = new AnimatorSet();
+         mUrlFocusLayoutAnimator.playTogether(animators);
+ 

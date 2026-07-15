@@ -1,0 +1,47 @@
+diff --git a/components/permissions/permission_request_manager.cc b/components/permissions/permission_request_manager.cc
+index 46f2ec83796adc65a1ad2fb17b00cbe2b2194c8a..2ca3499eb76d6b23d6b0a456dcc1b13446e0577a 100644
+--- a/components/permissions/permission_request_manager.cc
++++ b/components/permissions/permission_request_manager.cc
+@@ -589,6 +589,7 @@ void PermissionRequestManager::OnVisibilityChanged(
+   }
+   bool prior_tab_is_active_ = tab_is_active_;
+   tab_is_active_ = visibility != content::Visibility::HIDDEN;
++  BRAVE_PERMISSION_REQUEST_MANAGER_ON_VISIBILITY_CHANGED
+   if (prior_tab_is_active_ != tab_is_active_) {
+     OnTabActiveChanged();
+   }
+@@ -604,6 +605,7 @@ GURL PermissionRequestManager::GetRequestingOrigin() const {
+   GURL origin = requests_.front()->requesting_origin();
+   if (DCHECK_IS_ON()) {
+     for (const auto& request : requests_) {
++      BRAVE_PERMISSION_REQUEST_MANAGER_GET_REQUESTING_ORIGIN
+       DCHECK_EQ(origin, request->requesting_origin());
+     }
+   }
+@@ -983,7 +985,7 @@ void PermissionRequestManager::DequeueRequestIfNeeded() {
+   // only after the camera request is resolved. This is caused by code in
+   // PermissionBubbleMediaAccessHandler and UserMediaClient. We probably don't
+   // need two permission queues, so resolve the duplication.
+-  if (web_contents()->HasUncommittedNavigationInPrimaryMainFrame() || view_ ||
++  if (!web_contents()->IsDocumentOnLoadCompletedInPrimaryMainFrame() || view_ ||
+       IsRequestInProgress()) {
+     return;
+   }
+@@ -1115,7 +1117,7 @@ void PermissionRequestManager::ShowPrompt() {
+     return;
+   }
+ 
+-  DCHECK(!web_contents()->HasUncommittedNavigationInPrimaryMainFrame());
++  DCHECK(web_contents()->IsDocumentOnLoadCompletedInPrimaryMainFrame());
+   DCHECK(current_request_ui_to_use_);
+ 
+   if (!tab_is_active_) {
+@@ -1979,7 +1981,7 @@ void PermissionRequestManager::OnTabActiveChanged() {
+     return;
+   }
+ 
+-  if (web_contents()->HasUncommittedNavigationInPrimaryMainFrame()) {
++  if (!web_contents()->IsDocumentOnLoadCompletedInPrimaryMainFrame()) {
+     return;
+   }
+ 

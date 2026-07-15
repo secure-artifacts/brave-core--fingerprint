@@ -1,0 +1,20 @@
+diff --git a/net/cookies/cookie_monster.h b/net/cookies/cookie_monster.h
+index c5249984334c44b593b3bd9e7d834be82260cea2..f7ae2ea139feabeac2d54c6bc1362a8359d27779 100644
+--- a/net/cookies/cookie_monster.h
++++ b/net/cookies/cookie_monster.h
+@@ -58,6 +58,7 @@ class CookieInclusionStatus;
+ // latter case, the cookie callback will be queued in tasks_pending_for_key_
+ // while PermanentCookieStore loads cookies for the specified domain key on DB
+ // thread.
++namespace chromium_impl {
+ class NET_EXPORT CookieMonster : public CookieStore {
+  public:
+   class PersistentCookieStore;
+@@ -980,6 +981,7 @@ class NET_EXPORT CookieMonster::PersistentCookieStore
+   friend class base::RefCountedThreadSafe<PersistentCookieStore>;
+ };
+ 
++}  // namespace chromium_impl
+ }  // namespace net
+ 
+ #endif  // NET_COOKIES_COOKIE_MONSTER_H_

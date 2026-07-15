@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/startup/BUILD.gn b/chrome/browser/ui/startup/BUILD.gn
+index 8ad9e15ad170bfea11eb1bc6dbf1119f7fbe3328..57b07876434042cc40fb33ac230bc672c7f2e602 100644
+--- a/chrome/browser/ui/startup/BUILD.gn
++++ b/chrome/browser/ui/startup/BUILD.gn
+@@ -28,6 +28,7 @@ source_set("startup_tab") {
+   ]
+ 
+   public_deps = [ "//url" ]
++  import("//brave/browser/ui/startup/sources.gni") public_deps += brave_browser_ui_startup_public_deps
+ }
+ 
+ source_set("startup") {

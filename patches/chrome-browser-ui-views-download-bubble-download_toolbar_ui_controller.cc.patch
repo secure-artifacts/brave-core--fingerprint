@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
+index c8cc4ec50d1eb63a37bc27496e2c442f54999e67..4ab77f015b6c57b83c4332a75e6d64c2c2c22944 100644
+--- a/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
++++ b/chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.cc
+@@ -724,6 +724,7 @@ void DownloadToolbarUIController::UpdateIcon() {
+   GetImageBadge(browser_view_)
+       ->UpdateImage(is_active, progress_download_count, progress_color,
+                     badge_background_color);
++  UpdateIcon_BraveImpl(browser_view_, *new_icon, state_, active_, action_item_);
+ 
+   // Do not show the progress ring when there is no in progress download.
+   if (state_ == IconState::kComplete || progress_info_.download_count == 0) {

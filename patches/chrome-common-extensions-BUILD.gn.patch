@@ -1,0 +1,44 @@
+diff --git a/chrome/common/extensions/BUILD.gn b/chrome/common/extensions/BUILD.gn
+index 493445e195a26e737619d3ecc1a046ae5c1681af..fc34b35e313a436827e043580918b5f4d36ee604 100644
+--- a/chrome/common/extensions/BUILD.gn
++++ b/chrome/common/extensions/BUILD.gn
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file.
+ 
++import("//brave/common/extensions/sources.gni")
+ import("//extensions/buildflags/buildflags.gni")
+ import("//tools/json_schema_compiler/json_features.gni")
+ 
+@@ -26,6 +27,7 @@ source_set("extensions") {
+     "permissions/chrome_permission_message_rules.h",
+     "sync_helper.h",
+   ]
++  public += brave_chrome_common_extensions_public
+ 
+   # Files that can only be included from here.
+   sources = [
+@@ -50,6 +52,7 @@ source_set("extensions") {
+     "permissions/chrome_permission_message_rules.cc",
+     "sync_helper.cc",
+   ]
++  sources += brave_chrome_common_extensions_sources
+ 
+   public_deps = [
+     "//base",
+@@ -62,6 +65,7 @@ source_set("extensions") {
+     "//ui/gfx/geometry",
+     "//url",
+   ]
++  public_deps += brave_chrome_common_extensions_public_deps
+ 
+   deps = [
+     "//chrome/app:branded_strings",
+@@ -88,6 +92,7 @@ source_set("extensions") {
+     "//ui/message_center/public/cpp",
+     "//url",
+   ]
++  deps += brave_chrome_common_extensions_deps
+ 
+   # TODO(https://crbug.com/356905053): These sources do not currently build
+   # cleanly on the experimental desktop-android configuration. Gradually include

@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/page_action/action_ids.h b/chrome/browser/ui/page_action/action_ids.h
+index 0b098109f5e60377efbdd8f1169d7bca9620c42b..d0545217922e9f2bc2c3ae1f7ff226eaf82f3063 100644
+--- a/chrome/browser/ui/page_action/action_ids.h
++++ b/chrome/browser/ui/page_action/action_ids.h
+@@ -21,6 +21,8 @@ namespace page_actions {
+ // consumed by the framework.
+ inline constexpr auto kActionIds = std::to_array<actions::ActionId>({
+     kActionAiMode,
++    kActionShowPartitionedStorage,
++    kActionShowPsstIcon,
+     kActionSidePanelShowLensOverlayResults,
+     kActionLensOverlayHomework,
+     kActionShowTranslate,

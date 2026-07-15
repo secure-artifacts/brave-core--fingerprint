@@ -1,0 +1,20 @@
+diff --git a/components/feature_engagement/public/feature_list.h b/components/feature_engagement/public/feature_list.h
+index cc51b48820cc89a85fc651c6639175a06787de8a..b129cc153b25fc9463481c172cab940381cfcabf 100644
+--- a/components/feature_engagement/public/feature_list.h
++++ b/components/feature_engagement/public/feature_list.h
+@@ -621,6 +621,7 @@ DEFINE_VARIATION_PARAM(kIPHiOSTabGroupsDesktopFeature,
+ DEFINE_VARIATION_PARAM(kIPHiOSPriceTrackingDesktopFeature,
+                        "IPH_iOSPriceTrackingDesktop");
+ #endif  // !BUILDFLAG(IS_ANDROID)
++BRAVE_FEATURE_ENGAGEMENT_VARIATION_PARAMS
+ 
+ #if !BUILDFLAG(IS_IOS)
+ DEFINE_VARIATION_PARAM(kIPHResumptionRailFeature, "IPH_ResumptionRail");
+@@ -637,6 +638,7 @@ DEFINE_VARIATION_PARAM(kIPHSearchPromotionFeature,
+ inline constexpr flags_ui::FeatureEntry::FeatureVariation
+     kIPHDemoModeChoiceVariations[] = {
+ // clang-format off
++        BRAVE_FEATURE_ENGAGEMENT_VARIATION_ENTRIES
+ #if BUILDFLAG(IS_ANDROID)
+ // keep-sorted start case=no
+ // VARIATION_ENTRY_ANDROID_START

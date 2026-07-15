@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.h b/chrome/browser/ui/views/profiles/profile_menu_view.h
+index 2b876009054a70bff3801b7a7706d3bcadcb2f70..89a681f6d1555c69daf55aac84a1c025e6ef7a9d 100644
+--- a/chrome/browser/ui/views/profiles/profile_menu_view.h
++++ b/chrome/browser/ui/views/profiles/profile_menu_view.h
+@@ -64,6 +64,7 @@ class ProfileMenuView : public ProfileMenuViewBase {
+   }
+ 
+  private:
++  BRAVE_PROFILE_MENU_VIEW_H
+   friend class ProfileMenuViewExtensionsTest;
+   friend class ProfileMenuViewSigninPendingTest;
+   friend class ProfileMenuViewSignoutTest;

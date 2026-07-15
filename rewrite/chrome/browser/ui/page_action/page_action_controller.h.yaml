@@ -1,0 +1,32 @@
+# Copyright (c) 2026 The Brave Authors. All rights reserved.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at https://mozilla.org/MPL/2.0/.
+
+substitutions:
+  - description: |
+      Wrap PageActionControllerImpl in a chromium_impl namespace.
+
+      The abstract PageActionController base, ScopedPageActionActivity and other
+      free declarations are intentionally left in page_actions::; only the concrete
+      impl class is wrapped, so we can shadow it with our own implementation.
+    regex:
+      re_pattern: '(class PageActionControllerImpl[\s\S]*?\n\};)'
+      replace: |
+        namespace chromium_impl {
+        \1
+        }  // namespace chromium_impl
+
+  - description: |
+      Make CreateModel virtual so the brave PageActionControllerImpl override can
+      replace model construction with the brave PageActionModel.
+    make_virtual:
+      class_name: PageActionControllerImpl
+      method_name: CreateModel
+
+  - description: |
+      Friend the brave page_actions::PageActionControllerImpl so it can reach the
+      private members it relies on (FindPageActionModel, page_action_model_factory_).
+    add_friend:
+      class_name: PageActionControllerImpl
+      friend_type: class ::page_actions::PageActionControllerImpl

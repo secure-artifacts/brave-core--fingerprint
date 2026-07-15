@@ -1,0 +1,28 @@
+diff --git a/net/cookies/cookie_monster.cc b/net/cookies/cookie_monster.cc
+index 83db80e1586859eb7eea229e294f25c5c87346a0..289fc95a250a26d3b8bb8ca8b93dce9fa69f9a42 100644
+--- a/net/cookies/cookie_monster.cc
++++ b/net/cookies/cookie_monster.cc
+@@ -147,7 +147,7 @@ enum CookieType {
+   COOKIE_TYPE_LAST_ENTRY
+ };
+ 
+-void MaybeRunDeleteCallback(base::WeakPtr<net::CookieMonster> cookie_monster,
++void MaybeRunDeleteCallback(base::WeakPtr<net::chromium_impl::CookieMonster> cookie_monster,
+                             base::OnceClosure callback) {
+   if (cookie_monster && callback)
+     std::move(callback).Run();
+@@ -222,7 +222,7 @@ void LogStoredCookieToUMA(const net::CanonicalCookie& cc,
+ 
+ }  // namespace
+ 
+-namespace net {
++namespace net::chromium_impl {
+ 
+ // See comments at declaration of these variables in cookie_monster.h
+ // for details.
+@@ -3028,4 +3028,4 @@ std::optional<bool> CookieMonster::SiteHasCookieInOtherPartition(
+   });
+ }
+ 
+-}  // namespace net
++}  // namespace net::chromium_impl

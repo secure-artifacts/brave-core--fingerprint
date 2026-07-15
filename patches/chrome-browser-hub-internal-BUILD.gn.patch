@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/hub/internal/BUILD.gn b/chrome/browser/hub/internal/BUILD.gn
+index 7dc8294458224de87f0a7d834e254d2537d72409..9c1b8e4278826b5f379bc91f61387fe3e25751ec 100644
+--- a/chrome/browser/hub/internal/BUILD.gn
++++ b/chrome/browser/hub/internal/BUILD.gn
+@@ -109,6 +109,7 @@ android_library("java") {
+     "//ui/edge_to_edge:java",
+     "//url:url_java",
+   ]
++  sources += brave_browser_hub_internal_java_sources deps += brave_browser_hub_internal_java_deps
+ }
+ 
+ android_resources("java_resources") {

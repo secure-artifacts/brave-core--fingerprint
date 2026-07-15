@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h b/chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h
+index b08aa0cddccddeddf58e49f3cfca51422bdfc66e..b714f5ad9bf0fe3b549411da11faa1188e21a602 100644
+--- a/chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h
++++ b/chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h
+@@ -24,6 +24,7 @@ class BookmarksSidePanelCoordinator {
+  public:
+   explicit BookmarksSidePanelCoordinator(
+       BrowserWindowInterface& browser_window_interface);
++  virtual
+   ~BookmarksSidePanelCoordinator();
+ 
+   static BookmarksSidePanelCoordinator* From(BrowserWindowInterface* browser);

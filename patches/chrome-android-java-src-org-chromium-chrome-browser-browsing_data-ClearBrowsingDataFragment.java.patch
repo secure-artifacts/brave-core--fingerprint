@@ -1,0 +1,13 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/browsing_data/ClearBrowsingDataFragment.java b/chrome/android/java/src/org/chromium/chrome/browser/browsing_data/ClearBrowsingDataFragment.java
+index 35de260208adea4265128bd463bcfcc6ab0fff95..9dad2b6b4012bffec4cb955e5a8a71c3de06091f 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/browsing_data/ClearBrowsingDataFragment.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/browsing_data/ClearBrowsingDataFragment.java
+@@ -356,7 +356,7 @@ public class ClearBrowsingDataFragment extends ChromeBaseSettingsFragment
+     }
+ 
+     /** Called when browsing data is about to be cleared. */
+-    private void onClearBrowsingData() {
++    protected void onClearBrowsingData() {
+         RecordUserAction.record("ClearBrowsingData_AdvancedTab");
+     }
+ 

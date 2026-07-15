@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index e6b2e9bbfe12800cd8e31225f1e56f57a0526809..c4833ebe6ce65698af1f8bbf665fdb659f8568d2 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -603,6 +603,7 @@ void ProfileImpl::TakePrefsFromStartupData() {
+       CreateExtensionPrefStore(this, /*incognito_pref_store=*/false));
+ 
+   ProfileKeyStartupAccessor::GetInstance()->Reset();
++  BRAVE_PROFILE_IMPL_TAKE_PREFS_FROM_STARTUP_DATA
+ }
+ #endif
+ 

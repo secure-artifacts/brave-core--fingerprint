@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/resources/settings/settings.html b/chrome/browser/resources/settings/settings.html
+index 9694b7eefa644f26a3ac110609a592d2b636b543..4413c908b09b2cb13e60acd6c92dfa5dc20af13e 100644
+--- a/chrome/browser/resources/settings/settings.html
++++ b/chrome/browser/resources/settings/settings.html
+@@ -6,6 +6,7 @@
+   <meta name="color-scheme" content="light dark">
+   <title>$i18n{settings}</title>
+   <base href="chrome://settings">
++  <link rel="stylesheet" href="chrome://resources/brave/page_specific/settings/settings_loading_shim.css"><link rel="stylesheet" href="chrome://resources/brave/css/nala.css">
+   <link rel="stylesheet" href="chrome://resources/css/md_colors.css">
+   <style>
+     html {
