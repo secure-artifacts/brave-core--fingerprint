@@ -6,7 +6,10 @@
 #include "chrome/browser/media/router/media_router_feature.h"
 
 #include "base/check.h"
+#include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 #include "build/build_config.h"
+#include "components/prefs/pref_service.h"
+#include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/browser_context.h"
 
 #define MediaRouterEnabled MediaRouterEnabled_ChromiumImpl
@@ -18,6 +21,11 @@ namespace media_router {
 bool MediaRouterEnabled(content::BrowserContext* context) {
   if (context->IsTor()) {
     // Disable Media Router in Tor windows.
+    return false;
+  }
+  // Media Router local discovery cannot be routed through the profile proxy.
+  if (fingerprint_browser::ShouldUseProfileProxy(
+          *user_prefs::UserPrefs::Get(context))) {
     return false;
   }
 #if BUILDFLAG(IS_ANDROID)

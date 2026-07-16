@@ -1,0 +1,63 @@
+diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.cc b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+index 48eb8d2fbdcf5917401ccf803ac8f4d3df917507..6da5e80e6c90265994b2fa0fc8f72cab58bb1b9f 100644
+--- a/third_party/blink/renderer/core/timezone/timezone_controller.cc
++++ b/third_party/blink/renderer/core/timezone/timezone_controller.cc
+@@ -4,6 +4,7 @@
+
+ #include "third_party/blink/renderer/core/timezone/timezone_controller.h"
+
++#include "base/command_line.h"
+ #include "base/feature_list.h"
+ #include "mojo/public/cpp/bindings/pending_remote.h"
+ #include "mojo/public/cpp/bindings/remote.h"
+@@ -37,6 +38,9 @@ namespace {
+ // no later than January 2025.
+ BASE_FEATURE(kLazyBlinkTimezoneInit, base::FEATURE_DISABLED_BY_DEFAULT);
+
++constexpr char kFingerprintBrowserTimezoneSwitch[] =
++    "brave-fingerprint-browser-timezone";
++
+ // Notify V8 that the date/time configuration of the system might have changed.
+ void NotifyTimezoneChangeToV8(v8::Isolate* isolate) {
+   DCHECK(isolate);
+@@ -109,6 +113,13 @@ void TimeZoneController::Init() {
+   Platform::Current()->GetBrowserInterfaceBroker()->GetInterface(
+       monitor.BindNewPipeAndPassReceiver());
+   monitor->AddClient(instance().receiver_.BindNewPipeAndPassRemote());
++
++  const std::string timezone_id =
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
++          kFingerprintBrowserTimezoneSwitch);
++  if (!timezone_id.empty()) {
++    SetFingerprintBrowserTimezoneOverride(String::FromUtf8(timezone_id));
++  }
+ }
+
+ // static
+@@ -178,6 +189,26 @@ const String& TimeZoneController::TimeZoneIdOverride() {
+   return instance().override_timezone_id_;
+ }
+
++// static
++void TimeZoneController::SetFingerprintBrowserTimezoneOverride(
++    const String& timezone_id) {
++  if (timezone_id.empty()) {
++    instance().fingerprint_browser_timezone_override_.reset();
++    return;
++  }
++
++  if (instance().fingerprint_browser_timezone_override_) {
++    instance().fingerprint_browser_timezone_override_->change(timezone_id);
++    return;
++  }
++
++  auto result = SetTimeZoneOverride(timezone_id);
++  if (result.status == TimeZoneOverrideStatus::kSuccess) {
++    instance().fingerprint_browser_timezone_override_ =
++        std::move(result.handle);
++  }
++}
++
+ // static
+ void TimeZoneController::ClearTimeZoneOverride() {
+   base::AutoLock locker(instance().lock_);

@@ -1,5 +1,6 @@
 include_rules = [
   "+brave/content/public/browser",
+  "+brave/browser/fingerprint_browser",
   "+brave/components/brave_shields/core/browser",
   "+brave/components/brave_shields/content/test",
   "+brave/components/brave_user_agent/common/features.h",

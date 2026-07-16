@@ -5,3 +5,6 @@
 
 brave_components_browsing_data_core_public_deps =
     [ "//brave/components/ai_chat/core/common/buildflags" ]
+
+brave_components_browsing_data_core_sources =
+    [ "//brave/chromium_src/components/browsing_data/core/browsing_data_utils.cc" ]

@@ -11,8 +11,11 @@
   CalculateDeviceWidth(__VA_ARGS__, /* early = */ true)
 #define CalculateDeviceHeight(...) \
   CalculateDeviceHeight(__VA_ARGS__, /* early = */ true)
+#define CalculateDevicePixelRatio(...) \
+  CalculateDevicePixelRatio(__VA_ARGS__, /* early = */ true)
 
 #include <third_party/blink/renderer/core/css/media_values_cached.cc>
 
 #undef CalculateDeviceWidth
 #undef CalculateDeviceHeight
+#undef CalculateDevicePixelRatio

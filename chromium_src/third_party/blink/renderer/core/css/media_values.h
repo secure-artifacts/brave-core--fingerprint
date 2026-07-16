@@ -14,9 +14,14 @@
   CalculateDeviceHeight(__VA_ARGS__, bool); \
   static int CalculateDeviceHeight_ChromiumImpl(__VA_ARGS__)
 
+#define CalculateDevicePixelRatio(...)          \
+  CalculateDevicePixelRatio(__VA_ARGS__, bool); \
+  static float CalculateDevicePixelRatio_ChromiumImpl(__VA_ARGS__)
+
 #include <third_party/blink/renderer/core/css/media_values.h>  // IWYU pragma: export
 
 #undef CalculateDeviceWidth
 #undef CalculateDeviceHeight
+#undef CalculateDevicePixelRatio
 
 #endif  // BRAVE_CHROMIUM_SRC_THIRD_PARTY_BLINK_RENDERER_CORE_CSS_MEDIA_VALUES_H_

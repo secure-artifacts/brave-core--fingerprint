@@ -24,8 +24,9 @@ src/brave/
 
 Note: this is a fork of the much larger `brave/brave-core` (full Chromium
 customization layer). The domain scope for `CONTEXT.md` here is this fork's
-own work — the fingerprinting/`sayHello`-style page-injection features on the
-`fingerprint` branch — not an attempt to model all of brave-core or Chromium.
+own work — the persona, profile proxy, fingerprint spoofing, and L3
+geo-consistency work on the `fingerprint` branch — not an attempt to model all
+of brave-core or Chromium.
 
 ## Use the glossary's vocabulary
 

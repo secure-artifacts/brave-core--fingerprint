@@ -7,6 +7,7 @@
 
 #include <base/check_is_test.cc>
 
+#if defined(BRAVE_CHECK_IS_TEST_HEADER_OVERRIDE)
 namespace {
 bool g_this_is_a_brave_test = false;
 }
@@ -25,10 +26,11 @@ TestVendor CurrentTestVendor::Get() {
   if (g_this_is_a_brave_test) {
     return TestVendor::kBrave;
   }
-  if (g_this_is_a_test) {
+  if (internal::get_is_test_impl()) {
     return TestVendor::kChromium;
   }
   return TestVendor::kNone;
 }
 
 }  // namespace base
+#endif

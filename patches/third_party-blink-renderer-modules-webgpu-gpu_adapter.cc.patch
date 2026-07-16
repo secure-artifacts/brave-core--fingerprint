@@ -1,12 +1,36 @@
 diff --git a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
-index 44527d0a7b264441eac9c25fa8b9347aeeb5c7d1..603729a3bb243bb4edb18c077d466aeaa277b1eb 100644
+index 4e4ca8dcb4febd1fc8eb132e24cbf1d98b41aef7..a07f0ee7f8ca1dfd571a515c0fa2fdbc025c2f05 100644
 --- a/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
 +++ b/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc
-@@ -143,6 +143,7 @@ GPUAdapterInfo* GPUAdapter::CreateAdapterInfoForAdapter() {
+@@ -26,6 +26,10 @@
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+ #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+
++#ifndef BRAVE_WEBGPU_ADAPTER_INFO_EXTRA_ARGS
++#define BRAVE_WEBGPU_ADAPTER_INFO_EXTRA_ARGS
++#endif
++
+ namespace blink {
+
+ namespace {
+@@ -45,7 +49,7 @@ GPUSupportedFeatures* MakeFeatureNameSet(wgpu::Adapter adapter) {
+     if (feature_name_enum_optional) {
+       features->AddFeatureName(
+           V8GPUFeatureName(feature_name_enum_optional.value()));
+-      }
++    }
+   }
+   return features;
+ }
+@@ -143,9 +147,10 @@ GPUAdapterInfo* GPUAdapter::CreateAdapterInfoForAdapter() {
        info->AppendMemoryHeapInfo(MakeGarbageCollected<GPUMemoryHeapInfo>(m));
      }
    } else {
 +    BRAVE_SCRUB_WEBGPU_ADAPTER_INFO
      info = MakeGarbageCollected<GPUAdapterInfo>(
          vendor_, architecture_, subgroup_min_size_, subgroup_max_size_,
-         is_fallback_adapter);
+-        is_fallback_adapter);
++        is_fallback_adapter BRAVE_WEBGPU_ADAPTER_INFO_EXTRA_ARGS);
+   }
+
+   // SAFETY: Required from caller

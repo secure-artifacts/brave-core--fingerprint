@@ -27,6 +27,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -127,6 +128,14 @@ bool WaitAndClickElement(content::WebContents* web_contents,
 }  // namespace
 
 namespace brave_wallet {
+
+class WalletPanelConfigBrowserTest : public InProcessBrowserTest {};
+
+IN_PROC_BROWSER_TEST_F(WalletPanelConfigBrowserTest, IsRegistered) {
+  EXPECT_NE(TopChromeWebUIConfig::From(
+                browser()->profile(), GURL(kBraveUIWalletPanelURL)),
+            nullptr);
+}
 
 class WalletPanelUIBrowserTest : public InProcessBrowserTest {
  public:

@@ -1,0 +1,20 @@
+diff --git a/chrome/browser/media/router/BUILD.gn b/chrome/browser/media/router/BUILD.gn
+index 9e73a34e7077b5df7198cc95f28eb4af5a92b752..eb328270397f3a39a426e98bbbdb445c4449d677 100644
+--- a/chrome/browser/media/router/BUILD.gn
++++ b/chrome/browser/media/router/BUILD.gn
+@@ -50,6 +50,7 @@ static_library("media_router_feature") {
+     "//extensions/buildflags",
+   ]
+   deps = [
++    "//brave/components/fingerprint_browser/browser",
+     "//chrome/browser/profiles",
+     "//chrome/browser/profiles:profile",
+     "//chrome/common:constants",
+@@ -321,6 +322,7 @@ source_set("unittests") {
+     ":router",
+     "//base",
+     "//base/test:test_support",
++    "//brave/components/fingerprint_browser/browser",
+     "//chrome/test:test_support",
+     "//components/endpoint_fetcher",
+     "//components/media_router/browser:test_support",

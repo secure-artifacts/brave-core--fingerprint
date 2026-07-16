@@ -1,0 +1,143 @@
+diff --git a/net/http/http_proxy_connect_job_unittest.cc b/net/http/http_proxy_connect_job_unittest.cc
+index 1edb14d9101312c5da6c286cca9eb37841740152..365f6eaade4ce645be3112dbe4ac1beea3b5899b 100644
+--- a/net/http/http_proxy_connect_job_unittest.cc
++++ b/net/http/http_proxy_connect_job_unittest.cc
+@@ -264,6 +264,37 @@ class HttpProxyConnectJobTest : public HttpProxyConnectJobTestBase,
+         handles::kInvalidNetworkHandle);
+   }
+
++  scoped_refptr<HttpProxySocketParams> CreateParamsForProxyServer(
++      bool tunnel,
++      SecureDnsPolicy secure_dns_policy,
++      const ProxyServer& proxy_server) const {
++    DCHECK(proxy_server.is_http() || proxy_server.is_https());
++
++    ConnectJobParams params;
++    if (proxy_server.is_http()) {
++      params = ConnectJobParams(base::MakeRefCounted<TransportSocketParams>(
++          proxy_server.host_port_pair(), NetworkAnonymizationKey(),
++          secure_dns_policy, handles::kInvalidNetworkHandle,
++          OnHostResolutionCallback(),
++          /*supported_alpns=*/base::flat_set<std::string>()));
++    } else {
++      params = ConnectJobParams(base::MakeRefCounted<SSLSocketParams>(
++          ConnectJobParams(base::MakeRefCounted<TransportSocketParams>(
++              proxy_server.host_port_pair(), NetworkAnonymizationKey(),
++              secure_dns_policy, handles::kInvalidNetworkHandle,
++              OnHostResolutionCallback(),
++              /*supported_alpns=*/base::flat_set<std::string>())),
++          proxy_server.host_port_pair(), SSLConfig(),
++          NetworkAnonymizationKey()));
++    }
++
++    return base::MakeRefCounted<HttpProxySocketParams>(
++        std::move(params), HostPortPair(kEndpointHost, tunnel ? 443 : 80),
++        ProxyChain(proxy_server), /*proxy_chain_index=*/0, tunnel,
++        TRAFFIC_ANNOTATION_FOR_TESTS, NetworkAnonymizationKey(),
++        secure_dns_policy, handles::kInvalidNetworkHandle);
++  }
++
+   // Creates a correctly constructed `SSLSocketParams()` corresponding to the
+   // proxy server in `proxy_chain` at index `proxy_chain_index`.
+   scoped_refptr<SSLSocketParams> CreateNestedHttpsProxyParams(
+@@ -1371,6 +1402,100 @@ TEST_P(HttpProxyConnectJobTest, NeedAuth) {
+   }
+ }
+
++TEST_P(HttpProxyConnectJobTest,
++       ConfiguredProxyAuthCredentialsAvoidAuthCallback) {
++  for (IoMode io_mode : {SYNCHRONOUS, ASYNC}) {
++    SCOPED_TRACE(io_mode);
++
++    session_deps_.host_resolver->set_synchronous_mode(io_mode == SYNCHRONOUS);
++
++    MockWrite writes[] = {
++        MockWrite(io_mode, 0,
++                  "CONNECT www.endpoint.test:443 HTTP/1.1\r\n"
++                  "Host: www.endpoint.test:443\r\n"
++                  "Proxy-Connection: keep-alive\r\n"
++                  "User-Agent: test-ua\r\n\r\n"),
++        MockWrite(io_mode, 5,
++                  "CONNECT www.endpoint.test:443 HTTP/1.1\r\n"
++                  "Host: www.endpoint.test:443\r\n"
++                  "Proxy-Connection: keep-alive\r\n"
++                  "User-Agent: test-ua\r\n"
++                  "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
++    };
++    MockRead reads[] = {
++        MockRead(io_mode, 1, "HTTP/1.1 407 Proxy Authentication Required\r\n"),
++        MockRead(io_mode, 2,
++                 "Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
++        MockRead(io_mode, 3, "Content-Length: 10\r\n\r\n"),
++        MockRead(io_mode, 4, "0123456789"),
++        MockRead(io_mode, 6, "HTTP/1.1 200 Connection Established\r\n\r\n"),
++    };
++
++    SpdyTestUtil spdy_util;
++    spdy::SpdySerializedFrame connect(spdy_util.ConstructSpdyConnect(
++        base::span<const std::string_view>(), 1,
++        HttpProxyConnectJob::kH2QuicTunnelPriority,
++        HostPortPair(kEndpointHost, 443)));
++    spdy::SpdySerializedFrame rst(
++        spdy_util.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
++    spdy_util.UpdateWithStreamDestruction(1);
++
++    const std::string_view kSpdyAuthCredentials[] = {
++        "user-agent",
++        "test-ua",
++        "proxy-authorization",
++        "Basic Zm9vOmJhcg==",
++    };
++    spdy::SpdySerializedFrame connect2(spdy_util.ConstructSpdyConnect(
++        kSpdyAuthCredentials, 3, HttpProxyConnectJob::kH2QuicTunnelPriority,
++        HostPortPair(kEndpointHost, 443)));
++
++    MockWrite spdy_writes[] = {
++        CreateMockWrite(connect, 0, io_mode),
++        CreateMockWrite(rst, 2, io_mode),
++        CreateMockWrite(connect2, 3, io_mode),
++    };
++
++    const char kAuthStatus[] = "407";
++    const std::string_view kAuthChallenge[] = {
++        "proxy-authenticate",
++        "Basic realm=\"MyRealm1\"",
++    };
++    spdy::SpdySerializedFrame connect_auth_resp(
++        spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge, 1));
++    spdy::SpdySerializedFrame connect2_resp(spdy_util.ConstructSpdyGetReply(
++        base::span<const std::string_view>(), 3));
++    MockRead spdy_reads[] = {
++        CreateMockRead(connect_auth_resp, 1, ASYNC),
++        CreateMockRead(connect2_resp, 4, ASYNC),
++        MockRead(ASYNC, OK, 5),
++    };
++
++    Initialize(reads, writes, spdy_reads, spdy_writes, io_mode);
++
++    ProxyServer proxy_server(
++        GetParam() == HTTP ? ProxyServer::SCHEME_HTTP
++                           : ProxyServer::SCHEME_HTTPS,
++        HostPortPair("foo", "bar",
++                     GetParam() == HTTP ? kHttpProxyHost : kHttpsProxyHost,
++                     GetParam() == HTTP ? 80 : 443));
++    TestConnectJobDelegate test_delegate;
++    std::unique_ptr<ConnectJob> connect_job = CreateConnectJob(
++        CreateParamsForProxyServer(/*tunnel=*/true, SecureDnsPolicy::kAllow,
++                                   proxy_server),
++        &test_delegate, DEFAULT_PRIORITY);
++
++    ASSERT_EQ(ERR_IO_PENDING, connect_job->Connect());
++    EXPECT_EQ(OK, test_delegate.WaitForResult());
++    EXPECT_EQ(0, test_delegate.num_auth_challenges());
++
++    if (GetParam() == SPDY) {
++      session_->CloseAllConnections(ERR_FAILED, "Very good reason");
++    }
++    session_->http_auth_cache()->ClearAllEntries();
++  }
++}
++
+ // Test the case where auth credentials are not cached and the first time
+ // credentials are sent, they are rejected.
+ TEST_P(HttpProxyConnectJobTest, NeedAuthTwice) {

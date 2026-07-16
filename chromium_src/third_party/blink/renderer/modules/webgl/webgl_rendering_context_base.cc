@@ -7,6 +7,8 @@
 
 #include <optional>
 
+#include "base/compiler_specific.h"
+#include "base/numerics/checked_math.h"
 #include "brave/third_party/blink/renderer/bindings/core/webgl/webgl_farbled_extension_handler.h"
 #include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
 #include "third_party/blink/public/common/features.h"
@@ -34,16 +36,76 @@ bool AllowFingerprintingForHost(blink::CanvasRenderingContextHost* host) {
                                     ContentSettingsType::BRAVE_WEBCOMPAT_WEBGL);
 }
 
+void MaybePerturbWebGLReadPixels(blink::CanvasRenderingContextHost* host,
+                                 bool is_webgl2,
+                                 GLsizei width,
+                                 GLsizei height,
+                                 GLenum format,
+                                 GLenum type,
+                                 blink::DOMArrayBufferView* pixels,
+                                 int64_t offset) {
+  if (!host || !pixels || width <= 0 || height <= 0 || format != GL_RGBA ||
+      type != GL_UNSIGNED_BYTE) {
+    return;
+  }
+
+  blink::ExecutionContext* context = host->GetTopExecutionContext();
+  ContentSettingsType webcompat_settings_type =
+      is_webgl2 ? ContentSettingsType::BRAVE_WEBCOMPAT_WEBGL2
+                : ContentSettingsType::BRAVE_WEBCOMPAT_WEBGL;
+  if (brave::GetBraveFarblingLevelFor(context, webcompat_settings_type,
+                                      BraveFarblingLevel::OFF) ==
+      BraveFarblingLevel::OFF) {
+    return;
+  }
+
+  base::CheckedNumeric<size_t> byte_count = static_cast<size_t>(width);
+  byte_count *= static_cast<size_t>(height);
+  byte_count *= 4u;
+  if (!byte_count.IsValid()) {
+    return;
+  }
+
+  base::CheckedNumeric<size_t> offset_in_bytes = offset;
+  offset_in_bytes *= pixels->TypeSize();
+  if (!offset_in_bytes.IsValid() ||
+      offset_in_bytes.ValueOrDie() > pixels->byteLength()) {
+    return;
+  }
+  const size_t bytes = byte_count.ValueOrDie();
+  const size_t offset_bytes = offset_in_bytes.ValueOrDie();
+  uint8_t* data = static_cast<uint8_t*>(pixels->BaseAddressMaybeShared());
+  if (!data || bytes > pixels->byteLength() - offset_bytes) {
+    return;
+  }
+
+  brave::BraveSessionCache::From(*context).PerturbPixels(
+      UNSAFE_TODO(base::span<uint8_t>(data + offset_bytes, bytes)),
+      webcompat_settings_type);
+}
+
 blink::ScriptValue GetWebGLDebugInfoValue(
     blink::ScriptState* script_state,
     blink::CanvasRenderingContextHost* host,
     const WebGLDebugRendererInfoType type,
     const blink::String original_string_value) {
+  blink::ExecutionContext* context = host->GetTopExecutionContext();
   auto level = brave::GetBraveFarblingLevelFor(
-      host->GetTopExecutionContext(),
-      ContentSettingsType::BRAVE_WEBCOMPAT_WEBGL, BraveFarblingLevel::OFF);
+      context, ContentSettingsType::BRAVE_WEBCOMPAT_WEBGL,
+      BraveFarblingLevel::OFF);
   blink::ScriptValue original_script_value =
       blink::WebGLAny(script_state, original_string_value);
+
+  if (level != BraveFarblingLevel::OFF) {
+    brave::BraveSessionCache& cache = brave::BraveSessionCache::From(*context);
+    std::optional<blink::String> persona_value =
+        type == WebGLDebugRendererInfoType::VENDOR
+            ? cache.PersonaWebGLVendor()
+            : cache.PersonaWebGLRenderer();
+    if (persona_value) {
+      return blink::WebGLAny(script_state, *persona_value);
+    }
+  }
 
   switch (level) {
     case BraveFarblingLevel::OFF:
@@ -119,7 +181,9 @@ blink::ScriptValue GetWebGLDebugInfoValue(
 
 #define getExtension getExtension_ChromiumImpl
 #define getSupportedExtensions getSupportedExtensions_ChromiumImpl
+#define ReadPixelsHelper ReadPixelsHelper_ChromiumImpl
 #include <third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc>
+#undef ReadPixelsHelper
 #undef getSupportedExtensions
 #undef getExtension
 
@@ -157,6 +221,20 @@ WebGLFarbledExtensionHandler* CreateOrGetValidWebGLExtensionHandler(
 }
 
 }  // namespace
+
+void WebGLRenderingContextBase::ReadPixelsHelper(GLint x,
+                                                 GLint y,
+                                                 GLsizei width,
+                                                 GLsizei height,
+                                                 GLenum format,
+                                                 GLenum type,
+                                                 DOMArrayBufferView* pixels,
+                                                 int64_t offset) {
+  ReadPixelsHelper_ChromiumImpl(x, y, width, height, format, type, pixels,
+                                offset);
+  MaybePerturbWebGLReadPixels(Host(), IsWebGL2(), width, height, format, type,
+                              pixels, offset);
+}
 
 // This method returns the supported WebGL extensions. If fingerprinting
 // protections are enabled then the list may include farbled values.

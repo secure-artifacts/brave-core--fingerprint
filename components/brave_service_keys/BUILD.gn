@@ -5,6 +5,7 @@
 
 import("//brave/build/config.gni")
 import("//build/buildflag_header.gni")
+import("//chrome/version.gni")
 import("//testing/test.gni")
 
 declare_args() {
@@ -36,7 +37,7 @@ if (is_release_channel) {
   _channel = brave_channel
 }
 
-_brave_services_key_id = "$_platform-$chromium_version_major-$_channel"
+_brave_services_key_id = "$_platform-$chrome_version_major-$_channel"
 
 # TODO(https://github.com/brave/brave-browser/issues/56449): Remove this once
 # a couple of releases have gone through and we've confirmed the derived value

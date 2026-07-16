@@ -24,11 +24,15 @@
 #include "brave/components/brave_shields/content/browser/ad_block_subscription_download_manager.h"
 #include "brave/components/brave_shields/content/test/ad_block_unit_test_helper.h"
 #include "brave/components/brave_shields/content/test/test_filters_provider.h"
+#include "brave/components/fingerprint_browser/browser/pref_names.h"
 #include "brave/test/base/testing_brave_browser_process.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_browser_process.h"
+#include "chrome/test/base/testing_profile.h"
+#include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/base/net_errors.h"
 #include "net/dns/mock_host_resolver.h"
@@ -100,6 +104,21 @@ void FakeAdBlockSubscriptionDownloadManagerGetter(
     base::OnceCallback<
         void(brave_shields::AdBlockSubscriptionDownloadManager*)>) {
   // no-op, subscription services are not currently used in unit tests
+}
+
+void EnableFingerprintProfileProxy(TestingProfile* profile) {
+  PrefService* prefs = profile->GetPrefs();
+  if (!prefs->FindPreference(
+          fingerprint_browser::prefs::kProfileProxyEnabled)) {
+    fingerprint_browser::prefs::RegisterProfilePrefs(
+        profile->GetTestingPrefService()->registry());
+  }
+  prefs->SetBoolean(fingerprint_browser::prefs::kProfileProxyEnabled, true);
+  prefs->SetString(fingerprint_browser::prefs::kProfileProxyScheme,
+                   fingerprint_browser::prefs::kProfileProxySchemeHttp);
+  prefs->SetString(fingerprint_browser::prefs::kProfileProxyHost,
+                   "proxy.example");
+  prefs->SetInteger(fingerprint_browser::prefs::kProfileProxyPort, 8080);
 }
 
 template <typename PtrStrategy>
@@ -278,6 +297,39 @@ TYPED_TEST(BraveAdBlockTPNetworkDelegateHelperTest, Default1pException) {
   EXPECT_TRUE(this->CheckRequest(request_info));
   EXPECT_EQ(request_info->blocked_by(), brave::kNotBlocked);
   EXPECT_TRUE(request_info->new_url_spec().empty());
+  EXPECT_EQ(0ULL, this->host_resolver_->num_resolve());
+}
+
+TYPED_TEST(BraveAdBlockTPNetworkDelegateHelperTest,
+           CnameUncloakingRunsWithBrowserContext) {
+  this->ResetAdblockInstance("");
+
+  TestingProfile profile;
+  const GURL url("https://tracker.example/script.js");
+  auto request_info = this->MakeRequest(url);
+  request_info->set_request_identifier(1);
+  request_info->set_resource_type(blink::mojom::ResourceType::kScript);
+  request_info->set_initiator_url(GURL("https://site.example"));
+  request_info->set_browser_context(&profile);
+
+  EXPECT_TRUE(this->CheckRequest(request_info));
+  EXPECT_EQ(1ULL, this->host_resolver_->num_resolve());
+}
+
+TYPED_TEST(BraveAdBlockTPNetworkDelegateHelperTest,
+           CnameUncloakingSkippedForProfileProxy) {
+  this->ResetAdblockInstance("");
+
+  TestingProfile profile;
+  EnableFingerprintProfileProxy(&profile);
+  const GURL url("https://tracker.example/script.js");
+  auto request_info = this->MakeRequest(url);
+  request_info->set_request_identifier(1);
+  request_info->set_resource_type(blink::mojom::ResourceType::kScript);
+  request_info->set_initiator_url(GURL("https://site.example"));
+  request_info->set_browser_context(&profile);
+
+  EXPECT_TRUE(this->CheckRequest(request_info));
   EXPECT_EQ(0ULL, this->host_resolver_->num_resolve());
 }
 

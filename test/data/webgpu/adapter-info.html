@@ -17,7 +17,8 @@
           return 'no-adapter';
         }
         const info = adapter.info;
-        return info.vendor + ',' + info.architecture + ',' + info.device;
+        return info.vendor + ',' + info.architecture + ',' + info.device +
+            ',' + info.description;
       })();
     </script>
   </body>

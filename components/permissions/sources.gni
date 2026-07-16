@@ -7,7 +7,20 @@ import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
 import("//brave/components/containers/buildflags/buildflags.gni")
 import("//third_party/widevine/cdm/widevine.gni")
 
+brave_components_permissions_common_sources = [
+  "//brave/chromium_src/components/permissions/constants.cc",
+  "//brave/chromium_src/components/permissions/features.cc",
+]
+
 brave_components_permissions_sources = [
+  "//brave/chromium_src/components/permissions/chooser_controller.cc",
+  "//brave/chromium_src/components/permissions/permission_context_base.cc",
+  "//brave/chromium_src/components/permissions/permission_request.cc",
+  "//brave/chromium_src/components/permissions/permission_request_manager.cc",
+  "//brave/chromium_src/components/permissions/permission_uma_util.cc",
+  "//brave/chromium_src/components/permissions/permission_util.cc",
+  "//brave/chromium_src/components/permissions/permissions_client.cc",
+  "//brave/chromium_src/components/permissions/request_type.cc",
   "//brave/components/permissions/contexts/brave_google_sign_in_permission_context.cc",
   "//brave/components/permissions/contexts/brave_google_sign_in_permission_context.h",
   "//brave/components/permissions/contexts/brave_open_ai_chat_permission_context.cc",
@@ -26,6 +39,11 @@ brave_components_permissions_sources = [
   "//brave/components/permissions/permission_origin_lifetime_monitor.h",
   "//brave/components/permissions/permission_origins.cc",
   "//brave/components/permissions/permission_origins.h",
+]
+
+brave_components_permissions_desktop_sources = [
+  "//brave/chromium_src/components/permissions/bluetooth_chooser_controller.cc",
+  "//brave/chromium_src/components/permissions/bluetooth_scanning_prompt_controller.cc",
 ]
 
 if (enable_widevine) {

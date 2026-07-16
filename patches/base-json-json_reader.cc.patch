@@ -1,0 +1,53 @@
+diff --git a/base/json/json_reader.cc b/base/json/json_reader.cc
+index 046198aa2356e20dc75e567a10195189d8d1cbe2..d11c3cdb0db7d08a98d324c5f3dc3c9a7da994c0 100644
+--- a/base/json/json_reader.cc
++++ b/base/json/json_reader.cc
+@@ -4,14 +4,17 @@
+
+ #include "base/json/json_reader.h"
+
++#include <stdint.h>
++
+ #include <string_view>
+ #include <utility>
+
++#include "base/json/values_util.h"
+ #include "base/logging.h"
+ #include "base/strings/strcat.h"
+ #include "base/strings/string_number_conversions.h"
+-#include "build/build_config.h"
+ #include "base/strings/string_view_rust.h"
++#include "build/build_config.h"
+ #include "third_party/rust/serde_json_lenient/v0_2/wrapper/functions.h"
+ #include "third_party/rust/serde_json_lenient/v0_2/wrapper/lib.rs.h"
+
+@@ -41,6 +44,14 @@ void list_append_i32(base::ListValue& ctx, int32_t val) {
+   ctx.Append(val);
+ }
+
++void list_append_i64(base::ListValue& ctx, int64_t val) {
++  ctx.Append(base::Int64ToValue(val));
++}
++
++void list_append_u64(base::ListValue& ctx, uint64_t val) {
++  ctx.Append(base::NumberToString(val));
++}
++
+ void list_append_f64(base::ListValue& ctx, double val) {
+   ctx.Append(val);
+ }
+@@ -73,6 +84,14 @@ void dict_set_i32(base::DictValue& ctx, rust::Str key, int32_t val) {
+   ctx.Set(base::RustStrToStringView(key), val);
+ }
+
++void dict_set_i64(base::DictValue& ctx, rust::Str key, int64_t val) {
++  ctx.Set(base::RustStrToStringView(key), base::Int64ToValue(val));
++}
++
++void dict_set_u64(base::DictValue& ctx, rust::Str key, uint64_t val) {
++  ctx.Set(base::RustStrToStringView(key), base::NumberToString(val));
++}
++
+ void dict_set_f64(base::DictValue& ctx, rust::Str key, double val) {
+   ctx.Set(base::RustStrToStringView(key), val);
+ }

@@ -11,6 +11,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/strings/string_util.h"
 
 #if BUILDFLAG(IS_LINUX)
 #include "base/linux_util.h"
@@ -2003,6 +2004,19 @@ bool AllowFontByFamilyName(const blink::AtomicString& family_name,
   return false;
 }
 
+bool AllowFontByFamilyNameForPersona(
+    const blink::AtomicString& family_name,
+    const std::vector<std::string>& persona_fonts) {
+  if (persona_fonts.empty()) {
+    return false;
+  }
+  const std::string lower_ascii_name = family_name.ToAsciiLower().Ascii();
+  return std::ranges::any_of(
+      persona_fonts, [&lower_ascii_name](const std::string& font_name) {
+        return base::ToLowerASCII(font_name) == lower_ascii_name;
+      });
+}
+
 bool IsFontAllowedForFarbling(const blink::AtomicString& family_name) {
   std::string lower_ascii_name = family_name.ToAsciiLower().Ascii();
   return kFontFarblingSet.contains(lower_ascii_name);
@@ -2023,36 +2037,51 @@ base::span<const std::string_view> GetAdditionalFontWhitelistByLocale(
   }
 #else
   if (locale_language == "ar" || locale_language == "fa" ||
-      locale_language == "ur")
+      locale_language == "ur") {
     return kFontWhitelistAR;
-  if (locale_language == "as")
+  }
+  if (locale_language == "as") {
     return kFontWhitelistAS;
-  if (locale_language == "iu")
+  }
+  if (locale_language == "iu") {
     return kFontWhitelistIU;
-  if (locale_language == "hi" || locale_language == "mr")
+  }
+  if (locale_language == "hi" || locale_language == "mr") {
     return kFontWhitelistHI;
-  if (locale_language == "am" || locale_language == "ti")
+  }
+  if (locale_language == "am" || locale_language == "ti") {
     return kFontWhitelistAM;
-  if (locale_language == "gu")
+  }
+  if (locale_language == "gu") {
     return kFontWhitelistGU;
-  if (locale_language == "pa")
+  }
+  if (locale_language == "pa") {
     return kFontWhitelistPA;
-  if (locale_language == "zh")
+  }
+  if (locale_language == "zh") {
     return kFontWhitelistZH;
-  if (locale_language == "he")
+  }
+  if (locale_language == "he") {
     return kFontWhitelistHE;
-  if (locale_language == "ja")
+  }
+  if (locale_language == "ja") {
     return kFontWhitelistJA;
-  if (locale_language == "kn")
+  }
+  if (locale_language == "kn") {
     return kFontWhitelistKN;
-  if (locale_language == "km")
+  }
+  if (locale_language == "km") {
     return kFontWhitelistKM;
-  if (locale_language == "ko")
+  }
+  if (locale_language == "ko") {
     return kFontWhitelistKO;
-  if (locale_language == "lo")
+  }
+  if (locale_language == "lo") {
     return kFontWhitelistLO;
-  if (locale_language == "ml")
+  }
+  if (locale_language == "ml") {
     return kFontWhitelistML;
+  }
 #endif
   return kEmptyFontSet;
 }

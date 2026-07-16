@@ -18,6 +18,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -29,6 +30,22 @@ namespace {
 
 inline constexpr char kGetPluginsAsStringScript[] =
     "Array.from(navigator.plugins).map(p => p.name).join(',');";
+inline constexpr char kCanvasImageDataHashScript[] = R"(
+  (() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgb(255, 0, 0)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let hash = 0;
+    for (let i = 0; i < data.length; ++i) {
+      hash = (hash + data[i] * ((i % 8191) + 1)) % 1000000007;
+    }
+    return hash;
+  })()
+)";
 inline constexpr char kNavigatorPluginsFilename[] = "navigator_plugins.txt";
 
 }  // namespace
@@ -254,4 +271,14 @@ IN_PROC_BROWSER_TEST_P(BraveFarblingBrowserTest, CheckBetweenTwoProfiles) {
   EXPECT_FALSE(farbling_token_1.is_zero());
   EXPECT_FALSE(farbling_token_2.is_zero());
   EXPECT_NE(farbling_token_1, farbling_token_2);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser_2, farbling_url()));
+  const int canvas_hash_1 =
+      content::EvalJs(contents(), kCanvasImageDataHashScript).ExtractInt();
+  const int canvas_hash_2 =
+      content::EvalJs(browser_2->tab_strip_model()->GetActiveWebContents(),
+                      kCanvasImageDataHashScript)
+          .ExtractInt();
+  EXPECT_NE(canvas_hash_1, canvas_hash_2);
 }

@@ -4,6 +4,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <memory>
+#include <optional>
 
 #include "base/path_service.h"
 #include "base/test/scoped_feature_list.h"
@@ -30,9 +31,64 @@
 using brave_shields::ControlType;
 
 constexpr char kEmbeddedTestServerDirectory[] = "webaudio";
-constexpr char kTitleScript[] = "document.title;";
+constexpr char kTitleNumberScript[] = "Number(document.title);";
 constexpr char kWebAudioResultScript[] =
     "(async () => await window.webAudioAnalysisPromise)()";
+constexpr char kAudioBufferFingerprintScript[] = R"(
+  (() => {
+    const length = 1024;
+    const sampleRate = 8000;
+    const ctx = new AudioContext();
+    const hash = (array) => {
+      let sum = 0;
+      for (let i = 0; i < array.length; ++i) {
+        sum += array[i];
+      }
+      return Math.round(sum * 1000000);
+    };
+    const createBuffer = () => {
+      const buffer = ctx.createBuffer(1, length, sampleRate);
+      const source = new Float32Array(length);
+      source.fill(1);
+      buffer.copyToChannel(source, 0);
+      return buffer;
+    };
+    const getChannelDataHash = () => {
+      return hash(createBuffer().getChannelData(0));
+    };
+    const copyFromChannelHash = () => {
+      const destination = new Float32Array(length);
+      createBuffer().copyFromChannel(destination, 0);
+      return hash(destination);
+    };
+
+    const getChannelDataHash1 = getChannelDataHash();
+    const getChannelDataHash2 = getChannelDataHash();
+    const copyFromChannelHash1 = copyFromChannelHash();
+    const copyFromChannelHash2 = copyFromChannelHash();
+    ctx.close();
+    return {
+      getChannelDataHash: getChannelDataHash1,
+      getChannelDataStable: getChannelDataHash1 === getChannelDataHash2,
+      copyFromChannelHash: copyFromChannelHash1,
+      copyFromChannelStable: copyFromChannelHash1 === copyFromChannelHash2
+    };
+  })()
+)";
+
+void ExpectDictBool(const base::DictValue& values,
+                    const char* key,
+                    bool expected) {
+  const std::optional<bool> value = values.FindBool(key);
+  ASSERT_TRUE(value.has_value()) << key;
+  EXPECT_EQ(expected, *value) << key;
+}
+
+int GetDictInt(const base::DictValue& values, const char* key) {
+  const std::optional<int> value = values.FindInt(key);
+  EXPECT_TRUE(value.has_value()) << key;
+  return value.value_or(0);
+}
 
 class BraveWebAudioFarblingBrowserTest : public InProcessBrowserTest {
  public:
@@ -93,6 +149,14 @@ class BraveWebAudioFarblingBrowserTest : public InProcessBrowserTest {
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
+  int ReadTitleNumber() {
+    return content::EvalJs(contents(), kTitleNumberScript).ExtractInt();
+  }
+
+  int ReadWebAudioResult() {
+    return content::EvalJs(contents(), kWebAudioResultScript).ExtractInt();
+  }
+
  private:
   GURL top_level_page_url_;
   GURL copy_from_channel_url_;
@@ -109,48 +173,79 @@ IN_PROC_BROWSER_TEST_F(BraveWebAudioFarblingBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), copy_from_channel_url()));
 }
 
-// Tests results of farbling known values
 IN_PROC_BROWSER_TEST_F(BraveWebAudioFarblingBrowserTest, FarbleWebAudio) {
-  // Farbling level: maximum
-  // web audio: pseudo-random data with no relation to underlying audio channel
-  BlockFingerprinting();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kTitleScript), "356");
-  // second time, same as the first (tests that the PRNG properly resets itself
-  // at the beginning of each calculation)
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kTitleScript), "356");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling2_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kWebAudioResultScript), -971);
-
-  // Farbling level: balanced (default)
-  // web audio: farbled audio data
-  SetFingerprintingDefault();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kTitleScript), "7992");
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling2_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kWebAudioResultScript), -1031);
-
-  // Farbling level: off
-  // web audio: original audio data
   AllowFingerprinting();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kTitleScript), "8000");
+  const int off_audio_sum = ReadTitleNumber();
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling2_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kWebAudioResultScript), -1031);
+  const int off_analysis_sum = ReadWebAudioResult();
 
-  // Farbling level: balanced (default), but webcompat exception enabled
-  // web audio: original audio data
+  BlockFingerprinting();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  const int maximum_audio_sum = ReadTitleNumber();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  EXPECT_EQ(maximum_audio_sum, ReadTitleNumber());
+  EXPECT_NE(off_audio_sum, maximum_audio_sum);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling2_url()));
+  EXPECT_NE(off_analysis_sum, ReadWebAudioResult());
+
+  SetFingerprintingDefault();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  const int balanced_audio_sum = ReadTitleNumber();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  EXPECT_EQ(balanced_audio_sum, ReadTitleNumber());
+
   SetFingerprintingDefault();
   brave_shields::SetWebcompatEnabled(content_settings(),
                                      ContentSettingsType::BRAVE_WEBCOMPAT_AUDIO,
                                      true, farbling_url(), nullptr);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kTitleScript), "8000");
+  EXPECT_EQ(off_audio_sum, ReadTitleNumber());
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling2_url()));
-  EXPECT_EQ(content::EvalJs(contents(), kWebAudioResultScript), -1031);
+  EXPECT_EQ(off_analysis_sum, ReadWebAudioResult());
+}
+
+IN_PROC_BROWSER_TEST_F(BraveWebAudioFarblingBrowserTest,
+                       PersonaAudioBufferOutputsAreStable) {
+  SetFingerprintingDefault();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  const content::EvalJsResult persona_result =
+      content::EvalJs(contents(), kAudioBufferFingerprintScript);
+  const base::DictValue& persona_values = persona_result.ExtractDict();
+  ExpectDictBool(persona_values, "getChannelDataStable", true);
+  ExpectDictBool(persona_values, "copyFromChannelStable", true);
+  const int persona_get_channel_data_hash =
+      GetDictInt(persona_values, "getChannelDataHash");
+  const int persona_copy_from_channel_hash =
+      GetDictInt(persona_values, "copyFromChannelHash");
+
+  AllowFingerprinting();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  const content::EvalJsResult real_result =
+      content::EvalJs(contents(), kAudioBufferFingerprintScript);
+  const base::DictValue& real_values = real_result.ExtractDict();
+  ExpectDictBool(real_values, "getChannelDataStable", true);
+  ExpectDictBool(real_values, "copyFromChannelStable", true);
+  EXPECT_NE(GetDictInt(real_values, "getChannelDataHash"),
+            persona_get_channel_data_hash);
+  EXPECT_NE(GetDictInt(real_values, "copyFromChannelHash"),
+            persona_copy_from_channel_hash);
+
+  SetFingerprintingDefault();
+  brave_shields::SetWebcompatEnabled(content_settings(),
+                                     ContentSettingsType::BRAVE_WEBCOMPAT_AUDIO,
+                                     true, farbling_url(), nullptr);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url()));
+  const content::EvalJsResult webcompat_result =
+      content::EvalJs(contents(), kAudioBufferFingerprintScript);
+  const base::DictValue& webcompat_values = webcompat_result.ExtractDict();
+  ExpectDictBool(webcompat_values, "getChannelDataStable", true);
+  ExpectDictBool(webcompat_values, "copyFromChannelStable", true);
+  EXPECT_EQ(GetDictInt(real_values, "getChannelDataHash"),
+            GetDictInt(webcompat_values, "getChannelDataHash"));
+  EXPECT_EQ(GetDictInt(real_values, "copyFromChannelHash"),
+            GetDictInt(webcompat_values, "copyFromChannelHash"));
 }

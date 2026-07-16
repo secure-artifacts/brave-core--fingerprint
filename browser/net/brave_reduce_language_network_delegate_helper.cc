@@ -17,9 +17,11 @@
 #include "base/strings/string_split.h"
 #include "brave/browser/brave_browser_process.h"
 #include "brave/browser/brave_shields/brave_shields_settings_service_factory.h"
+#include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_settings_service.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "brave/components/containers/buildflags/buildflags.h"
+#include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -28,6 +30,7 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_util.h"
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
 #include "brave/components/containers/content/browser/storage_partition_utils.h"
@@ -76,12 +79,22 @@ std::string FarbleAcceptLanguageHeader(
   // Add a fake q value after the language code.
   brave_shields::FarblingPRNG prng;
 
-  auto* shields_settings_service =
-      BraveShieldsSettingsServiceFactory::GetForProfile(profile);
-  if (shields_settings_service &&
-      shields_settings_service->MakePseudoRandomGeneratorForURL(
-          origin_url, additional_entropy, &prng)) {
+  const base::Token persona_token =
+      fingerprint_browser::GetPersonaFarblingTokenForProfile(profile);
+  if (!persona_token.is_zero() &&
+      brave_shields::GetFarblingLevel(content_settings, origin_url) !=
+          brave_shields::mojom::FarblingLevel::OFF) {
+    prng = brave_shields::FarblingPRNG(persona_token.high() ^
+                                        persona_token.low());
     accept_language_string += kFakeQValues[prng() % kFakeQValues.size()];
+  } else {
+    auto* shields_settings_service =
+        BraveShieldsSettingsServiceFactory::GetForProfile(profile);
+    if (shields_settings_service &&
+        shields_settings_service->MakePseudoRandomGeneratorForURL(
+            origin_url, additional_entropy, &prng)) {
+      accept_language_string += kFakeQValues[prng() % kFakeQValues.size()];
+    }
   }
 
   return accept_language_string;
@@ -145,9 +158,15 @@ int OnBeforeStartTransaction_ReduceLanguageWork(
   switch (brave_shields::GetFingerprintingControlType(content_settings,
                                                       origin_url)) {
     case ControlType::BLOCK: {
-      // If fingerprint blocking is maximum, set Accept-Language header to
-      // static value regardless of other preferences.
-      accept_language_string = kAcceptLanguageMax;
+      if (auto proxy_accept_languages =
+              fingerprint_browser::GetProfileProxyAcceptLanguagesForPrefs(
+                  *profile->GetPrefs())) {
+        accept_language_string = net::HttpUtil::GenerateAcceptLanguageHeader(
+            *proxy_accept_languages);
+      } else {
+        // Strict 模式无 proxy 语言时保留 Brave 原默认值。
+        accept_language_string = kAcceptLanguageMax;
+      }
       break;
     }
     case ControlType::DEFAULT: {

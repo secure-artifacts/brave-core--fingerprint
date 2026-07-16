@@ -43,6 +43,20 @@ const display::ScreenInfos& ChromeClientImpl::BraveGetScreenInfos(
     return GetScreenInfos(frame);
   }
   display::ScreenInfo screen_info = GetScreenInfo(frame);
+  auto& cache = brave::BraveSessionCache::From(*context);
+  if (cache.HasPersonaScreen()) {
+    screen_info.rect =
+        gfx::Rect(*cache.PersonaScreenWidth(), *cache.PersonaScreenHeight());
+    screen_info.available_rect = gfx::Rect(*cache.PersonaScreenAvailWidth(),
+                                           *cache.PersonaScreenAvailHeight());
+    screen_info.depth = *cache.PersonaScreenColorDepth();
+    screen_info.depth_per_component = screen_info.depth >= 30 ? 10 : 8;
+    screen_info.device_scale_factor = *cache.PersonaScreenDeviceScaleFactor();
+    screen_info.is_extended = false;
+    screen_info.is_primary = false;
+    screen_infos_ = display::ScreenInfos(screen_info);
+    return screen_infos_;
+  }
   screen_info.rect = gfx::Rect(allowed_desktop_screen_sizes.back().width(),
                                allowed_desktop_screen_sizes.back().height());
   const int outerWidth = dom_window->outerWidth();

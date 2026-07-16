@@ -58,4 +58,12 @@ bool ContentBrowserClient::ShouldUseDefaultHostZoomMapForStoragePartition(
   return false;
 }
 
+bool ContentBrowserClient::GetProfileGeolocationOverride(
+    RenderFrameHost*,
+    double*,
+    double*,
+    double*) {
+  return false;
+}
+
 }  // namespace content

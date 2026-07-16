@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include "base/containers/span.h"
@@ -16,13 +17,17 @@
 #include "brave/third_party/blink/renderer/brave_farbling_constants.h"
 #include "brave/third_party/blink/renderer/platform/brave_audio_farbling_helper.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/dom_window.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
+class EventTarget;
 class WebContentSettingsClient;
 }  // namespace blink
 
@@ -33,6 +38,21 @@ using blink::ExecutionContext;
 using blink::GarbageCollected;
 using blink::MakeGarbageCollected;
 using blink::Supplement;
+
+struct PersonaMediaDeviceValue {
+  blink::String kind;
+  blink::String device_id;
+  blink::String label;
+  blink::String group_id;
+};
+
+struct PersonaSpeechVoiceValue {
+  blink::String voice_uri;
+  blink::String name;
+  blink::String lang;
+  bool local_service = true;
+  bool is_default = false;
+};
 
 enum FarbleKey : uint64_t {
   kNone,
@@ -63,10 +83,12 @@ CORE_EXPORT int FarbleInteger(ExecutionContext* context,
                               int max_value);
 CORE_EXPORT bool BlockScreenFingerprinting(ExecutionContext* context,
                                            bool early = false);
-CORE_EXPORT int FarbledPointerScreenCoordinate(const DOMWindow* view,
-                                               FarbleKey key,
-                                               int client_coordinate,
-                                               int true_screen_coordinate);
+CORE_EXPORT const DOMWindow* EventTargetToDOMWindow(blink::EventTarget* target);
+CORE_EXPORT double FarbledPointerScreenCoordinate(
+    const DOMWindow* view,
+    FarbleKey key,
+    double client_coordinate,
+    double true_screen_coordinate);
 
 class CORE_EXPORT BraveSessionCache final
     : public GarbageCollected<BraveSessionCache>,
@@ -83,10 +105,41 @@ class CORE_EXPORT BraveSessionCache final
   BraveFarblingLevel GetBraveFarblingLevel(
       ContentSettingsType webcompat_settings_type);
   void FarbleAudioChannel(base::span<float> dst);
-  void PerturbPixels(base::span<uint8_t> data);
+  void PerturbPixels(base::span<uint8_t> data,
+                     ContentSettingsType webcompat_settings_type =
+                         ContentSettingsType::BRAVE_WEBCOMPAT_CANVAS);
   blink::String GenerateRandomString(std::string_view seed,
                                      blink::wtf_size_t length);
   blink::String FarbledUserAgent(blink::String real_user_agent);
+  bool HasPersonaL1() const;
+  std::optional<blink::String> PersonaUserAgent() const;
+  std::optional<blink::String> PersonaPlatform() const;
+  std::optional<blink::Vector<blink::String>> PersonaLanguages() const;
+  std::optional<blink::UserAgentMetadata> PersonaUserAgentMetadata() const;
+  std::optional<unsigned> PersonaHardwareConcurrency() const;
+  std::optional<double> PersonaDeviceMemory() const;
+  std::optional<unsigned> PersonaMaxTouchPoints() const;
+  bool HasPersonaScreen() const;
+  std::optional<int> PersonaScreenWidth() const;
+  std::optional<int> PersonaScreenHeight() const;
+  std::optional<int> PersonaScreenAvailWidth() const;
+  std::optional<int> PersonaScreenAvailHeight() const;
+  std::optional<int> PersonaScreenColorDepth() const;
+  std::optional<double> PersonaScreenDeviceScaleFactor() const;
+  std::optional<int> PersonaWindowX() const;
+  std::optional<int> PersonaWindowY() const;
+  bool HasPersonaL2() const;
+  std::optional<blink::String> PersonaWebGLVendor() const;
+  std::optional<blink::String> PersonaWebGLRenderer() const;
+  std::optional<blink::String> PersonaWebGPUVendor() const;
+  std::optional<blink::String> PersonaWebGPUArchitecture() const;
+  std::optional<blink::String> PersonaWebGPUDevice() const;
+  std::optional<blink::String> PersonaWebGPUDescription() const;
+  bool HasPersonaFontSet() const;
+  std::optional<blink::Vector<PersonaMediaDeviceValue>> PersonaMediaDevices()
+      const;
+  std::optional<blink::Vector<PersonaSpeechVoiceValue>> PersonaSpeechVoices()
+      const;
   int FarbledInteger(FarbleKey key,
                      int spoof_value,
                      int min_random_offset,

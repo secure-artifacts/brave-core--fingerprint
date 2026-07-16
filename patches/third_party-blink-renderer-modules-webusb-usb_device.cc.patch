@@ -1,0 +1,443 @@
+diff --git a/third_party/blink/renderer/modules/webusb/usb_device.cc b/third_party/blink/renderer/modules/webusb/usb_device.cc
+index 18654d3900f1b8268aeb4326ce09c943559ef056..9eccb6b1e484f3f22b6e5c5d9589cbbc80ba82f6 100644
+--- a/third_party/blink/renderer/modules/webusb/usb_device.cc
++++ b/third_party/blink/renderer/modules/webusb/usb_device.cc
+@@ -9,6 +9,7 @@
+ #include <utility>
+
+ #include "base/containers/span.h"
++#include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/public/platform/platform.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+@@ -168,13 +169,15 @@ USBDevice::USBDevice(USB* parent,
+         BindOnce(&USBDevice::OnConnectionError, WrapWeakPersistent(this)));
+   }
+
+-  for (wtf_size_t i = 0; i < Info().configurations.size(); ++i)
++  for (wtf_size_t i = 0; i < Info().configurations.size(); ++i) {
+     configurations_.push_back(USBConfiguration::Create(this, i));
++  }
+
+   wtf_size_t configuration_index =
+       FindConfigurationIndex(Info().active_configuration);
+-  if (configuration_index != kNotFound)
++  if (configuration_index != kNotFound) {
+     OnConfigurationSelected(true /* success */, configuration_index);
++  }
+ }
+
+ USBDevice::~USBDevice() {
+@@ -195,9 +198,28 @@ wtf_size_t USBDevice::SelectedAlternateInterfaceIndex(
+   return selected_alternate_indices_[interface_index];
+ }
+
++String USBDevice::serialNumber() const {
++  if (Info().serial_number.IsNull() || Info().serial_number.empty()) {
++    return Info().serial_number;
++  }
++
++  ExecutionContext* context = GetExecutionContext();
++  if (!context ||
++      brave::GetBraveFarblingLevelFor(
++          context,
++          ContentSettingsType::BRAVE_WEBCOMPAT_USB_DEVICE_SERIAL_NUMBER,
++          BraveFarblingLevel::OFF) == BraveFarblingLevel::OFF) {
++    return Info().serial_number;
++  }
++
++  return brave::BraveSessionCache::From(*context).GenerateRandomString(
++      Info().serial_number.Utf8(), Info().serial_number.length());
++}
++
+ USBConfiguration* USBDevice::configuration() const {
+-  if (configuration_index_ == kNotFound)
++  if (configuration_index_ == kNotFound) {
+     return nullptr;
++  }
+   DCHECK_LT(configuration_index_, configurations_.size());
+   return configurations_[configuration_index_].Get();
+ }
+@@ -209,11 +231,13 @@ HeapVector<Member<USBConfiguration>> USBDevice::configurations() const {
+ ScriptPromise<IDLUndefined> USBDevice::open(ScriptState* script_state,
+                                             ExceptionState& exception_state) {
+   EnsureNoDeviceOrInterfaceChangeInProgress(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+-  if (opened_)
++  if (opened_) {
+     return ToResolvedUndefinedPromise(script_state);
++  }
+
+   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+       script_state, exception_state.GetContext());
+@@ -229,11 +253,13 @@ ScriptPromise<IDLUndefined> USBDevice::open(ScriptState* script_state,
+ ScriptPromise<IDLUndefined> USBDevice::close(ScriptState* script_state,
+                                              ExceptionState& exception_state) {
+   EnsureNoDeviceOrInterfaceChangeInProgress(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+-  if (!opened_)
++  if (!opened_) {
+     return ToResolvedUndefinedPromise(script_state);
++  }
+
+   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+       script_state, exception_state.GetContext());
+@@ -268,8 +294,9 @@ ScriptPromise<IDLUndefined> USBDevice::selectConfiguration(
+     uint8_t configuration_value,
+     ExceptionState& exception_state) {
+   EnsureNoDeviceOrInterfaceChangeInProgress(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   if (!opened_) {
+     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+@@ -285,8 +312,9 @@ ScriptPromise<IDLUndefined> USBDevice::selectConfiguration(
+     return EmptyPromise();
+   }
+
+-  if (configuration_index_ == configuration_index)
++  if (configuration_index_ == configuration_index) {
+     return ToResolvedUndefinedPromise(script_state);
++  }
+
+   device_state_change_in_progress_ = true;
+
+@@ -307,8 +335,9 @@ ScriptPromise<IDLUndefined> USBDevice::claimInterface(
+     uint8_t interface_number,
+     ExceptionState& exception_state) {
+   EnsureDeviceConfigured(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   wtf_size_t interface_index = FindInterfaceIndex(interface_number);
+   if (interface_index == kNotFound) {
+@@ -323,8 +352,9 @@ ScriptPromise<IDLUndefined> USBDevice::claimInterface(
+     return EmptyPromise();
+   }
+
+-  if (claimed_interfaces_[interface_index])
++  if (claimed_interfaces_[interface_index]) {
+     return ToResolvedUndefinedPromise(script_state);
++  }
+
+   interface_state_change_in_progress_[interface_index] = true;
+
+@@ -345,8 +375,9 @@ ScriptPromise<IDLUndefined> USBDevice::releaseInterface(
+     uint8_t interface_number,
+     ExceptionState& exception_state) {
+   EnsureDeviceConfigured(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   wtf_size_t interface_index = FindInterfaceIndex(interface_number);
+   if (interface_index == kNotFound) {
+@@ -363,8 +394,9 @@ ScriptPromise<IDLUndefined> USBDevice::releaseInterface(
+     return EmptyPromise();
+   }
+
+-  if (!claimed_interfaces_[interface_index])
++  if (!claimed_interfaces_[interface_index]) {
+     return ToResolvedUndefinedPromise(script_state);
++  }
+
+   // Mark this interface's endpoints unavailable while its state is
+   // changing.
+@@ -389,8 +421,9 @@ ScriptPromise<IDLUndefined> USBDevice::selectAlternateInterface(
+     uint8_t alternate_setting,
+     ExceptionState& exception_state) {
+   EnsureInterfaceClaimed(interface_number, exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   // TODO(reillyg): This is duplicated work.
+   wtf_size_t interface_index = FindInterfaceIndex(interface_number);
+@@ -428,8 +461,9 @@ ScriptPromise<USBInTransferResult> USBDevice::controlTransferIn(
+     uint16_t length,
+     ExceptionState& exception_state) {
+   EnsureNoDeviceOrInterfaceChangeInProgress(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   if (!opened_) {
+     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+@@ -438,8 +472,9 @@ ScriptPromise<USBInTransferResult> USBDevice::controlTransferIn(
+   }
+
+   auto parameters = ConvertControlTransferParameters(setup, exception_state);
+-  if (!parameters)
++  if (!parameters) {
+     return EmptyPromise();
++  }
+
+   auto* resolver =
+       MakeGarbageCollected<ScriptPromiseResolver<USBInTransferResult>>(
+@@ -510,8 +545,9 @@ ScriptPromise<IDLUndefined> USBDevice::clearHalt(
+           : UsbTransferDirection::OUTBOUND;
+   EnsureEndpointAvailable(mojo_direction == UsbTransferDirection::INBOUND,
+                           endpoint_number, exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+       script_state, exception_state.GetContext());
+@@ -534,8 +570,9 @@ ScriptPromise<USBInTransferResult> USBDevice::transferIn(
+   }
+   EnsureEndpointAvailable(/*in_transfer=*/true, endpoint_number,
+                           exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   auto* resolver =
+       MakeGarbageCollected<ScriptPromiseResolver<USBInTransferResult>>(
+@@ -586,8 +623,9 @@ ScriptPromise<USBIsochronousInTransferResult> USBDevice::isochronousTransferIn(
+     ExceptionState& exception_state) {
+   EnsureEndpointAvailable(/*in_transfer=*/true, endpoint_number,
+                           exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   std::optional<uint32_t> total_bytes = TotalPacketLength(packet_lengths);
+   if (!total_bytes.has_value()) {
+@@ -655,8 +693,9 @@ USBDevice::isochronousTransferOut(ScriptState* script_state,
+ ScriptPromise<IDLUndefined> USBDevice::reset(ScriptState* script_state,
+                                              ExceptionState& exception_state) {
+   EnsureNoDeviceOrInterfaceChangeInProgress(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return EmptyPromise();
++  }
+
+   if (!opened_) {
+     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+@@ -691,8 +730,9 @@ wtf_size_t USBDevice::FindConfigurationIndex(
+     uint8_t configuration_value) const {
+   const auto& configurations = Info().configurations;
+   for (wtf_size_t i = 0; i < configurations.size(); ++i) {
+-    if (configurations[i]->configuration_value == configuration_value)
++    if (configurations[i]->configuration_value == configuration_value) {
+       return i;
++    }
+   }
+   return kNotFound;
+ }
+@@ -702,8 +742,9 @@ wtf_size_t USBDevice::FindInterfaceIndex(uint8_t interface_number) const {
+   const auto& interfaces =
+       Info().configurations[configuration_index_]->interfaces;
+   for (wtf_size_t i = 0; i < interfaces.size(); ++i) {
+-    if (interfaces[i]->interface_number == interface_number)
++    if (interfaces[i]->interface_number == interface_number) {
+       return i;
++    }
+   }
+   return kNotFound;
+ }
+@@ -716,8 +757,9 @@ wtf_size_t USBDevice::FindAlternateIndex(uint32_t interface_index,
+                                ->interfaces[interface_index]
+                                ->alternates;
+   for (wtf_size_t i = 0; i < alternates.size(); ++i) {
+-    if (alternates[i]->alternate_setting == alternate_setting)
++    if (alternates[i]->alternate_setting == alternate_setting) {
+       return i;
++    }
+   }
+   return kNotFound;
+ }
+@@ -740,8 +782,9 @@ void USBDevice::EnsureNoDeviceChangeInProgress(
+ void USBDevice::EnsureNoDeviceOrInterfaceChangeInProgress(
+     ExceptionState& exception_state) const {
+   EnsureNoDeviceChangeInProgress(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return;
++  }
+
+   if (AnyInterfaceChangeInProgress()) {
+     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+@@ -752,8 +795,9 @@ void USBDevice::EnsureNoDeviceOrInterfaceChangeInProgress(
+
+ void USBDevice::EnsureDeviceConfigured(ExceptionState& exception_state) const {
+   EnsureNoDeviceChangeInProgress(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return;
++  }
+
+   if (!opened_) {
+     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+@@ -772,8 +816,9 @@ void USBDevice::EnsureDeviceConfigured(ExceptionState& exception_state) const {
+ void USBDevice::EnsureInterfaceClaimed(uint8_t interface_number,
+                                        ExceptionState& exception_state) const {
+   EnsureDeviceConfigured(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return;
++  }
+
+   wtf_size_t interface_index = FindInterfaceIndex(interface_number);
+   if (interface_index == kNotFound) {
+@@ -800,8 +845,9 @@ void USBDevice::EnsureEndpointAvailable(bool in_transfer,
+                                         uint8_t endpoint_number,
+                                         ExceptionState& exception_state) const {
+   EnsureDeviceConfigured(exception_state);
+-  if (exception_state.HadException())
++  if (exception_state.HadException()) {
+     return;
++  }
+
+   if (endpoint_number == 0 || endpoint_number >= kEndpointsBitsNumber) {
+     exception_state.ThrowDOMException(
+@@ -822,8 +868,9 @@ void USBDevice::EnsureEndpointAvailable(bool in_transfer,
+
+ bool USBDevice::AnyInterfaceChangeInProgress() const {
+   for (wtf_size_t i = 0; i < interface_state_change_in_progress_.size(); ++i) {
+-    if (interface_state_change_in_progress_[i])
++    if (interface_state_change_in_progress_[i]) {
+       return true;
++    }
+   }
+   return false;
+ }
+@@ -852,8 +899,9 @@ UsbControlTransferParamsPtr USBDevice::ConvertControlTransferParameters(
+     case V8USBRecipient::Enum::kInterface: {
+       uint8_t interface_number = parameters->index() & 0xff;
+       EnsureInterfaceClaimed(interface_number, exception_state);
+-      if (exception_state.HadException())
++      if (exception_state.HadException()) {
+         return nullptr;
++      }
+
+       mojo_parameters->recipient = UsbControlTransferRecipient::INTERFACE;
+       break;
+@@ -862,8 +910,9 @@ UsbControlTransferParamsPtr USBDevice::ConvertControlTransferParameters(
+       bool in_transfer = parameters->index() & 0x80;
+       uint8_t endpoint_number = parameters->index() & 0x0f;
+       EnsureEndpointAvailable(in_transfer, endpoint_number, exception_state);
+-      if (exception_state.HadException())
++      if (exception_state.HadException()) {
+         return nullptr;
++      }
+
+       mojo_parameters->recipient = UsbControlTransferRecipient::ENDPOINT;
+       break;
+@@ -886,15 +935,17 @@ void USBDevice::SetEndpointsForInterface(wtf_size_t interface_index, bool set) {
+       *interface.alternates[selected_alternate_indices_[interface_index]];
+   for (const auto& endpoint : alternate.endpoints) {
+     uint8_t endpoint_number = endpoint->endpoint_number;
+-    if (endpoint_number == 0 || endpoint_number >= kEndpointsBitsNumber)
++    if (endpoint_number == 0 || endpoint_number >= kEndpointsBitsNumber) {
+       continue;  // Ignore endpoints with invalid indices.
++    }
+     auto& bit_vector = endpoint->direction == UsbTransferDirection::INBOUND
+                            ? in_endpoints_
+                            : out_endpoints_;
+-    if (set)
++    if (set) {
+       bit_vector.set(endpoint_number - 1);
+-    else
++    } else {
+       bit_vector.reset(endpoint_number - 1);
++    }
+   }
+ }
+
+@@ -1041,8 +1092,9 @@ void USBDevice::AsyncSelectAlternateInterface(
+     bool success) {
+   MarkRequestComplete(resolver);
+
+-  if (success)
++  if (success) {
+     selected_alternate_indices_[interface_index] = alternate_index;
++  }
+   SetEndpointsForInterface(interface_index, success);
+   interface_state_change_in_progress_[interface_index] = false;
+
+@@ -1060,8 +1112,9 @@ void USBDevice::AsyncControlTransferIn(
+     base::span<const uint8_t> data) {
+   MarkRequestComplete(resolver);
+
+-  if (CheckFatalTransferStatus(resolver, status))
++  if (CheckFatalTransferStatus(resolver, status)) {
+     return;
++  }
+
+   resolver->Resolve(
+       USBInTransferResult::Create(ConvertTransferStatus(status), data));
+@@ -1073,8 +1126,9 @@ void USBDevice::AsyncControlTransferOut(
+     UsbTransferStatus status) {
+   MarkRequestComplete(resolver);
+
+-  if (CheckFatalTransferStatus(resolver, status))
++  if (CheckFatalTransferStatus(resolver, status)) {
+     return;
++  }
+
+   resolver->Resolve(USBOutTransferResult::Create(ConvertTransferStatus(status),
+                                                  transfer_length));
+@@ -1098,8 +1152,9 @@ void USBDevice::AsyncTransferIn(
+     base::span<const uint8_t> data) {
+   MarkRequestComplete(resolver);
+
+-  if (CheckFatalTransferStatus(resolver, status))
++  if (CheckFatalTransferStatus(resolver, status)) {
+     return;
++  }
+
+   resolver->Resolve(
+       USBInTransferResult::Create(ConvertTransferStatus(status), data));
+@@ -1111,8 +1166,9 @@ void USBDevice::AsyncTransferOut(
+     UsbTransferStatus status) {
+   MarkRequestComplete(resolver);
+
+-  if (CheckFatalTransferStatus(resolver, status))
++  if (CheckFatalTransferStatus(resolver, status)) {
+     return;
++  }
+
+   resolver->Resolve(USBOutTransferResult::Create(ConvertTransferStatus(status),
+                                                  transfer_length));
+@@ -1129,8 +1185,9 @@ void USBDevice::AsyncIsochronousTransferIn(
+   packets.reserve(mojo_packets.size());
+   uint32_t byte_offset = 0;
+   for (const auto& packet : mojo_packets) {
+-    if (CheckFatalTransferStatus(resolver, packet->status))
++    if (CheckFatalTransferStatus(resolver, packet->status)) {
+       return;
++    }
+
+     DOMDataView* data_view = nullptr;
+     if (buffer) {
+@@ -1153,8 +1210,9 @@ void USBDevice::AsyncIsochronousTransferOut(
+   HeapVector<Member<USBIsochronousOutTransferPacket>> packets;
+   packets.reserve(mojo_packets.size());
+   for (const auto& packet : mojo_packets) {
+-    if (CheckFatalTransferStatus(resolver, packet->status))
++    if (CheckFatalTransferStatus(resolver, packet->status)) {
+       return;
++    }
+
+     packets.push_back(USBIsochronousOutTransferPacket::Create(
+         ConvertTransferStatus(packet->status), packet->transferred_length));

@@ -1,0 +1,15 @@
+diff --git a/third_party/blink/renderer/modules/webgpu/BUILD.gn b/third_party/blink/renderer/modules/webgpu/BUILD.gn
+index 0a53ff8538277c5eb6625661f2da7748b512808d..a5b4a78ede0aaf8b2b3698a6b992485544004849 100644
+--- a/third_party/blink/renderer/modules/webgpu/BUILD.gn
++++ b/third_party/blink/renderer/modules/webgpu/BUILD.gn
+@@ -106,6 +106,10 @@ blink_modules_sources("webgpu") {
+     "wgsl_language_features.cc",
+     "wgsl_language_features.h",
+   ]
++
++  sources -= [ "gpu_adapter.cc" ]
++  sources += [ "//brave/chromium_src/third_party/blink/renderer/modules/webgpu/gpu_adapter.cc" ]
++
+   deps = [
+     "//gpu/command_buffer/client:webgpu_interface",
+     "//services/metrics/public/cpp:ukm_builders",

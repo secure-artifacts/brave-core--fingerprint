@@ -6,7 +6,15 @@
 #include "base/notimplemented.h"
 #include "third_party/rust/serde_json_lenient/v0_2/wrapper/lib.rs.h"
 
+#define list_append_i64 list_append_i64_ChromiumImpl
+#define list_append_u64 list_append_u64_ChromiumImpl
+#define dict_set_i64 dict_set_i64_ChromiumImpl
+#define dict_set_u64 dict_set_u64_ChromiumImpl
 #include <base/json/json_reader.cc>
+#undef dict_set_u64
+#undef dict_set_i64
+#undef list_append_u64
+#undef list_append_i64
 
 namespace serde_json_lenient {
 

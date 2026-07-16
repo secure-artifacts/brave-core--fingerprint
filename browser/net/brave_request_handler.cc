@@ -21,6 +21,7 @@
 #include "brave/browser/net/brave_site_hacks_network_delegate_helper.h"
 #include "brave/browser/net/brave_stp_util.h"
 #include "brave/browser/net/brave_user_agent_network_delegate_helper.h"
+#include "brave/browser/net/fingerprint_browser_user_agent_network_delegate_helper.h"
 #include "brave/browser/net/global_privacy_control_network_delegate_helper.h"
 #include "brave/browser/net/url_context.h"
 #include "brave/components/brave_ads/buildflags/buildflags.h"
@@ -95,6 +96,10 @@ void BraveRequestHandler<T>::SetupCallbacks() {
         base::BindRepeating(brave::OnBeforeStartTransaction_UserAgentWork<T>);
     before_start_transaction_callbacks_.push_back(start_transaction_callback);
   }
+
+  start_transaction_callback = base::BindRepeating(
+      brave::OnBeforeStartTransaction_FingerprintBrowserUserAgentWork<T>);
+  before_start_transaction_callbacks_.push_back(start_transaction_callback);
 
   if (base::FeatureList::IsEnabled(
           blink::features::kBraveGlobalPrivacyControl)) {

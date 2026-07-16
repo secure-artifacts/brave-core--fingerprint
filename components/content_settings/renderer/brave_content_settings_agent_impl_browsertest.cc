@@ -424,6 +424,14 @@ IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,
   NavigateToPageWithIframe();
   EXPECT_EQ(kExpectedImageDataHashFarblingOff,
             content::EvalJs(contents(), kGetImageDataScript));
+
+  SetFingerprintingDefault();
+  brave_shields::SetWebcompatEnabled(
+      content_settings(), ContentSettingsType::BRAVE_WEBCOMPAT_CANVAS, true,
+      top_level_page_url(), nullptr);
+  NavigateToPageWithIframe();
+  EXPECT_EQ(kExpectedImageDataHashFarblingOff,
+            content::EvalJs(contents(), kGetImageDataScript));
 }
 
 IN_PROC_BROWSER_TEST_F(BraveContentSettingsAgentImplBrowserTest,

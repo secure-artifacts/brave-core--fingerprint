@@ -1,0 +1,52 @@
+diff --git a/third_party/blink/renderer/modules/font_access/font_access.cc b/third_party/blink/renderer/modules/font_access/font_access.cc
+index f066f2052eb0c6236b27e311afa9d72e37a0a061..76d04c639ebcd8f9bc7e754812c1604944022970 100644
+--- a/third_party/blink/renderer/modules/font_access/font_access.cc
++++ b/third_party/blink/renderer/modules/font_access/font_access.cc
+@@ -5,9 +5,11 @@
+ #include "third_party/blink/renderer/modules/font_access/font_access.h"
+
+ #include <algorithm>
++#include <utility>
+
+ #include "base/feature_list.h"
+ #include "base/numerics/safe_conversions.h"
++#include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
+ #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/public/common/font_access/font_enumeration_table.pb.h"
+@@ -113,11 +115,16 @@ void FontAccess::DidGetEnumerationResponse(
+     ScriptPromiseResolver<IDLSequence<FontMetadata>>* resolver,
+     FontEnumerationStatus status,
+     base::ReadOnlySharedMemoryRegion region) {
+-  if (!resolver->GetScriptState()->ContextIsValid())
++  if (!resolver->GetScriptState()->ContextIsValid()) {
+     return;
++  }
+
+-  if (RejectPromiseIfNecessary(status, resolver))
++  if (RejectPromiseIfNecessary(status, resolver)) {
+     return;
++  }
++
++  ExecutionContext* context =
++      ExecutionContext::From(resolver->GetScriptState());
+
+   // Return an empty font list if user has denied the permission request.
+   if (status == FontEnumerationStatus::kPermissionDenied) {
+@@ -161,10 +168,15 @@ void FontAccess::DidGetEnumerationResponse(
+       continue;
+     }
+
++    String family = String::FromUtf8(element.family());
++    if (!brave::AllowFontFamily(context, AtomicString(family))) {
++      continue;
++    }
++
+     auto entry = FontEnumerationEntry{
+         .postscript_name = String::FromUtf8(element.postscript_name()),
+         .full_name = String::FromUtf8(element.full_name()),
+-        .family = String::FromUtf8(element.family()),
++        .family = std::move(family),
+         .style = String::FromUtf8(element.style()),
+     };
+     entries.push_back(FontMetadata::Create(std::move(entry)));

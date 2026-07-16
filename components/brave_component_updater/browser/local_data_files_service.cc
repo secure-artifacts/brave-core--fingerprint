@@ -35,6 +35,8 @@ void LocalDataFilesService::OnComponentReady(
     const std::string& manifest) {
   for (auto& observer : observers_)
     observer.OnComponentReady(component_id, install_dir, manifest);
+  for (const auto& callback : ready_callbacks_)
+    callback.Run(install_dir);
 }
 
 void LocalDataFilesService::AddObserver(LocalDataFilesObserver* observer) {
@@ -43,6 +45,10 @@ void LocalDataFilesService::AddObserver(LocalDataFilesObserver* observer) {
 
 void LocalDataFilesService::RemoveObserver(LocalDataFilesObserver* observer) {
   observers_.RemoveObserver(observer);
+}
+
+void LocalDataFilesService::AddReadyCallback(ReadyCallback callback) {
+  ready_callbacks_.push_back(std::move(callback));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

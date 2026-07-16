@@ -1,12 +1,15 @@
 diff --git a/net/BUILD.gn b/net/BUILD.gn
-index 2d24f81e7a5ca1dd483ea0ad9ebffc2c2040853c..c1dca5ded07e36acead40e31bbd464b175293954 100644
+index 06f2c841805ebf2931e8b470631843dcdcb9cd43..4549caef591df054d8edaa2d26d3584028560d5b 100644
 --- a/net/BUILD.gn
 +++ b/net/BUILD.gn
-@@ -1282,6 +1282,7 @@ component("net") {
+@@ -1280,6 +1280,10 @@ component("net") {
        "reporting/reporting_uploader.h",
      ]
    }
-+  sources += brave_net_sources import("//brave/components/brave_wallet/sources.gni") deps += brave_net_deps
- 
++  sources -= brave_net_excluded_sources
++  sources += brave_net_sources
++  import("//brave/components/brave_wallet/sources.gni")
++  deps += brave_net_deps
+
    if (enable_device_bound_sessions) {
      sources += [

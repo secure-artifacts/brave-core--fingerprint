@@ -30,16 +30,54 @@ enum ContentSettingSource {
 struct ShieldsSettings {
   FarblingLevel farbling_level;
   mojo_base.mojom.Token farbling_token;
+  bool has_persona_farbling_token;
+  bool has_persona_l1;
+  bool has_persona_l2;
+  string persona_user_agent;
+  string persona_platform;
+  array<string> persona_languages;
+  string persona_ua_platform_version;
+  string persona_ua_architecture;
+  string persona_ua_bitness;
+  string persona_ua_full_version;
+  array<string> persona_ua_brand_names;
+  array<string> persona_ua_brand_versions;
+  array<string> persona_ua_full_version_brand_names;
+  array<string> persona_ua_full_version_brand_versions;
+  bool persona_ua_mobile;
+  uint32 persona_hardware_concurrency;
+  double persona_device_memory_gb;
+  uint32 persona_max_touch_points;
+  int32 persona_screen_width;
+  int32 persona_screen_height;
+  int32 persona_screen_avail_width;
+  int32 persona_screen_avail_height;
+  int32 persona_screen_color_depth;
+  double persona_screen_device_scale_factor;
+  int32 persona_window_x;
+  int32 persona_window_y;
+  string persona_webgl_vendor;
+  string persona_webgl_renderer;
+  string persona_webgpu_vendor;
+  string persona_webgpu_architecture;
+  string persona_webgpu_device;
+  string persona_webgpu_description;
+  array<string> persona_fonts;
+  array<string> persona_media_device_kinds;
+  array<string> persona_media_device_ids;
+  array<string> persona_media_device_labels;
+  array<string> persona_media_device_group_ids;
+  array<string> persona_speech_voice_uris;
+  array<string> persona_speech_voice_names;
+  array<string> persona_speech_voice_langs;
+  array<bool> persona_speech_voice_local_services;
+  array<bool> persona_speech_voice_defaults;
   array<string> origins_to_allow_scripts;
   bool reduce_language;
   bool enforced_script_blocking;
 };
 
-enum AdBlockMode {
-  AGGRESSIVE,
-  STANDARD,
-  ALLOW
-};
+enum AdBlockMode { AGGRESSIVE, STANDARD, ALLOW };
 
 enum FingerprintMode {
   // STRICT clashes with Windows SDK
@@ -48,11 +86,7 @@ enum FingerprintMode {
   ALLOW_MODE
 };
 
-enum CookieBlockMode {
-  CROSS_SITE_BLOCKED,
-  BLOCKED,
-  ALLOW
-};
+enum CookieBlockMode { CROSS_SITE_BLOCKED, BLOCKED, ALLOW };
 
 enum HttpsUpgradeMode {
   // STRICT clashes with Windows SDK

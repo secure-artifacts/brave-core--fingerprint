@@ -1,0 +1,13 @@
+diff --git a/services/network/network_service_network_delegate.cc b/services/network/network_service_network_delegate.cc
+index 23495e7c92cbd8649e8302a21e0e71aac90eeb75..887ea2a3615a0337c406ff820ca68efe45cc748c 100644
+--- a/services/network/network_service_network_delegate.cc
++++ b/services/network/network_service_network_delegate.cc
+@@ -465,6 +465,8 @@ void NetworkServiceNetworkDelegate::ForwardProxyErrors(int net_error) {
+   switch (net_error) {
+     case net::ERR_PROXY_AUTH_UNSUPPORTED:
+     case net::ERR_PROXY_CONNECTION_FAILED:
++    case net::ERR_INVALID_AUTH_CREDENTIALS:
++    case net::ERR_SOCKS_CONNECTION_FAILED:
+     case net::ERR_TUNNEL_CONNECTION_FAILED:
+       proxy_error_client_->OnRequestMaybeFailedDueToProxySettings(net_error);
+       break;

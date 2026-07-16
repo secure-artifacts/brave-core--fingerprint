@@ -3,6 +3,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import("//brave/components/tor/buildflags/buildflags.gni")
+
 if (!is_android) {
   source_set("browser_tests") {
     testonly = true
@@ -22,6 +24,7 @@ if (!is_android) {
       "brave_navigator_usb_farbling_browsertest.cc",
       "brave_navigator_useragent_farbling_browsertest.cc",
       "brave_offscreencanvas_farbling_browsertest.cc",
+      "brave_profile_proxy_browsertest.cc",
       "brave_screen_farbling_browsertest.cc",
       "brave_speech_synthesis_farbling_browsertest.cc",
       "brave_webaudio_farbling_browsertest.cc",
@@ -34,6 +37,7 @@ if (!is_android) {
       "//brave/browser",
       "//brave/browser/brave_shields",
       "//brave/browser/extensions:test_support",
+      "//brave/browser/fingerprint_browser",
       "//brave/common",
       "//brave/components/brave_component_updater/browser",
       "//brave/components/brave_shields/content/browser",
@@ -41,6 +45,8 @@ if (!is_android) {
       "//brave/components/brave_shields/core/browser:test_support",
       "//brave/components/brave_shields/core/common",
       "//brave/components/constants",
+      "//brave/components/fingerprint_browser/browser",
+      "//brave/components/tor/buildflags",
       "//brave/components/webcompat/core/common",
       "//brave/third_party/blink/renderer",
       "//chrome/browser",
@@ -58,8 +64,17 @@ if (!is_android) {
       "//content/public/browser",
       "//content/test:test_support",
       "//gpu/config",
+      "//net",
+      "//net:test_support",
       "//ui/color:test_support",
       "//ui/native_theme:test_support",
     ]
+
+    if (enable_tor) {
+      deps += [
+        "//brave/browser/tor:tor",
+        "//brave/components/tor",
+      ]
+    }
   }
 }

@@ -1,0 +1,60 @@
+diff --git a/chrome/browser/client_hints/client_hints_factory.cc b/chrome/browser/client_hints/client_hints_factory.cc
+index bffb4615fbf847fab05bbe7de941e9c39348c54d..c6af3f4519e3415bd192a3d4e45957b275e9d577 100644
+--- a/chrome/browser/client_hints/client_hints_factory.cc
++++ b/chrome/browser/client_hints/client_hints_factory.cc
+@@ -4,6 +4,10 @@
+
+ #include "chrome/browser/client_hints/client_hints_factory.h"
+
++#include <utility>
++
++#include "base/memory/raw_ptr.h"
++#include "brave/browser/fingerprint_browser/persona_service_factory.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/content_settings/cookie_settings_factory.h"
+ #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+@@ -18,6 +22,35 @@ namespace {
+ base::LazyInstance<ClientHintsFactory>::DestructorAtExit
+     g_client_hints_factory = LAZY_INSTANCE_INITIALIZER;
+
++class BraveClientHints : public client_hints::ClientHints {
++ public:
++  BraveClientHints(
++      content::BrowserContext* context,
++      network::NetworkQualityTracker* network_quality_tracker,
++      HostContentSettingsMap* settings_map,
++      scoped_refptr<content_settings::CookieSettings> cookie_settings,
++      PrefService* pref_service)
++      : client_hints::ClientHints(context,
++                                  network_quality_tracker,
++                                  settings_map,
++                                  std::move(cookie_settings),
++                                  pref_service),
++        context_(context) {}
++
++  blink::UserAgentMetadata GetUserAgentMetadata() override {
++    const auto* persona =
++        fingerprint_browser::GetPersonaForBrowserContext(context_);
++    if (persona) {
++      return fingerprint_browser::ToBlinkUserAgentMetadata(
++          persona->ua_metadata);
++    }
++    return client_hints::ClientHints::GetUserAgentMetadata();
++  }
++
++ private:
++  raw_ptr<content::BrowserContext> context_;
++};
++
+ }  // namespace
+
+ // static
+@@ -55,7 +88,7 @@ ClientHintsFactory::BuildServiceInstanceForBrowserContext(
+     content::BrowserContext* context) const {
+   // CookieSettingsFactory::GetForProfile can only be called on the UI thread.
+   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+-  return std::make_unique<client_hints::ClientHints>(
++  return std::make_unique<BraveClientHints>(
+       context, g_browser_process->network_quality_tracker(),
+       HostContentSettingsMapFactory::GetForProfile(context),
+       CookieSettingsFactory::GetForProfile(

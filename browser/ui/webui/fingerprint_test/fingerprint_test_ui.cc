@@ -20,8 +20,8 @@
 #include "brave/components/fingerprint_browser/resources/grit/fingerprint_test_generated_map.h"
 #include "brave/components/fingerprint_browser/resources/grit/fingerprint_test_resources.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -108,12 +108,14 @@ constexpr char kReadFingerprintScript[] = R"JS((() => {
 })())JS";
 
 content::WebContents* FindLastWebPage(content::WebContents* web_ui_contents) {
-  Browser* browser = chrome::FindBrowserWithTab(web_ui_contents);
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          web_ui_contents);
   if (!browser) {
     return nullptr;
   }
 
-  TabStripModel* tabs = browser->tab_strip_model();
+  TabStripModel* tabs = browser->GetTabStripModel();
   for (int index = tabs->count() - 1; index >= 0; --index) {
     content::WebContents* contents = tabs->GetWebContentsAt(index);
     if (contents != web_ui_contents &&

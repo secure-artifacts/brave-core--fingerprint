@@ -14,6 +14,7 @@
 #include "base/feature_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "brave/browser/brave_shields/brave_shields_settings_service_factory.h"
+#include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/components/brave_perf_predictor/browser/perf_predictor_tab_helper.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_settings_service.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
@@ -22,6 +23,8 @@
 #include "brave/components/brave_shields/core/common/shields_settings.mojom.h"
 #include "brave/components/constants/pref_names.h"
 #include "brave/components/containers/buildflags/buildflags.h"
+#include "brave/components/fingerprint_browser/browser/persona.h"
+#include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/renderer_configuration.mojom.h"
@@ -342,22 +345,110 @@ void BraveShieldsWebContentsObserver::SendShieldsSettings(
         navigation_handle->GetWebContents());
   }
 #endif
+  const base::Token persona_token =
+      fingerprint_browser::GetPersonaFarblingTokenForBrowserContext(
+          rfh->GetBrowserContext());
+  const bool has_persona_farbling_token = !persona_token.is_zero();
+  const auto* persona = fingerprint_browser::GetPersonaForBrowserContext(
+      rfh->GetBrowserContext());
+  const bool has_persona_l1 =
+      farbling_level != brave_shields::mojom::FarblingLevel::OFF && persona;
+  const bool has_persona_l2 =
+      has_persona_l1 && !persona->webgl.vendor.empty() &&
+      !persona->webgl.renderer.empty() && !persona->webgpu.vendor.empty() &&
+      !persona->webgpu.architecture.empty() &&
+      !persona->webgpu.device.empty() && !persona->webgpu.description.empty();
   auto* shields_settings_service =
       BraveShieldsSettingsServiceFactory::GetForProfile(
           Profile::FromBrowserContext(rfh->GetBrowserContext()));
   const base::Token farbling_token =
-      farbling_level != brave_shields::mojom::FarblingLevel::OFF &&
-              shields_settings_service
-          ? shields_settings_service->GetFarblingToken(
-                primary_url, base::as_byte_span(additional_entropy))
-          : base::Token();
+      farbling_level == brave_shields::mojom::FarblingLevel::OFF
+          ? base::Token()
+          : (has_persona_farbling_token
+                 ? persona_token
+                 : (shields_settings_service
+                        ? shields_settings_service->GetFarblingToken(
+                              primary_url,
+                              base::as_byte_span(additional_entropy))
+                        : base::Token()));
   PrefService* pref_service =
       user_prefs::UserPrefs::Get(rfh->GetBrowserContext());
 
   mojo::AssociatedRemote<brave_shields::mojom::BraveShields> agent;
   rfh->GetRemoteAssociatedInterfaces()->GetInterface(&agent);
   agent->SetShieldsSettings(brave_shields::mojom::ShieldsSettings::New(
-      farbling_level, farbling_token, allowed_scripts_,
+      farbling_level, farbling_token,
+      farbling_level != brave_shields::mojom::FarblingLevel::OFF &&
+          has_persona_farbling_token,
+      has_persona_l1, has_persona_l2,
+      has_persona_l1 ? persona->user_agent : std::string(),
+      has_persona_l1 ? persona->platform : std::string(),
+      has_persona_l1 ? fingerprint_browser::GetProfileProxyLanguagesForPrefs(
+                           *pref_service, persona->languages)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? persona->ua_metadata.platform_version : std::string(),
+      has_persona_l1 ? persona->ua_metadata.architecture : std::string(),
+      has_persona_l1 ? persona->ua_metadata.bitness : std::string(),
+      has_persona_l1 ? persona->ua_metadata.full_version : std::string(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandNames(
+                           persona->ua_metadata.brands)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandVersions(
+                           persona->ua_metadata.brands)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandNames(
+                           persona->ua_metadata.full_version_list)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandVersions(
+                           persona->ua_metadata.full_version_list)
+                     : std::vector<std::string>(),
+      has_persona_l1 && persona->ua_metadata.mobile,
+      has_persona_l1 ? static_cast<uint32_t>(persona->hardware_concurrency) : 0,
+      has_persona_l1 ? persona->device_memory_gb : 0.0,
+      has_persona_l1 ? static_cast<uint32_t>(persona->max_touch_points) : 0,
+      has_persona_l1 ? persona->screen.width : 0,
+      has_persona_l1 ? persona->screen.height : 0,
+      has_persona_l1 ? persona->screen.avail_width : 0,
+      has_persona_l1 ? persona->screen.avail_height : 0,
+      has_persona_l1 ? persona->screen.color_depth : 0,
+      has_persona_l1 ? persona->screen.device_scale_factor : 0.0,
+      has_persona_l1 ? persona->screen.window_x : 0,
+      has_persona_l1 ? persona->screen.window_y : 0,
+      has_persona_l2 ? persona->webgl.vendor : std::string(),
+      has_persona_l2 ? persona->webgl.renderer : std::string(),
+      has_persona_l2 ? persona->webgpu.vendor : std::string(),
+      has_persona_l2 ? persona->webgpu.architecture : std::string(),
+      has_persona_l2 ? persona->webgpu.device : std::string(),
+      has_persona_l2 ? persona->webgpu.description : std::string(),
+      has_persona_l1 ? persona->fonts : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMediaDeviceKinds(persona->media_devices)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMediaDeviceIds(persona->media_devices)
+          : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::PersonaMediaDeviceLabels(
+                           persona->media_devices)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::PersonaMediaDeviceGroupIds(
+                           persona->media_devices)
+                     : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaSpeechVoiceUris(persona->speech_voices)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaSpeechVoiceNames(persona->speech_voices)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaSpeechVoiceLangs(persona->speech_voices)
+          : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::PersonaSpeechVoiceLocalServices(
+                           persona->speech_voices)
+                     : std::vector<bool>(),
+      has_persona_l1 ? fingerprint_browser::PersonaSpeechVoiceDefaults(
+                           persona->speech_voices)
+                     : std::vector<bool>(),
+      allowed_scripts_,
       brave_shields::IsReduceLanguageEnabledForProfile(pref_service),
       IsJsBlockingEnforced(rfh->GetBrowserContext(), primary_url)));
 }

@@ -1,20 +1,30 @@
 diff --git a/base/BUILD.gn b/base/BUILD.gn
-index 889b5f6ef48e594b6845bf7ec37715cf1c06ad70..c6af55c213ef483c68cdd11210874300112fdcf5 100644
+index 4dae6c29c574c95b99dc2671aaf9e0c299e1d385..e9ff57b1fc86b80264d48295d1a29aba58cdf977 100644
 --- a/base/BUILD.gn
 +++ b/base/BUILD.gn
-@@ -5056,6 +5056,7 @@ if (is_android) {
+@@ -2598,6 +2598,9 @@ component("base") {
+     ]
+   }
+
++  sources -= brave_base_excluded_sources
++  sources += brave_base_sources
++
+   if (using_sanitizer && !is_fuchsia) {
+     data += [ "//tools/valgrind/asan/" ]
+     data_deps +=
+@@ -5015,6 +5018,7 @@ if (is_android) {
        "android/java/src/org/chromium/base/UserDataHost.java",
        "android/java/src/org/chromium/base/ValueChangedCallback.java",
      ]
 +    sources += brave_java_base_sources
- 
+
      resources_package = "org.chromium.base"
- 
-@@ -5730,6 +5731,7 @@ if (is_android) {
+
+@@ -5689,6 +5693,7 @@ if (is_android) {
        "android/java/src/org/chromium/base/shared_preferences/SharedPreferencesManager.java",
        "android/java/src/org/chromium/base/shared_preferences/StrictPreferenceKeyChecker.java",
      ]
 +    sources += brave_base_shared_preferences_java_sources
    }
- 
+
    android_library("flagged_apis_java") {

@@ -1,0 +1,60 @@
+diff --git a/chrome/browser/media/router/media_router_feature_unittest.cc b/chrome/browser/media/router/media_router_feature_unittest.cc
+index 2b436ba549c42e386a34417058cceb394d805f9c..4672a4a5d2497a6beec61c3f8c1de0ed937f1ed0 100644
+--- a/chrome/browser/media/router/media_router_feature_unittest.cc
++++ b/chrome/browser/media/router/media_router_feature_unittest.cc
+@@ -10,12 +10,14 @@
+ #include "base/test/scoped_feature_list.h"
+ #include "base/time/time.h"
+ #include "base/values.h"
++#include "brave/components/fingerprint_browser/browser/pref_names.h"
+ #include "build/build_config.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/test/base/testing_profile.h"
+ #include "components/media_router/common/pref_names.h"
+ #include "components/prefs/pref_registry_simple.h"
++#include "components/prefs/pref_service.h"
+ #include "components/prefs/testing_pref_service.h"
+ #include "components/sync_preferences/testing_pref_service_syncable.h"
+ #include "content/public/test/browser_task_environment.h"
+@@ -23,6 +25,25 @@
+
+ namespace media_router {
+
++namespace {
++
++void EnableFingerprintProfileProxy(TestingProfile* profile) {
++  PrefService* prefs = profile->GetPrefs();
++  if (!prefs->FindPreference(
++          fingerprint_browser::prefs::kProfileProxyEnabled)) {
++    fingerprint_browser::prefs::RegisterProfilePrefs(
++        profile->GetTestingPrefService()->registry());
++  }
++  prefs->SetBoolean(fingerprint_browser::prefs::kProfileProxyEnabled, true);
++  prefs->SetString(fingerprint_browser::prefs::kProfileProxyScheme,
++                   fingerprint_browser::prefs::kProfileProxySchemeHttp);
++  prefs->SetString(fingerprint_browser::prefs::kProfileProxyHost,
++                   "proxy.example");
++  prefs->SetInteger(fingerprint_browser::prefs::kProfileProxyPort, 8080);
++}
++
++}  // namespace
++
+ TEST(MediaRouterFeatureTest, GetCastAllowAllIPsPref) {
+   auto pref_service = std::make_unique<TestingPrefServiceSimple>();
+   pref_service->registry()->RegisterBooleanPref(
+@@ -119,4 +140,14 @@ TEST_F(MediaRouterEnabledTest, TestDisabledByPolicy) {
+   EXPECT_FALSE(MediaRouterEnabled(incognito_profile));
+ }
+
++TEST_F(MediaRouterEnabledTest, TestDisabledByProfileProxyIdentity) {
++  EnableFingerprintProfileProxy(&enabled_profile);
++
++  EXPECT_FALSE(MediaRouterEnabled(&enabled_profile));
++
++  TestingProfile* incognito_profile =
++      TestingProfile::Builder().BuildIncognito(&enabled_profile);
++  EXPECT_FALSE(MediaRouterEnabled(incognito_profile));
++}
++
+ }  // namespace media_router

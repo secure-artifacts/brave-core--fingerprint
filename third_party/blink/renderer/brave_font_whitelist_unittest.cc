@@ -232,3 +232,16 @@ TEST(BraveFontWhitelistTest, CaseInsensitivity) {
     EXPECT_EQ(brave::AllowFontByFamilyName(std::get<0>(c), ""), std::get<1>(c));
   }
 }
+
+TEST(BraveFontWhitelistTest, PersonaFonts) {
+  const std::vector<std::string> persona_fonts = {"Arial", "SF Pro Text"};
+
+  EXPECT_TRUE(brave::AllowFontByFamilyNameForPersona(
+      blink::AtomicString("arial"), persona_fonts));
+  EXPECT_TRUE(brave::AllowFontByFamilyNameForPersona(
+      blink::AtomicString("sf pro text"), persona_fonts));
+  EXPECT_FALSE(brave::AllowFontByFamilyNameForPersona(
+      blink::AtomicString("Helvetica"), persona_fonts));
+  EXPECT_FALSE(
+      brave::AllowFontByFamilyNameForPersona(blink::AtomicString("Arial"), {}));
+}

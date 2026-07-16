@@ -15,6 +15,7 @@ if (is_android) {
 
 brave_content_browser_deps = [
   "//brave/components/ai_chat/core/common/buildflags",
+  "//brave/components/constants:constants",
   "//brave/components/brave_service_keys",
   "//brave/components/brave_shields/core/common:mojom",
   "//brave/components/brave_wallet/common/buildflags",

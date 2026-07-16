@@ -183,11 +183,18 @@ class BraveNavigatorLanguagesFarblingBrowserTest : public InProcessBrowserTest {
           GetHeaderPosition(request.all_headers, "accept-language");
     }
 
+    auto accept_language_it = request.headers.find("accept-language");
+    if (accept_language_it == request.headers.end()) {
+      return;
+    }
+    observed_http_accept_language_by_domain_[domain] =
+        accept_language_it->second;
+
     auto expected_it = expected_http_accept_language_by_domain_.find(domain);
     if (expected_it == expected_http_accept_language_by_domain_.end()) {
       return;
     }
-    EXPECT_EQ(request.headers.at("accept-language"), expected_it->second);
+    EXPECT_EQ(accept_language_it->second, expected_it->second);
   }
 
   void SetExpectedHTTPAcceptLanguage(
@@ -197,12 +204,30 @@ class BraveNavigatorLanguagesFarblingBrowserTest : public InProcessBrowserTest {
         expected_http_accept_language;
   }
 
+  void ClearExpectedHTTPAcceptLanguage(const std::string& domain) {
+    expected_http_accept_language_by_domain_.erase(domain);
+  }
+
+  void ClearObservedHTTPAcceptLanguage(const std::string& domain) {
+    observed_http_accept_language_by_domain_.erase(domain);
+  }
+
+  std::optional<std::string> GetObservedHTTPAcceptLanguage(
+      const std::string& domain) {
+    auto it = observed_http_accept_language_by_domain_.find(domain);
+    if (it == observed_http_accept_language_by_domain_.end()) {
+      return std::nullopt;
+    }
+    return it->second;
+  }
+
  private:
   // Map from domain to expected HTTP Accept-Language header value.
   // Using a map ensures that requests from different domains are validated
   // against their correct expected values, even if requests arrive
   // out-of-order due to asynchronous network timing.
   std::map<std::string, std::string> expected_http_accept_language_by_domain_;
+  std::map<std::string, std::string> observed_http_accept_language_by_domain_;
 };
 
 // Tests results of farbling known values
@@ -317,12 +342,18 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_d));
 
   // Farbling level: default
-  // HTTP Accept-Language header should be farbled by domain.
+  // HTTP Accept-Language header should be farbled but the same across domains.
   SetFingerprintingDefault(domain_b);
   SetFingerprintingDefault(domain_d);
-  SetExpectedHTTPAcceptLanguage(domain_b, "la;q=0.8");
-  SetExpectedHTTPAcceptLanguage(domain_d, "la;q=0.5");
+  ClearExpectedHTTPAcceptLanguage(domain_b);
+  ClearExpectedHTTPAcceptLanguage(domain_d);
+  ClearObservedHTTPAcceptLanguage(domain_b);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
+  auto default_accept_language_b = GetObservedHTTPAcceptLanguage(domain_b);
+  ASSERT_TRUE(default_accept_language_b);
+  EXPECT_TRUE(base::StartsWith(*default_accept_language_b, "la;q=",
+                               base::CompareCase::SENSITIVE));
+  SetExpectedHTTPAcceptLanguage(domain_d, *default_accept_language_b);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_d));
 
   // Farbling level: maximum
@@ -347,12 +378,18 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_d));
 
   // Farbling level: default
-  // HTTP Accept-Language header should be farbled by domain.
+  // HTTP Accept-Language header should be farbled but the same across domains.
   SetFingerprintingDefault(domain_b);
   SetFingerprintingDefault(domain_d);
-  SetExpectedHTTPAcceptLanguage(domain_b, "zh-HK,zh;q=0.8");
-  SetExpectedHTTPAcceptLanguage(domain_d, "zh-HK,zh;q=0.5");
+  ClearExpectedHTTPAcceptLanguage(domain_b);
+  ClearExpectedHTTPAcceptLanguage(domain_d);
+  ClearObservedHTTPAcceptLanguage(domain_b);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
+  auto zh_default_accept_language_b = GetObservedHTTPAcceptLanguage(domain_b);
+  ASSERT_TRUE(zh_default_accept_language_b);
+  EXPECT_TRUE(base::StartsWith(*zh_default_accept_language_b, "zh-HK,zh;q=",
+                               base::CompareCase::SENSITIVE));
+  SetExpectedHTTPAcceptLanguage(domain_d, *zh_default_accept_language_b);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_d));
 
   // Farbling level: maximum
@@ -429,9 +466,14 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   // even if fetch originated from a service worker.
   SetFingerprintingDefault(domain_b);
   SetAcceptLanguages("zh-HK,zh,la");
-  SetExpectedHTTPAcceptLanguage(domain_b, "zh-HK,zh;q=0.8");
+  ClearExpectedHTTPAcceptLanguage(domain_b);
+  ClearObservedHTTPAcceptLanguage(domain_b);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b_sw));
   std::u16string expected_title(u"LOADED");
   TitleWatcher watcher(web_contents(), expected_title);
   EXPECT_EQ(expected_title, watcher.WaitAndGetTitle());
+  auto observed_accept_language = GetObservedHTTPAcceptLanguage(domain_b);
+  ASSERT_TRUE(observed_accept_language);
+  EXPECT_TRUE(base::StartsWith(*observed_accept_language, "zh-HK,zh;q=",
+                               base::CompareCase::SENSITIVE));
 }

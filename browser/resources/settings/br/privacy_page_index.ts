@@ -13,6 +13,7 @@ import { routes } from '../route.js';
 import { loadTimeData } from "../i18n_setup.js"
 import { pageVisibility } from './page_visibility.js'
 import '../brave_survey_panelist_page/brave_survey_panelist_page.js'
+import '../fingerprint_profile_proxy_page/fingerprint_profile_proxy_subpage.js'
 import '../site_settings/site_settings_autoplay.js'
 // <if expr="enable_brave_wallet">
 import '../site_settings/site_settings_cardano.js'
@@ -34,6 +35,8 @@ RegisterPolymerPrototypeModification({
 
       // Add dataCollection view.
       views.splice(1, 0, 'dataCollection');
+
+      views.splice(1, 0, 'fingerprintProfileProxy');
 
       // <if expr="enable_tor">
       // Add tor view if it should be shown.
@@ -89,6 +92,13 @@ RegisterPolymerTemplateModifications({
       prefs="{{prefs}}"
       in-search-mode="[[inSearchMode_]]">
     </settings-brave-data-collection-subpage>`)
+
+    viewManager.appendChild(html`<settings-fingerprint-profile-proxy-subpage
+      id="fingerprintProfileProxy"
+      slot="view"
+      prefs="{{prefs}}"
+      in-search-mode="[[inSearchMode_]]">
+    </settings-fingerprint-profile-proxy-subpage>`)
 
     if (loadTimeData.getBoolean('isSurveyPanelistAllowed')) {
       viewManager.appendChild(html`<settings-brave-survey-panelist-page

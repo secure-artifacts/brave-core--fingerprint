@@ -1,0 +1,21 @@
+diff --git a/third_party/blink/public/common/renderer_preferences/renderer_preferences_mojom_traits.h b/third_party/blink/public/common/renderer_preferences/renderer_preferences_mojom_traits.h
+index 11270bb1e2293560f1cc405049df4fe5c38d1fd5..49305c3cfba2b98f405a93f5aff9cd9f67196ae9 100644
+--- a/third_party/blink/public/common/renderer_preferences/renderer_preferences_mojom_traits.h
++++ b/third_party/blink/public/common/renderer_preferences/renderer_preferences_mojom_traits.h
+@@ -180,6 +180,16 @@ struct BLINK_COMMON_EXPORT
+     return data.accept_languages;
+   }
+
++  static const std::string& fingerprint_browser_timezone_override(
++      const ::blink::RendererPreferences& data) {
++    return data.fingerprint_browser_timezone_override;
++  }
++
++  static const bool& fingerprint_browser_timezone_override_initialized(
++      const ::blink::RendererPreferences& data) {
++    return data.fingerprint_browser_timezone_override_initialized;
++  }
++
+   static const bool& send_subresource_notification(
+       const ::blink::RendererPreferences& data) {
+     return data.send_subresource_notification;

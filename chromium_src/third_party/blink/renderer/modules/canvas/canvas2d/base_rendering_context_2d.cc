@@ -20,10 +20,9 @@
         gfx::SkPixmapToWritableSpan(image_data_pixmap));                  \
   }
 
-#define BRAVE_BASE_RENDERING_CONTEXT_2D_MEASURE_TEXT      \
-  if (!brave::AllowFingerprinting(                        \
-          GetTopExecutionContext(),                       \
-          ContentSettingsType::BRAVE_WEBCOMPAT_LANGUAGE)) \
+#define BRAVE_BASE_RENDERING_CONTEXT_2D_MEASURE_TEXT                          \
+  if (!brave::AllowFingerprinting(GetTopExecutionContext(),                   \
+                                  ContentSettingsType::BRAVE_WEBCOMPAT_FONT)) \
     return MakeGarbageCollected<TextMetrics>();
 
 #define BRAVE_GET_IMAGE_DATA_PARAMS ScriptState *script_state,

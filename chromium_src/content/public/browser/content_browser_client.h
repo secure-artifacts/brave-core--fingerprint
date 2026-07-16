@@ -41,6 +41,9 @@ class StoragePartitionConfig;
       const content::StoragePartitionConfig& partition_config) const;        \
   virtual bool ShouldUseDefaultHostZoomMapForStoragePartition(               \
       const content::StoragePartitionConfig& partition_config) const;        \
+  virtual bool GetProfileGeolocationOverride(                                \
+      RenderFrameHost* render_frame_host, double* latitude,                   \
+      double* longitude, double* accuracy);                                   \
   virtual void SetBrowserStartupIsCompleteForTesting
 
 #include <content/public/browser/content_browser_client.h>  // IWYU pragma: export

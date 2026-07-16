@@ -26,6 +26,10 @@
   screenY_ChromiumImpl() const; \
   int screenTop
 
+#define devicePixelRatio                 \
+  devicePixelRatio_ChromiumImpl() const; \
+  double devicePixelRatio
+
 #define resizeTo                                                \
   resizeTo_ChromiumImpl(int width, int height,                  \
                         ExceptionState& exception_state) const; \
@@ -41,6 +45,7 @@
 #undef outerWidth
 #undef screenLeft
 #undef screenTop
+#undef devicePixelRatio
 #undef resizeTo
 #undef moveTo
 

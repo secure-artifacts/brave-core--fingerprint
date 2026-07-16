@@ -1,0 +1,16 @@
+diff --git a/content/public/browser/web_contents.h b/content/public/browser/web_contents.h
+index a4ef44c43ee32635b7baec09a8ec67cde6730f50..cfd1e68d36f723dd6a1ed3fda1cd305c5f807643 100644
+--- a/content/public/browser/web_contents.h
++++ b/content/public/browser/web_contents.h
+@@ -446,6 +446,11 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
+   CONTENT_EXPORT static void SetScreenOrientationDelegate(
+       ScreenOrientationDelegate* delegate);
+
++  // Sends updated renderer preferences to every WebContents in a browser
++  // context.
++  CONTENT_EXPORT static void SyncRendererPrefsForBrowserContext(
++      BrowserContext* browser_context);
++
+   ~WebContents() override = default;
+
+   // Intrinsic tab state -------------------------------------------------------

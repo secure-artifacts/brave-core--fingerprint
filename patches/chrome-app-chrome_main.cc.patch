@@ -1,0 +1,21 @@
+diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
+index b5cc00e4c869a..a980bb68be056 100644
+--- a/chrome/app/chrome_main.cc
++++ b/chrome/app/chrome_main.cc
+@@ -28,6 +28,10 @@
+ #include "content/public/common/content_switches.h"
+ #include "partition_alloc/buildflags.h"
+
++#include "brave/app/brave_main_delegate.h"
++
++#define ChromeMainDelegate BraveMainDelegate
++
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/app/chrome_main_mac.h"
+ #include "chrome/common/mac/detect_inappropriate_exit.h"
+@@ -225,3 +229,5 @@ int ChromeMain(int argc, const char** argv) {
+   }
+   return rv;
+ }
++
++#undef ChromeMainDelegate

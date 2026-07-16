@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title></title>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    <script>
+      const worker = new Worker('workers-useragent-network.js');
+      worker.onmessage = function (e) {
+        if (navigator.userAgent == e.data) {
+          document.title = 'pass';
+        } else {
+          document.title = 'fail';
+        }
+      };
+    </script>
+  </body>
+</html>

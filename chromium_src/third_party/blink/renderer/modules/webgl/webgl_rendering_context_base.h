@@ -14,8 +14,15 @@
   getSupportedExtensions_ChromiumImpl(); \
   std::optional<Vector<String>> getSupportedExtensions
 
+#define ReadPixelsHelper                                                     \
+  ReadPixelsHelper_ChromiumImpl(GLint x, GLint y, GLsizei width,             \
+                                GLsizei height, GLenum format, GLenum type,  \
+                                DOMArrayBufferView* pixels, int64_t offset); \
+  void ReadPixelsHelper
+
 #include <third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h>  // IWYU pragma: export
 
+#undef ReadPixelsHelper
 #include <optional>
 
 #undef getSupportedExtensions

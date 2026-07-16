@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include "brave/browser/ui/webui/brave_settings_ui.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -15,6 +16,45 @@ class BraveSettingsUIBrowserTest : public InProcessBrowserTest {
   BraveSettingsUIBrowserTest() = default;
   ~BraveSettingsUIBrowserTest() override = default;
 };
+
+IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest, LoadsBraveSettingsUI) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           GURL("chrome://settings/")));
+
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(web_contents, nullptr);
+  EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+
+  auto* web_ui = web_contents->GetPrimaryMainFrame()->GetWebUI();
+  ASSERT_NE(web_ui, nullptr);
+  EXPECT_TRUE(web_ui->GetController()->GetAs<BraveSettingsUI>());
+
+  const auto background =
+      content::EvalJs(web_contents, R"(
+        (() => {
+          const findSettingsMain = (root) => {
+            for (const element of root.querySelectorAll('*')) {
+              if (element.tagName.toLowerCase() === 'settings-main') {
+                return element;
+              }
+              if (element.shadowRoot) {
+                const result = findSettingsMain(element.shadowRoot);
+                if (result) {
+                  return result;
+                }
+              }
+            }
+            return null;
+          };
+          const settingsMain = findSettingsMain(document);
+          return settingsMain ? getComputedStyle(settingsMain).backgroundColor
+                              : 'missing';
+        })()
+      )")
+          .ExtractString();
+  EXPECT_NE(background, "missing");
+  EXPECT_NE(background, "rgb(255, 0, 0)");
+}
 
 // Test that chrome://settings loads without crashing in guest profiles.
 // This verifies that all Mojo interface bindings properly handle null services

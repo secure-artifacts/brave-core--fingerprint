@@ -104,8 +104,9 @@ bool SOCKS5ClientSocketAuth::do_auth() {
 }
 
 uint8_t SOCKS5ClientSocketAuth::auth_method() {
-  if (!do_auth())
+  if (!do_auth()) {
     return 0x00;
+  }
   return 0x02;
 }
 
@@ -201,8 +202,9 @@ int SOCKS5ClientSocketAuth::Authenticate(
         uint8_t ver = buffer_[0];
         uint8_t status = buffer_[1];
         next_state_ = STATE_BAD;  // Caller had better stop here.
-        if (ver != 0x01 || status != 0x00)
-          return ERR_FAILED;
+        if (ver != 0x01 || status != 0x00) {
+          return ERR_SOCKS_CONNECTION_FAILED;
+        }
         return OK;
       }
 

@@ -8,9 +8,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/component_export.h"
 #include "base/files/file_path.h"
+#include "base/functional/callback.h"
 #include "base/observer_list.h"
 #include "brave/components/brave_component_updater/browser/brave_component.h"
 
@@ -36,6 +38,8 @@ inline constexpr char kLocalDataFilesComponentBase64PublicKey[] =
 class COMPONENT_EXPORT(BRAVE_COMPONENT_UPDATER) LocalDataFilesService
     : public BraveComponent {
  public:
+  using ReadyCallback = base::RepeatingCallback<void(const base::FilePath&)>;
+
   explicit LocalDataFilesService(BraveComponent::Delegate* delegate);
   LocalDataFilesService(const LocalDataFilesService&) = delete;
   LocalDataFilesService& operator=(const LocalDataFilesService&) = delete;
@@ -44,6 +48,7 @@ class COMPONENT_EXPORT(BRAVE_COMPONENT_UPDATER) LocalDataFilesService
   bool IsInitialized() const { return initialized_; }
   void AddObserver(LocalDataFilesObserver* observer);
   void RemoveObserver(LocalDataFilesObserver* observer);
+  void AddReadyCallback(ReadyCallback callback);
 
  protected:
   void OnComponentReady(const std::string& component_id,
@@ -56,6 +61,7 @@ class COMPONENT_EXPORT(BRAVE_COMPONENT_UPDATER) LocalDataFilesService
 
   bool initialized_;
   base::ObserverList<LocalDataFilesObserver>::Unchecked observers_;
+  std::vector<ReadyCallback> ready_callbacks_;
 };
 
 // Creates the LocalDataFilesService

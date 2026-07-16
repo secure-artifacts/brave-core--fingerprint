@@ -1,21 +1,58 @@
 diff --git a/components/permissions/BUILD.gn b/components/permissions/BUILD.gn
-index fb83d69d14b375c625d66e73ada5d3a42a4bf225..94f391d64b8eb78f73b6955e6ffa1d61c91885ce 100644
+index ee22f6c384f3c883793ca1611e254b117369e235..2d4f57372ae78d46bc58ffea3ca449dd55b833b3 100644
 --- a/components/permissions/BUILD.gn
 +++ b/components/permissions/BUILD.gn
 @@ -6,7 +6,7 @@ import("//components/guest_view/buildflags/buildflags.gni")
  import("//device/vr/buildflags/buildflags.gni")
  import("//services/device/public/cpp/geolocation/buildflags.gni")
- 
+
 -source_set("permissions_common") {
 +component("permissions_common") {
    sources = [
      "constants.cc",
      "constants.h",
-@@ -181,6 +181,7 @@ source_set("permissions") {
+@@ -15,6 +15,12 @@ source_set("permissions_common") {
+     "permission_request_enums.h",
+     "request_type.h",
+   ]
++  import("//brave/components/permissions/sources.gni")
++  sources -= [
++    "constants.cc",
++    "features.cc",
++  ]
++  sources += brave_components_permissions_common_sources
+   defines = [ "IS_PERMISSIONS_COMMON_IMPL" ]
+   deps = [
+     "//base",
+@@ -180,6 +186,19 @@ source_set("permissions") {
    if (enable_guest_view) {
      deps += [ "//components/guest_view/browser" ]
    }
-+  import("//brave/components/permissions/sources.gni") sources += brave_components_permissions_sources deps += brave_components_permissions_deps
++  import("//brave/components/permissions/sources.gni")
++  sources -= [
++    "chooser_controller.cc",
++    "permission_context_base.cc",
++    "permission_request.cc",
++    "permission_request_manager.cc",
++    "permission_uma_util.cc",
++    "permission_util.cc",
++    "permissions_client.cc",
++    "request_type.cc",
++  ]
++  sources += brave_components_permissions_sources
++  deps += brave_components_permissions_deps
    if (is_android) {
      sources += [
        "android/android_permission_util.cc",
+@@ -265,6 +284,11 @@ source_set("permissions") {
+       "bluetooth_scanning_prompt_desktop.h",
+       "permission_prompt_impl.cc",
+     ]
++    sources -= [
++      "bluetooth_chooser_controller.cc",
++      "bluetooth_scanning_prompt_controller.cc",
++    ]
++    sources += brave_components_permissions_desktop_sources
+   }
+
+   public_deps = [

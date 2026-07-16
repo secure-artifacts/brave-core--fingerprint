@@ -4,10 +4,13 @@
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/run_until.h"
 #include "base/threading/thread_restrictions.h"
 #include "brave/browser/containers/containers_service_factory.h"
@@ -15,6 +18,8 @@
 #include "brave/browser/ui/browser_commands.h"
 #include "brave/browser/ui/views/tabs/brave_new_tab_button.h"
 #include "brave/browser/ui/views/tabs/brave_tab.h"
+#include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
+#include "brave/components/brave_shields/core/common/features.h"
 #include "brave/components/containers/content/browser/storage_partition_utils.h"
 #include "brave/components/containers/core/browser/container_specifier.h"
 #include "brave/components/containers/core/browser/containers_service.h"
@@ -24,6 +29,7 @@
 #include "brave/components/containers/core/common/features.h"
 #include "brave/components/containers/core/mojom/containers.mojom.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/exit_type_service.h"
@@ -50,6 +56,8 @@
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
+#include "components/language/core/browser/pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browsing_data_remover.h"
@@ -91,17 +99,86 @@ constexpr char kTestContainerId[] = "test-container-id";
 constexpr char kFarblingPluginsStringScript[] =
     "Array.from(navigator.plugins).map(p => p.name).join(',');";
 
+constexpr char kCanvasHashScript[] = R"(
+(() => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#123456';
+  ctx.fillRect(0, 0, 32, 32);
+  ctx.fillStyle = '#fedcba';
+  ctx.font = '14px serif';
+  ctx.fillText('Brave', 2, 20);
+  const data = ctx.getImageData(0, 0, 32, 32).data;
+  let hash = 2166136261;
+  for (const value of data) {
+    hash ^= value;
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString();
+})()
+)";
+
+constexpr char kWebGLSurfaceScript[] = R"(
+(() => {
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+  if (!gl) {
+    return 'no-webgl';
+  }
+  return [
+    gl.getParameter(gl.MAX_TEXTURE_SIZE),
+    gl.getParameter(gl.MAX_CUBE_MAP_TEXTURE_SIZE),
+    (gl.getSupportedExtensions() || []).join(',')
+  ].join('|');
+})()
+)";
+
+constexpr char kNavigatorLanguagesScript[] = "navigator.languages.toString()";
+
+struct FarblingSurfaceValues {
+  std::string plugins;
+  std::string canvas_hash;
+  std::string webgl;
+  std::string navigator_languages;
+};
+
+FarblingSurfaceValues ReadFarblingSurface(content::WebContents* web_contents) {
+  return {
+      content::EvalJs(web_contents, kFarblingPluginsStringScript)
+          .ExtractString(),
+      content::EvalJs(web_contents, kCanvasHashScript).ExtractString(),
+      content::EvalJs(web_contents, kWebGLSurfaceScript).ExtractString(),
+      content::EvalJs(web_contents, kNavigatorLanguagesScript)
+          .ExtractString(),
+  };
+}
+
+void ExpectSameFarblingSurface(const FarblingSurfaceValues& expected,
+                               const FarblingSurfaceValues& actual) {
+  EXPECT_EQ(expected.plugins, actual.plugins);
+  EXPECT_EQ(expected.canvas_hash, actual.canvas_hash);
+  EXPECT_EQ(expected.webgl, actual.webgl);
+  EXPECT_EQ(expected.navigator_languages, actual.navigator_languages);
+}
+
 }  // namespace
 
 class ContainersBrowserTest : public InProcessBrowserTest {
  public:
   ContainersBrowserTest() : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
-    feature_list_.InitAndEnableFeature(features::kContainers);
+    feature_list_.InitWithFeatures(
+        {features::kContainers, brave_shields::features::kBraveReduceLanguage,
+         brave_shields::features::kBraveShowStrictFingerprintingMode},
+        {});
     https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
 
     // Register a request handler for serving test HTML content
     https_server_.AddDefaultHandlers(
         base::FilePath(FILE_PATH_LITERAL("brave/test/data")));
+    https_server_.RegisterRequestMonitor(base::BindRepeating(
+        &ContainersBrowserTest::MonitorHTTPRequest, base::Unretained(this)));
 
     EXPECT_TRUE(https_server_.Start());
   }
@@ -274,6 +351,31 @@ class ContainersBrowserTest : public InProcessBrowserTest {
     return ContainersServiceFactory::GetForProfile(browser()->profile());
   }
 
+  HostContentSettingsMap* content_settings() {
+    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+  }
+
+  void SetAcceptLanguages(const std::string& accept_languages) {
+    PrefService* prefs = browser()->profile()->GetPrefs();
+    prefs->Set(language::prefs::kSelectedLanguages,
+               base::Value(accept_languages));
+    prefs->Set(language::prefs::kAcceptLanguages, base::Value(accept_languages));
+  }
+
+  void MonitorHTTPRequest(const net::test_server::HttpRequest& request) {
+    if (request.relative_url.find("/simple.html?farbling-container") != 0) {
+      return;
+    }
+
+    auto accept_language = request.headers.find("accept-language");
+    if (accept_language == request.headers.end()) {
+      return;
+    }
+
+    accept_language_headers_by_url_[request.relative_url] =
+        accept_language->second;
+  }
+
   void SetBraveNewTabButtonSkipContainersContextMenuRunForTesting(
       BraveNewTabButton* new_tab_button,
       bool skip) {
@@ -427,6 +529,7 @@ class ContainersBrowserTest : public InProcessBrowserTest {
  protected:
   base::test::ScopedFeatureList feature_list_;
   net::EmbeddedTestServer https_server_;
+  std::map<std::string, std::string> accept_language_headers_by_url_;
 };
 
 IN_PROC_BROWSER_TEST_F(ContainersBrowserTest, IsolateCookiesAndStorage) {
@@ -2065,39 +2168,55 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
-                       WebsiteFarblingRespectsContainerPartitions) {
-  const GURL url("https://a.test/simple.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+                       WebsiteFarblingUsesProfilePersonaAcrossContainers) {
+  const GURL default_url(
+      "https://a.test/simple.html?farbling-container=default");
+  const GURL container_a_url(
+      "https://a.test/simple.html?farbling-container=a");
+  const GURL container_b_url(
+      "https://a.test/simple.html?farbling-container=b");
+  const GURL container_a_second_url(
+      "https://a.test/simple.html?farbling-container=a-second");
 
-  auto get_farbled_navigator_plugins = [](content::WebContents* web_contents) {
-    return content::EvalJs(web_contents, kFarblingPluginsStringScript)
-        .ExtractString();
-  };
+  SetAcceptLanguages("la,es,en");
+  brave_shields::SetFingerprintingControlType(
+      content_settings(), brave_shields::ControlType::DEFAULT, default_url);
 
-  const std::string plugins_default = get_farbled_navigator_plugins(
-      browser()->tab_strip_model()->GetActiveWebContents());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), default_url));
+  const FarblingSurfaceValues default_surface =
+      ReadFarblingSurface(browser()->tab_strip_model()->GetActiveWebContents());
 
-  const std::string plugins_container_a_tab1 =
-      get_farbled_navigator_plugins(OpenUrlInContainerTab(url, "farbling-a"));
-  const std::string plugins_container_b =
-      get_farbled_navigator_plugins(OpenUrlInContainerTab(url, "farbling-b"));
-  const std::string plugins_container_a_tab2 =
-      get_farbled_navigator_plugins(OpenUrlInContainerTab(url, "farbling-a"));
+  const FarblingSurfaceValues container_a_surface =
+      ReadFarblingSurface(OpenUrlInContainerTab(container_a_url, "farbling-a"));
+  const FarblingSurfaceValues container_b_surface =
+      ReadFarblingSurface(OpenUrlInContainerTab(container_b_url, "farbling-b"));
+  const FarblingSurfaceValues container_a_second_surface = ReadFarblingSurface(
+      OpenUrlInContainerTab(container_a_second_url, "farbling-a"));
 
-  EXPECT_FALSE(plugins_default.empty());
-  EXPECT_FALSE(plugins_container_a_tab1.empty());
-  EXPECT_FALSE(plugins_container_b.empty());
-  EXPECT_FALSE(plugins_container_a_tab2.empty());
+  EXPECT_FALSE(default_surface.plugins.empty());
+  EXPECT_FALSE(container_a_surface.plugins.empty());
+  EXPECT_FALSE(container_b_surface.plugins.empty());
+  EXPECT_FALSE(container_a_second_surface.plugins.empty());
+  EXPECT_FALSE(default_surface.canvas_hash.empty());
+  EXPECT_FALSE(default_surface.webgl.empty());
+  EXPECT_FALSE(default_surface.navigator_languages.empty());
 
-  // Default partition vs container partitions.
-  EXPECT_NE(plugins_default, plugins_container_a_tab1);
-  EXPECT_NE(plugins_default, plugins_container_b);
+  ExpectSameFarblingSurface(default_surface, container_a_surface);
+  ExpectSameFarblingSurface(default_surface, container_b_surface);
+  ExpectSameFarblingSurface(default_surface, container_a_second_surface);
 
-  // Different container ids.
-  EXPECT_NE(plugins_container_a_tab1, plugins_container_b);
-
-  // Same container id across separate tabs.
-  EXPECT_EQ(plugins_container_a_tab1, plugins_container_a_tab2);
+  const std::string default_header =
+      accept_language_headers_by_url_["/simple.html?farbling-container=default"];
+  ASSERT_FALSE(default_header.empty());
+  EXPECT_EQ(
+      default_header,
+      accept_language_headers_by_url_["/simple.html?farbling-container=a"]);
+  EXPECT_EQ(
+      default_header,
+      accept_language_headers_by_url_["/simple.html?farbling-container=b"]);
+  EXPECT_EQ(default_header,
+            accept_language_headers_by_url_
+                ["/simple.html?farbling-container=a-second"]);
 }
 
 // Test suite to verify behavior when containers feature is disabled after
