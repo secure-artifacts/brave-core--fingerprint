@@ -1,0 +1,13 @@
+diff --git a/chrome/app/chrome_main_delegate.cc b/chrome/app/chrome_main_delegate.cc
+index df8f9455d224f..3eb729036b909 100644
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -4,6 +4,8 @@
+
+ #include "chrome/app/chrome_main_delegate.h"
+
++#include "brave/app/brave_main_delegate.cc"
++
+ #include <stddef.h>
+
+ #include <string>

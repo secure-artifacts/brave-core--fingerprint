@@ -1279,6 +1279,63 @@
   <message name="IDS_SETTINGS_MEDIA_ROUTER_ENABLED_DESC" desc="The description for media router switch in settings">
     Media router enables cast feature in the browser
   </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_TITLE" desc="The title for the per-profile proxy settings section">
+    Profile proxy
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_ENABLED_LABEL" desc="The label for enabling the per-profile proxy feature">
+    Enable profile proxy
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_ENABLED_DESC" desc="The description for enabling the per-profile proxy feature">
+    Route this profile through a separate HTTP or SOCKS5 proxy.
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_NO_PROXY_RISK_TITLE" desc="The title shown when a fingerprint persona is active but the per-profile proxy is disabled">
+    Profile proxy is off
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_NO_PROXY_RISK_DESC" desc="The warning shown when a fingerprint persona is active but the per-profile proxy is disabled">
+    Fingerprint surfaces still use this profile's persona, but traffic exits through your real network. Geographic consistency cannot be guaranteed.
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SCHEME_LABEL" desc="The label for selecting the per-profile proxy protocol">
+    Proxy type
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SCHEME_DESC" desc="The description for the per-profile proxy protocol selector">
+    HTTP and SOCKS5 proxies are supported.
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTP" desc="The HTTP proxy type option">
+    HTTP
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SOCKS5" desc="The SOCKS5 proxy type option">
+    SOCKS5
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HOST_LABEL" desc="The label for the per-profile proxy host input">
+    Host
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PORT_LABEL" desc="The label for the per-profile proxy port input">
+    Port
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_USERNAME_LABEL" desc="The label for the per-profile proxy username input">
+    Username
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_LABEL" desc="The label for the per-profile proxy password input">
+    Password
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SAVE" desc="The label for the button that saves per-profile proxy settings">
+    Save
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HOST_REQUIRED" desc="Validation error shown when a profile proxy is enabled without a host">
+    Host is required when proxy is enabled.
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PORT_INVALID" desc="Validation error shown when a profile proxy port is missing or out of range">
+    Port must be between 1 and 65535.
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_RUNTIME_ERROR_TITLE" desc="The title shown above a runtime per-profile proxy failure">
+    Proxy error
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_CONFLICT_WARNING_TITLE" desc="The title shown above a per-profile proxy conflict warning">
+    Proxy controlled elsewhere
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SAVED" desc="Confirmation text shown after saving per-profile proxy settings">
+    Profile proxy settings saved.
+  </message>
   <message name="IDS_SETTINGS_RESOLVE_UNSTOPPABLE_DOMAINS_DESC" desc="The description for how to handle Unstoppable Domains">
     Resolve Unstoppable Domains domain names
   </message>

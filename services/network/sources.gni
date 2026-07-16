@@ -3,5 +3,28 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Deps for services/network:network_service
+brave_services_network_excluded_sources = [
+  "cookie_access_delegate_impl.cc",
+  "cookie_manager.cc",
+  "cookie_settings.cc",
+  "cors/cors_url_loader.cc",
+  "network_service.cc",
+  "network_service_network_delegate.cc",
+  "oblivious_http_request_handler.cc",
+  "resolve_host_request.cc",
+  "restricted_cookie_manager.cc",
+]
+
+brave_services_network_sources = [
+  "//brave/chromium_src/services/network/cookie_access_delegate_impl.cc",
+  "//brave/chromium_src/services/network/cookie_manager.cc",
+  "//brave/chromium_src/services/network/cookie_settings.cc",
+  "//brave/chromium_src/services/network/cors/cors_url_loader.cc",
+  "//brave/chromium_src/services/network/network_service.cc",
+  "//brave/chromium_src/services/network/network_service_network_delegate.cc",
+  "//brave/chromium_src/services/network/oblivious_http_request_handler.cc",
+  "//brave/chromium_src/services/network/resolve_host_request.cc",
+  "//brave/chromium_src/services/network/restricted_cookie_manager.cc",
+]
+
 brave_services_network_deps = [ "//brave/components/oblivious_http" ]

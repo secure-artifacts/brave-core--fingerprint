@@ -34,6 +34,7 @@ class StoragePartitionConfig;
 
 namespace blink {
 class AssociatedInterfaceRegistry;
+struct RendererPreferences;
 }  // namespace blink
 namespace web_pref {
 struct WebPreferences;
@@ -89,6 +90,13 @@ class BraveContentBrowserClient : public ChromeContentBrowserClient {
   bool AllowWorkerFingerprinting(
       const GURL& url,
       content::BrowserContext* browser_context) override;
+
+  void UpdateRendererPreferences(
+      content::BrowserContext* browser_context,
+      blink::RendererPreferences* out_prefs) override;
+  void UpdateRendererPreferencesForWorker(
+      content::BrowserContext* browser_context,
+      blink::RendererPreferences* out_prefs) override;
 
   brave_shields::mojom::ShieldsSettingsPtr WorkerGetBraveShieldSettings(
       const GURL& url,
@@ -196,6 +204,12 @@ class BraveContentBrowserClient : public ChromeContentBrowserClient {
 
   bool ShouldUseDefaultHostZoomMapForStoragePartition(
       const content::StoragePartitionConfig& partition_config) const override;
+
+  bool GetProfileGeolocationOverride(
+      content::RenderFrameHost* render_frame_host,
+      double* latitude,
+      double* longitude,
+      double* accuracy) override;
 
   bool AllowSignedExchange(content::BrowserContext* context) override;
 

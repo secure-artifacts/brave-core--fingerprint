@@ -5,7 +5,24 @@
 
 import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")
 
+brave_components_sync_driver_excluded_sources = [
+  "glue/sync_engine_backend.cc",
+  "glue/sync_engine_impl.cc",
+  "sync_auth_manager.cc",
+  "sync_internals_util.cc",
+  "sync_service_impl.cc",
+  "sync_session_durations_metrics_recorder.cc",
+  "sync_user_settings_impl.cc",
+]
+
 brave_components_sync_driver_sources = [
+  "//brave/chromium_src/components/sync/service/glue/sync_engine_backend.cc",
+  "//brave/chromium_src/components/sync/service/glue/sync_engine_impl.cc",
+  "//brave/chromium_src/components/sync/service/sync_auth_manager.cc",
+  "//brave/chromium_src/components/sync/service/sync_internals_util.cc",
+  "//brave/chromium_src/components/sync/service/sync_service_impl.cc",
+  "//brave/chromium_src/components/sync/service/sync_session_durations_metrics_recorder.cc",
+  "//brave/chromium_src/components/sync/service/sync_user_settings_impl.cc",
   "//brave/components/sync/service/brave_sync_auth_manager.cc",
   "//brave/components/sync/service/brave_sync_auth_manager.h",
   "//brave/components/sync/service/brave_sync_service_impl.cc",

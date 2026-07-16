@@ -1,0 +1,60 @@
+diff --git a/content/browser/geolocation/geolocation_service_impl.cc b/content/browser/geolocation/geolocation_service_impl.cc
+index d7bca56dccb56370e177d1100fcb6b0e796e55d9..149ac4560785594c3842afda3b4df560844cfdfd 100644
+--- a/content/browser/geolocation/geolocation_service_impl.cc
++++ b/content/browser/geolocation/geolocation_service_impl.cc
+@@ -14,11 +14,13 @@
+ #include "content/browser/web_contents/web_contents_impl.h"
+ #include "content/common/features.h"
+ #include "content/public/browser/browser_context.h"
++#include "content/public/browser/content_browser_client.h"
+ #include "content/public/browser/permission_controller.h"
+ #include "content/public/browser/permission_descriptor_util.h"
+ #include "content/public/browser/permission_request_description.h"
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/render_process_host.h"
++#include "content/public/common/content_client.h"
+ #include "mojo/public/cpp/bindings/callback_helpers.h"
+ #include "services/device/public/mojom/geoposition.mojom.h"
+ #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
+@@ -58,13 +60,41 @@ class GeolocationServiceImpl::GeolocationProxy
+     geolocation_impl_remote_->SetHighAccuracyHint(high_accuracy);
+   }
+   void QueryCachedPosition(QueryCachedPositionCallback callback) override {
++    if (ReplyWithProfileGeolocationOverride(std::move(callback))) {
++      return;
++    }
+     geolocation_impl_remote_->QueryCachedPosition(std::move(callback));
+   }
+   void QueryNextPosition(QueryNextPositionCallback callback) override {
++    if (ReplyWithProfileGeolocationOverride(std::move(callback))) {
++      return;
++    }
+     geolocation_impl_remote_->QueryNextPosition(std::move(callback));
+   }
+
+  private:
++  template <typename Callback>
++  bool ReplyWithProfileGeolocationOverride(Callback callback) {
++    double latitude = 0.0;
++    double longitude = 0.0;
++    double accuracy = 0.0;
++    if (!GetContentClient()->browser()->GetProfileGeolocationOverride(
++            service_impl_->render_frame_host_, &latitude, &longitude,
++            &accuracy)) {
++      return false;
++    }
++
++    auto position = device::mojom::Geoposition::New();
++    position->latitude = latitude;
++    position->longitude = longitude;
++    position->accuracy = accuracy;
++    position->timestamp = base::Time::Now();
++    position->is_precise = false;
++    std::move(callback).Run(
++        device::mojom::GeopositionResult::NewPosition(std::move(position)));
++    return true;
++  }
++
+   void OnDisconnect() { service_impl_->OnProxyDisconnected(this); }
+
+   // `GeolocationServiceImpl` owns `this` (via `active_proxies_`), so

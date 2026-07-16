@@ -5,6 +5,7 @@
 
 #include "base/feature_list.h"
 
+#if __has_include("base/feature_override.h")
 #include <algorithm>
 #include <optional>
 
@@ -142,3 +143,6 @@ FeatureState FeatureList::GetCompileTimeFeatureState(const Feature& feature) {
 #undef GetStateIfOverridden
 #undef IsFeatureOverridden
 #undef default_state
+#else
+#include <base/feature_list.cc>
+#endif

@@ -33,6 +33,7 @@
 #include "brave/browser/debounce/debounce_service_factory.h"
 #include "brave/browser/ephemeral_storage/ephemeral_storage_service_factory.h"
 #include "brave/browser/ephemeral_storage/ephemeral_storage_tab_helper.h"
+#include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/browser/misc_metrics/process_misc_metrics.h"
 #include "brave/browser/net/brave_proxying_url_loader_factory.h"
 #include "brave/browser/net/brave_proxying_web_socket.h"
@@ -80,6 +81,8 @@
 #include "brave/components/de_amp/browser/de_amp_body_handler.h"
 #include "brave/components/debounce/content/browser/debounce_navigation_throttle.h"
 #include "brave/components/email_aliases/buildflags/buildflags.h"
+#include "brave/components/fingerprint_browser/browser/persona.h"
+#include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 #include "brave/components/global_privacy_control/global_privacy_control_utils.h"
 #include "brave/components/google_sign_in_permission/google_sign_in_permission_throttle.h"
 #include "brave/components/google_sign_in_permission/google_sign_in_permission_util.h"
@@ -133,11 +136,16 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_ui_browser_interface_broker_registry.h"
+#include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "content/public/browser/web_ui_controller_interface_binder.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/buildflags/buildflags.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "extensions/common/constants.h"
+#endif
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -542,6 +550,7 @@ std::unique_ptr<content::BrowserMainParts>
 BraveContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
   std::unique_ptr<content::BrowserMainParts> main_parts =
       ChromeContentBrowserClient::CreateBrowserMainParts(is_integration_test);
+
   ChromeBrowserMainParts* chrome_main_parts =
       static_cast<ChromeBrowserMainParts*>(main_parts.get());
   chrome_main_parts->AddParts(std::make_unique<BraveBrowserMainExtraParts>());
@@ -876,6 +885,25 @@ bool BraveContentBrowserClient::AllowWorkerFingerprinting(
              ->farbling_level != brave_shields::mojom::FarblingLevel::MAXIMUM;
 }
 
+void BraveContentBrowserClient::UpdateRendererPreferences(
+    content::BrowserContext* browser_context,
+    blink::RendererPreferences* out_prefs) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  const auto geo =
+      fingerprint_browser::GetProfileProxyGeoForPrefs(*profile->GetPrefs());
+  out_prefs->fingerprint_browser_timezone_override =
+      geo ? geo->timezone : std::string();
+  out_prefs->fingerprint_browser_timezone_override_initialized = true;
+}
+
+void BraveContentBrowserClient::UpdateRendererPreferencesForWorker(
+    content::BrowserContext* browser_context,
+    blink::RendererPreferences* out_prefs) {
+  ChromeContentBrowserClient::UpdateRendererPreferencesForWorker(
+      browser_context, out_prefs);
+  UpdateRendererPreferences(browser_context, out_prefs);
+}
+
 brave_shields::mojom::ShieldsSettingsPtr
 BraveContentBrowserClient::WorkerGetBraveShieldSettings(
     const GURL& url,
@@ -893,20 +921,116 @@ BraveContentBrowserClient::WorkerGetBraveShieldSettings(
             *storage_partition_config));
   }
 #endif
+  const base::Token persona_token =
+      fingerprint_browser::GetPersonaFarblingTokenForBrowserContext(
+          browser_context);
+  const bool has_persona_farbling_token = !persona_token.is_zero();
+  const auto* persona =
+      fingerprint_browser::GetPersonaForBrowserContext(browser_context);
+  brave_shields::mojom::FarblingLevel effective_farbling_level =
+      farbling_level;
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  if (url.SchemeIs(extensions::kExtensionScheme) && persona &&
+      has_persona_farbling_token) {
+    effective_farbling_level = brave_shields::mojom::FarblingLevel::BALANCED;
+  }
+#endif
+  const bool has_persona_l1 =
+      effective_farbling_level != brave_shields::mojom::FarblingLevel::OFF &&
+      persona;
+  const bool has_persona_l2 =
+      has_persona_l1 && !persona->webgl.vendor.empty() &&
+      !persona->webgl.renderer.empty() && !persona->webgpu.vendor.empty() &&
+      !persona->webgpu.architecture.empty() &&
+      !persona->webgpu.device.empty() && !persona->webgpu.description.empty();
   auto* shields_settings_service =
       BraveShieldsSettingsServiceFactory::GetForProfile(
           Profile::FromBrowserContext(browser_context));
   const base::Token farbling_token =
-      farbling_level != brave_shields::mojom::FarblingLevel::OFF &&
-              shields_settings_service
-          ? shields_settings_service->GetFarblingToken(
-                url, base::as_byte_span(additional_entropy))
-          : base::Token();
+      effective_farbling_level == brave_shields::mojom::FarblingLevel::OFF
+          ? base::Token()
+          : (has_persona_farbling_token
+                 ? persona_token
+                 : (shields_settings_service
+                        ? shields_settings_service->GetFarblingToken(
+                              url, base::as_byte_span(additional_entropy))
+                        : base::Token()));
 
   PrefService* pref_service = user_prefs::UserPrefs::Get(browser_context);
 
   return brave_shields::mojom::ShieldsSettings::New(
-      farbling_level, farbling_token, std::vector<std::string>(),
+      effective_farbling_level, farbling_token,
+      effective_farbling_level != brave_shields::mojom::FarblingLevel::OFF &&
+          has_persona_farbling_token,
+      has_persona_l1, has_persona_l2,
+      has_persona_l1 ? persona->user_agent : std::string(),
+      has_persona_l1 ? persona->platform : std::string(),
+      has_persona_l1 ? fingerprint_browser::GetProfileProxyLanguagesForPrefs(
+                           *pref_service, persona->languages)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? persona->ua_metadata.platform_version : std::string(),
+      has_persona_l1 ? persona->ua_metadata.architecture : std::string(),
+      has_persona_l1 ? persona->ua_metadata.bitness : std::string(),
+      has_persona_l1 ? persona->ua_metadata.full_version : std::string(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandNames(
+                           persona->ua_metadata.brands)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandVersions(
+                           persona->ua_metadata.brands)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandNames(
+                           persona->ua_metadata.full_version_list)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::UserAgentBrandVersions(
+                           persona->ua_metadata.full_version_list)
+                     : std::vector<std::string>(),
+      has_persona_l1 && persona->ua_metadata.mobile,
+      has_persona_l1 ? static_cast<uint32_t>(persona->hardware_concurrency) : 0,
+      has_persona_l1 ? persona->device_memory_gb : 0.0,
+      has_persona_l1 ? static_cast<uint32_t>(persona->max_touch_points) : 0,
+      has_persona_l1 ? persona->screen.width : 0,
+      has_persona_l1 ? persona->screen.height : 0,
+      has_persona_l1 ? persona->screen.avail_width : 0,
+      has_persona_l1 ? persona->screen.avail_height : 0,
+      has_persona_l1 ? persona->screen.color_depth : 0,
+      has_persona_l1 ? persona->screen.device_scale_factor : 0.0,
+      has_persona_l1 ? persona->screen.window_x : 0,
+      has_persona_l1 ? persona->screen.window_y : 0,
+      has_persona_l2 ? persona->webgl.vendor : std::string(),
+      has_persona_l2 ? persona->webgl.renderer : std::string(),
+      has_persona_l2 ? persona->webgpu.vendor : std::string(),
+      has_persona_l2 ? persona->webgpu.architecture : std::string(),
+      has_persona_l2 ? persona->webgpu.device : std::string(),
+      has_persona_l2 ? persona->webgpu.description : std::string(),
+      has_persona_l1 ? persona->fonts : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMediaDeviceKinds(persona->media_devices)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMediaDeviceIds(persona->media_devices)
+          : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::PersonaMediaDeviceLabels(
+                           persona->media_devices)
+                     : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::PersonaMediaDeviceGroupIds(
+                           persona->media_devices)
+                     : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaSpeechVoiceUris(persona->speech_voices)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaSpeechVoiceNames(persona->speech_voices)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaSpeechVoiceLangs(persona->speech_voices)
+          : std::vector<std::string>(),
+      has_persona_l1 ? fingerprint_browser::PersonaSpeechVoiceLocalServices(
+                           persona->speech_voices)
+                     : std::vector<bool>(),
+      has_persona_l1 ? fingerprint_browser::PersonaSpeechVoiceDefaults(
+                           persona->speech_voices)
+                     : std::vector<bool>(),
+      std::vector<std::string>(),
       brave_shields::IsReduceLanguageEnabledForProfile(pref_service),
       IsJsBlockingEnforced(browser_context, url));
 }
@@ -1091,6 +1215,22 @@ void BraveContentBrowserClient::AppendExtraCommandLineSwitches(
   std::string process_type =
       command_line->GetSwitchValueASCII(switches::kProcessType);
   if (process_type == switches::kRendererProcess) {
+    constexpr char kFingerprintBrowserTimezoneSwitch[] =
+        "brave-fingerprint-browser-timezone";
+    content::RenderProcessHost* process =
+        content::RenderProcessHost::FromID(child_process_id);
+    if (process) {
+      Profile* profile =
+          Profile::FromBrowserContext(process->GetBrowserContext());
+      if (profile) {
+        const auto geo = fingerprint_browser::GetProfileProxyGeoForPrefs(
+            *profile->GetPrefs());
+        if (geo) {
+          command_line->AppendSwitchASCII(kFingerprintBrowserTimezoneSwitch,
+                                          geo->timezone);
+        }
+      }
+    }
 #if BUILDFLAG(BRAVE_V8_ENABLE_DRUMBRAKE)
     if (base::FeatureList::IsEnabled(features::kBraveWebAssemblyJitless)) {
       content::RenderProcessHost* process =
@@ -1648,6 +1788,34 @@ bool BraveContentBrowserClient::ShouldUseDefaultHostZoomMapForStoragePartition(
 #else
   return false;
 #endif  // BUILDFLAG(ENABLE_CONTAINERS)
+}
+
+bool BraveContentBrowserClient::GetProfileGeolocationOverride(
+    content::RenderFrameHost* render_frame_host,
+    double* latitude,
+    double* longitude,
+    double* accuracy) {
+  CHECK(render_frame_host);
+  CHECK(latitude);
+  CHECK(longitude);
+  CHECK(accuracy);
+
+  Profile* profile =
+      Profile::FromBrowserContext(render_frame_host->GetBrowserContext());
+  if (!profile) {
+    return false;
+  }
+
+  const auto geo =
+      fingerprint_browser::GetProfileProxyGeoForPrefs(*profile->GetPrefs());
+  if (!geo) {
+    return false;
+  }
+
+  *latitude = geo->latitude;
+  *longitude = geo->longitude;
+  *accuracy = 50000.0;
+  return true;
 }
 
 bool BraveContentBrowserClient::AllowSignedExchange(

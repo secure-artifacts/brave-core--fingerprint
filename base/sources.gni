@@ -9,3 +9,15 @@ brave_base_test_support_sources = [
   "//brave/base/test/launcher/teamcity_service_messages.cc",
   "//brave/base/test/launcher/teamcity_service_messages.h",
 ]
+
+brave_base_excluded_sources = [
+  "check_is_test.cc",
+  "feature_list.cc",
+  "trace_event/memory_infra_background_allowlist.cc",
+]
+
+brave_base_sources = [
+  "//brave/chromium_src/base/check_is_test.cc",
+  "//brave/chromium_src/base/feature_list.cc",
+  "//brave/chromium_src/base/trace_event/memory_infra_background_allowlist.cc",
+]

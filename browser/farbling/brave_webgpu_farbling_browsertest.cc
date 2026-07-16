@@ -4,10 +4,13 @@
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/test/scoped_feature_list.h"
+#include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "brave/components/brave_shields/core/common/features.h"
 #include "brave/components/constants/brave_paths.h"
+#include "brave/components/fingerprint_browser/browser/persona.h"
 #include "brave/components/webcompat/core/common/features.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -35,9 +38,8 @@ constexpr char kEmbeddedTestServerDirectory[] = "webgpu";
 constexpr char kGPUAdapterInfoScript[] =
     "(async () => await window.gpuAdapterInfoPromise)()";
 
-// Expected result when all three adapter info fields (vendor, architecture,
-// device) are farbled to empty strings.
-constexpr char kEmptyAdapterInfo[] = ",,";
+// Expected result when adapter info fields are farbled to empty strings.
+constexpr char kEmptyAdapterInfo[] = ",,,";
 
 }  // namespace
 
@@ -170,83 +172,77 @@ INSTANTIATE_TEST_SUITE_P(
 #define NON_WIN_TEST(test) test
 #endif
 
-// Tests that navigator.gpu.requestAdapter() → adapter.info fields (vendor,
-// architecture, device) are emptied under BALANCED (feature on) and MAXIMUM
-// farbling, and are returned as-is under OFF and BALANCED (feature off).
+// Tests that navigator.gpu.requestAdapter() adapter.info fields use persona
+// metadata under BALANCED and MAXIMUM, and real metadata under OFF.
 IN_PROC_BROWSER_TEST_P(BraveWebGPUAdapterInfoTest,
                        NON_WIN_TEST(FarbleAdapterInfo)) {
   const std::string domain = "a.com";
   const GURL url = https_server_.GetURL(domain, "/adapter-info.html");
+  const auto* persona =
+      fingerprint_browser::GetPersonaForProfile(browser()->profile());
+  ASSERT_TRUE(persona);
+  const std::string expected_persona = base::StrCat(
+      {persona->webgpu.vendor, ",", persona->webgpu.architecture, ",",
+       persona->webgpu.device, ",", persona->webgpu.description});
 
-  // Farbling level: off — collect the real adapter info as a baseline.
   AllowFingerprinting(domain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   const std::string actual_off =
       EvalJs(contents(), kGPUAdapterInfoScript).ExtractString();
 
-  // Farbling level: maximum (BlockFingerprinting → BraveFarblingLevel::MAXIMUM)
-  // All three adapter info fields must be empty regardless of the feature flag.
   BlockFingerprinting(domain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_EQ(EvalJs(contents(), kGPUAdapterInfoScript).ExtractString(),
-            kEmptyAdapterInfo);
+            expected_persona);
 
-  // Farbling level: balanced (SetFingerprintingDefault →
-  // BraveFarblingLevel::BALANCED). Behaviour depends on the feature flag.
   SetFingerprintingDefault(domain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   const std::string actual_balanced =
       EvalJs(contents(), kGPUAdapterInfoScript).ExtractString();
 
-  if (GetParam()) {
-    // kWebGLBalancedFingerprintingProtection enabled: fields must be empty.
-    EXPECT_EQ(actual_balanced, kEmptyAdapterInfo);
-  } else {
-    // kWebGLBalancedFingerprintingProtection disabled: fields must be real.
-    EXPECT_EQ(actual_balanced, actual_off);
+  EXPECT_EQ(actual_balanced, expected_persona);
+  if (actual_off != "no-gpu" && actual_off != "no-adapter") {
+    EXPECT_NE(actual_off, kEmptyAdapterInfo);
   }
 }
 
-// Tests that after adapter.requestDevice() the device.adapterInfo fields
-// (vendor, architecture, device) are emptied under BALANCED (feature on) and
-// MAXIMUM farbling, and are returned as-is under OFF and BALANCED (feature
-// off).
+// Tests that after adapter.requestDevice() the device.adapterInfo fields use
+// persona metadata under BALANCED and MAXIMUM, and real metadata under OFF.
 IN_PROC_BROWSER_TEST_P(BraveWebGPUAdapterInfoTest,
                        NON_WIN_TEST(FarbleDeviceAdapterInfo)) {
   const std::string domain = "a.com";
   const GURL url = https_server_.GetURL(domain, "/device-adapter-info.html");
+  const auto* persona =
+      fingerprint_browser::GetPersonaForProfile(browser()->profile());
+  ASSERT_TRUE(persona);
+  const std::string expected_persona = base::StrCat(
+      {persona->webgpu.vendor, ",", persona->webgpu.architecture, ",",
+       persona->webgpu.device, ",", persona->webgpu.description});
 
-  // Farbling level: off — collect the real adapter info as a baseline.
   AllowFingerprinting(domain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   const std::string actual_off =
       EvalJs(contents(), kGPUAdapterInfoScript).ExtractString();
 
-  // Farbling level: maximum (BlockFingerprinting → BraveFarblingLevel::MAXIMUM)
-  // All three adapter info fields must be empty regardless of the feature flag.
   BlockFingerprinting(domain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_EQ(EvalJs(contents(), kGPUAdapterInfoScript).ExtractString(),
-            kEmptyAdapterInfo);
+            expected_persona);
 
-  // Farbling level: balanced (SetFingerprintingDefault →
-  // BraveFarblingLevel::BALANCED). Behaviour depends on the feature flag.
   SetFingerprintingDefault(domain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   const std::string actual_balanced =
       EvalJs(contents(), kGPUAdapterInfoScript).ExtractString();
 
-  if (GetParam()) {
-    // kWebGLBalancedFingerprintingProtection enabled: fields must be empty.
-    EXPECT_EQ(actual_balanced, kEmptyAdapterInfo);
-  } else {
-    // kWebGLBalancedFingerprintingProtection disabled: fields must be real.
-    EXPECT_EQ(actual_balanced, actual_off);
+  EXPECT_EQ(actual_balanced, expected_persona);
+  if (actual_off != "no-gpu" && actual_off != "no-adapter" &&
+      actual_off != "no-device") {
+    EXPECT_NE(actual_off, kEmptyAdapterInfo);
   }
 }
 
-// Tests that adapter.info fields (vendor, architecture, device) are NOT
-// scrubbed under MAXIMUM farbling when WebGPU developer features are enabled.
+// Tests that adapter.info fields are NOT scrubbed under MAXIMUM farbling when
+// WebGPU developer features are enabled.
 IN_PROC_BROWSER_TEST_F(BraveWebGPUDeveloperFeaturesTest,
                        NON_WIN_TEST(AdapterInfoNotScrubbed)) {
   const std::string domain = "a.com";
@@ -270,8 +266,8 @@ IN_PROC_BROWSER_TEST_F(BraveWebGPUDeveloperFeaturesTest,
             actual_off);
 }
 
-// Tests that device.adapterInfo fields (vendor, architecture, device) are NOT
-// scrubbed under MAXIMUM farbling when WebGPU developer features are enabled.
+// Tests that device.adapterInfo fields are NOT scrubbed under MAXIMUM farbling
+// when WebGPU developer features are enabled.
 IN_PROC_BROWSER_TEST_F(BraveWebGPUDeveloperFeaturesTest,
                        NON_WIN_TEST(DeviceAdapterInfoNotScrubbed)) {
   const std::string domain = "a.com";

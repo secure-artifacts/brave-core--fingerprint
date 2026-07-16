@@ -1,12 +1,42 @@
 diff --git a/chrome/browser/net/profile_network_context_service.cc b/chrome/browser/net/profile_network_context_service.cc
-index c30ac8186a526d56b01e4deb87a747ac952e9d89..d447bdfc53789b5a39e366b8dd796d3ff944907b 100644
+index c30ac8186a526d56b01e4deb87a747ac952e9d89..dbee44b1c785ab27ec63c3c52db356e32eee77db 100644
 --- a/chrome/browser/net/profile_network_context_service.cc
 +++ b/chrome/browser/net/profile_network_context_service.cc
-@@ -744,6 +744,7 @@ network::mojom::CTPolicyPtr ProfileNetworkContextService::GetCTPolicy() {
+@@ -29,6 +29,7 @@
+ #include "base/task/task_traits.h"
+ #include "base/task/thread_pool.h"
+ #include "base/trace_event/trace_event.h"
++#include "brave/browser/fingerprint_browser/persona_service_factory.h"
+ #include "build/build_config.h"
+ #include "build/chromeos_buildflags.h"
+ #include "chrome/browser/browser_features.h"
+@@ -176,6 +177,10 @@
+ #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
+ #include "components/domain_reliability/domain_reliability_prefs.h"
+
++#ifndef BRAVE_PROFILE_NETWORK_CONTEXT_SERVICE_GET_CT_POLICY
++#define BRAVE_PROFILE_NETWORK_CONTEXT_SERVICE_GET_CT_POLICY
++#endif
++
+ class ChromeDomainReliabilityDelegate
+     : public domain_reliability::DomainReliabilityServiceDelegate {
+  public:
+@@ -744,6 +749,7 @@ network::mojom::CTPolicyPtr ProfileNetworkContextService::GetCTPolicy() {
    std::vector<std::string> excluded_spkis(
        TranslateStringArray(ct_excluded_spkis));
- 
+
 +  BRAVE_PROFILE_NETWORK_CONTEXT_SERVICE_GET_CT_POLICY
    return network::mojom::CTPolicy::New(std::move(excluded),
                                         std::move(excluded_spkis));
  }
+@@ -1351,6 +1357,11 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
+   g_browser_process->system_network_context_manager()
+       ->ConfigureDefaultNetworkContextParams(network_context_params);
+
++  if (const auto* persona =
++          fingerprint_browser::GetPersonaForProfile(profile_)) {
++    network_context_params->user_agent = persona->user_agent;
++  }
++
+   network_context_params->accept_language = ComputeAcceptLanguage();
+   network_context_params->enable_referrers = enable_referrers_.GetValue();

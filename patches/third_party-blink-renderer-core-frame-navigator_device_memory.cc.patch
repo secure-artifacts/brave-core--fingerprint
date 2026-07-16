@@ -1,0 +1,62 @@
+diff --git a/third_party/blink/renderer/core/frame/navigator_device_memory.cc b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+index 05fa33e4568e8eea926a0d97c1d83a4000fa6b3f..dfd9fba8dda7fcb1c57cf0bef3da2215c0935ac1 100644
+--- a/third_party/blink/renderer/core/frame/navigator_device_memory.cc
++++ b/third_party/blink/renderer/core/frame/navigator_device_memory.cc
+@@ -4,15 +4,51 @@
+
+ #include "third_party/blink/renderer/core/frame/navigator_device_memory.h"
+
++#include <algorithm>
++#include <vector>
++
++#include "brave/components/brave_shields/core/common/farbling_prng.h"
++#include "brave/third_party/blink/renderer/brave_farbling_constants.h"
++#include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
+ #include "third_party/blink/public/common/device_memory/approximated_device_memory.h"
+-#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
+-#include "third_party/blink/renderer/core/dom/document.h"
+-#include "third_party/blink/renderer/core/frame/local_dom_window.h"
++#include "third_party/blink/renderer/core/execution_context/execution_context.h"
+
+ namespace blink {
+
+-float NavigatorDeviceMemory::deviceMemory() const {
+-  return ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
++float NavigatorDeviceMemory::deviceMemory(ScriptState* script_state) const {
++  ExecutionContext* context = ExecutionContext::From(script_state);
++  const float true_value =
++      ApproximatedDeviceMemory::GetApproximatedDeviceMemory();
++  const BraveFarblingLevel farbling_level = brave::GetBraveFarblingLevelFor(
++      context, ContentSettingsType::BRAVE_WEBCOMPAT_DEVICE_MEMORY,
++      BraveFarblingLevel::OFF);
++  if (farbling_level == BraveFarblingLevel::OFF) {
++    return true_value;
++  }
++  if (auto persona_value =
++          brave::BraveSessionCache::From(*context).PersonaDeviceMemory()) {
++    return *persona_value;
++  }
++
++  std::vector<float> valid_values = {2.0, 4.0, 8.0, 16.0, 32.0};
++  size_t min_farbled_index = 0;
++  size_t max_farbled_index = valid_values.size() - 1;
++
++  if (farbling_level == BraveFarblingLevel::BALANCED) {
++    auto true_it = std::ranges::find(valid_values, true_value);
++    size_t true_index = true_it != valid_values.end()
++                            ? std::distance(valid_values.begin(), true_it)
++                            : valid_values.size() - 1;
++    min_farbled_index = 1;
++    max_farbled_index = true_index;
++    if (max_farbled_index <= min_farbled_index) {
++      return valid_values[min_farbled_index];
++    }
++  }
++
++  brave_shields::FarblingPRNG prng =
++      brave::BraveSessionCache::From(*context).MakePseudoRandomGenerator();
++  return valid_values[min_farbled_index +
++                      (prng() % (max_farbled_index + 1 - min_farbled_index))];
+ }
+
+ }  // namespace blink

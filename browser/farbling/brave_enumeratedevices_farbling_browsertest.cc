@@ -29,15 +29,15 @@
 
 using brave_shields::ControlType;
 
-constexpr char kEnumerateDevicesScript[] =
-    "navigator.mediaDevices.enumerateDevices()"
-    ".then(function(devices) {"
-    "  var devicekinds = '';"
-    "  devices.forEach(function(device) {"
-    "    devicekinds = devicekinds + device.kind + '|';"
-    "  });"
-    "  return devicekinds;"
-    "})";
+constexpr char kEnumerateDevicesScript[] = R"((async () => {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return JSON.stringify(devices.map(device => ({
+    deviceId: device.deviceId,
+    groupId: device.groupId,
+    kind: device.kind,
+    label: device.label,
+  })));
+})())";
 
 class BraveEnumerateDevicesFarblingBrowserTest : public InProcessBrowserTest {
  public:
@@ -94,9 +94,8 @@ class BraveEnumerateDevicesFarblingBrowserTest : public InProcessBrowserTest {
 
   void EnableWebcompatException() {
     brave_shields::SetWebcompatEnabled(
-        content_settings(),
-        ContentSettingsType::BRAVE_WEBCOMPAT_HARDWARE_CONCURRENCY, true,
-        top_level_page_url_, nullptr);
+        content_settings(), ContentSettingsType::BRAVE_WEBCOMPAT_MEDIA_DEVICES,
+        true, top_level_page_url_, nullptr);
   }
 
  private:
@@ -123,6 +122,14 @@ IN_PROC_BROWSER_TEST_F(BraveEnumerateDevicesFarblingBrowserTest,
   std::string balanced_value =
       content::EvalJs(contents(), kEnumerateDevicesScript).ExtractString();
   EXPECT_NE(balanced_value, real_value);
+  GURL farbling_url_z = https_server_.GetURL("z.test", "/simple.html");
+  brave_shields::SetFingerprintingControlType(
+      content_settings(), ControlType::DEFAULT,
+      https_server_.GetURL("z.test", "/"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), farbling_url_z));
+  std::string balanced_value_z =
+      content::EvalJs(contents(), kEnumerateDevicesScript).ExtractString();
+  EXPECT_EQ(balanced_value, balanced_value_z);
 
   // Farbling level: maximum
   // same as farbling level: balanced
@@ -140,4 +147,5 @@ IN_PROC_BROWSER_TEST_F(BraveEnumerateDevicesFarblingBrowserTest,
   std::string real_value2 =
       content::EvalJs(contents(), kEnumerateDevicesScript).ExtractString();
   ASSERT_NE(real_value2, "");
+  EXPECT_EQ(real_value, real_value2);
 }

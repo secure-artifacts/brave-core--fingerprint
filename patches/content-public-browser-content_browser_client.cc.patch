@@ -1,0 +1,15 @@
+diff --git a/content/public/browser/content_browser_client.cc b/content/public/browser/content_browser_client.cc
+index f14f214d26bf8d41ff599a99f11b12641dd70d72..f21bd653c37ba7551586224e819febcc97905059 100644
+--- a/content/public/browser/content_browser_client.cc
++++ b/content/public/browser/content_browser_client.cc
+@@ -581,6 +581,10 @@ bool ContentBrowserClient::IsPinchToZoomAllowed(BrowserContext* context) {
+   return true;
+ }
+
++void ContentBrowserClient::UpdateRendererPreferences(
++    BrowserContext* browser_context,
++    blink::RendererPreferences* out_prefs) {}
++
+ void ContentBrowserClient::UpdateRendererPreferencesForWorker(
+     BrowserContext* browser_context,
+     blink::RendererPreferences* out_prefs) {

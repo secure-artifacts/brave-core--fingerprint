@@ -30,10 +30,12 @@
 #include "brave/components/brave_shields/core/common/brave_shield_constants.h"
 #include "brave/components/brave_shields/core/common/features.h"
 #include "brave/components/constants/url_constants.h"
+#include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 #include "brave/content/public/browser/devtools/adblock_devtools_instumentation.h"
 #include "chrome/browser/net/secure_dns_config.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "components/prefs/pref_service.h"
+#include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
@@ -103,10 +105,9 @@ class AdblockCnameResolveHostClient : public network::mojom::ResolveHostClient {
   base::ElapsedTimer elapsed_timer_;
 
  public:
-  AdblockCnameResolveHostClient(
-      const ResponseCallback& next_callback,
-      T<BraveRequestInfo> ctx,
-      EngineFlags previous_result) {
+  AdblockCnameResolveHostClient(const ResponseCallback& next_callback,
+                                T<BraveRequestInfo> ctx,
+                                EngineFlags previous_result) {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     cb_ = base::BindOnce(&UseCnameResult<T>, std::move(next_callback), ctx,
                          previous_result);
@@ -358,6 +359,11 @@ void UseCnameResult(const ResponseCallback& next_callback,
 // |NetworkContext| mojom interface.
 bool ProxySettingsAllowUncloaking(content::BrowserContext* browser_context) {
   DCHECK(browser_context);
+
+  if (fingerprint_browser::ShouldUseProfileProxy(
+          *user_prefs::UserPrefs::Get(browser_context))) {
+    return false;
+  }
 
   bool can_uncloak = true;
 

@@ -1,8 +1,26 @@
 diff --git a/content/browser/web_contents/web_contents_impl.cc b/content/browser/web_contents/web_contents_impl.cc
-index 66e57cf1ce4f9b692110675b68e88f27ae26c547..47f8345e0da7747ef0e0a19815f3e9b3caecdcd1 100644
+index 646327bee417d1988e31a9bc89cb6b6fa281a73b..89c7b8cef497aa4a34d0a66ef4e73e344a16730b 100644
 --- a/content/browser/web_contents/web_contents_impl.cc
 +++ b/content/browser/web_contents/web_contents_impl.cc
-@@ -5559,6 +5559,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
+@@ -1628,6 +1628,17 @@ std::vector<raw_ptr<WebContentsImpl>> WebContentsImpl::GetAllWebContents() {
+   return result;
+ }
+
++// static
++void WebContents::SyncRendererPrefsForBrowserContext(
++    BrowserContext* browser_context) {
++  DCHECK(browser_context);
++  for (WebContentsImpl* web_contents : WebContentsImpl::GetAllWebContents()) {
++    if (web_contents->GetBrowserContext() == browser_context) {
++      web_contents->SyncRendererPrefs();
++    }
++  }
++}
++
+ // static
+ WebContentsImpl* WebContentsImpl::FromFrameTreeNode(
+     const FrameTreeNode* frame_tree_node) {
+@@ -5545,6 +5556,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
    // SiteInstance is created in a new BrowsingInstance.
    scoped_refptr<SiteInstance> site_instance;
    if (params.opener_suppressed) {
@@ -10,12 +28,21 @@ index 66e57cf1ce4f9b692110675b68e88f27ae26c547..47f8345e0da7747ef0e0a19815f3e9b3
      if (is_guest) {
        // For guests, noopener windows can be created in a new BrowsingInstance
        // as long as they preserve the guest's StoragePartition.
-@@ -5656,7 +5657,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
- 
+@@ -5642,7 +5654,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
+
    // Save the window for later if we're not suppressing the opener (since it
    // will be shown immediately).
 -  if (!params.opener_suppressed) {
 +  if (!params.opener_suppressed && !params.no_javascript_access) {
      if (!is_guest) {
        WebContentsView* new_view = new_contents_impl->view_.get();
- 
+
+@@ -9629,6 +9641,8 @@ const blink::RendererPreferences& WebContentsImpl::GetRendererPrefs(
+     return guest->GetRendererPrefs();
+   }
+   RenderViewHostImpl::GetPlatformSpecificPrefs(&renderer_preferences_);
++  GetContentClient()->browser()->UpdateRendererPreferences(
++      GetBrowserContext(), &renderer_preferences_);
+   return renderer_preferences_;
+ }
+

@@ -1,0 +1,13 @@
+diff --git a/third_party/blink/public/common/renderer_preferences/renderer_preferences.h b/third_party/blink/public/common/renderer_preferences/renderer_preferences.h
+index 08d068cc0af4e78fc1902a3a8417157c8e5b2529..03b3aa2028ef26a96d4d894a4ecd6ec779d7ac15 100644
+--- a/third_party/blink/public/common/renderer_preferences/renderer_preferences.h
++++ b/third_party/blink/public/common/renderer_preferences/renderer_preferences.h
+@@ -65,6 +65,8 @@ struct BLINK_COMMON_EXPORT RendererPreferences {
+   std::vector<std::string> webrtc_local_ips_allowed_urls;
+   UserAgentOverride user_agent_override;
+   std::string accept_languages;
++  std::string fingerprint_browser_timezone_override;
++  bool fingerprint_browser_timezone_override_initialized{false};
+   bool send_subresource_notification{false};
+ #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+   std::string system_font_family_name;

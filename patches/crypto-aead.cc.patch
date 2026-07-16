@@ -1,12 +1,23 @@
 diff --git a/crypto/aead.cc b/crypto/aead.cc
-index e41850ff9706c8d69cdc524684706ea7df1fab4f..e1a16c0833d47da2036fe8c1add7cb39262fe12b 100644
+index 0ffd7e43e94391e8fe83b2c37f18638b06c06067..eeb0b2abdba61d95897c3e0409e0f168822fa976 100644
 --- a/crypto/aead.cc
 +++ b/crypto/aead.cc
-@@ -186,6 +186,7 @@ size_t Aead::KeyLength() const {
+@@ -16,6 +16,10 @@
+ #include "third_party/boringssl/src/include/openssl/aes.h"
+ #include "third_party/boringssl/src/include/openssl/evp.h"
+
++#ifndef BRAVE_NONCE_LENGTH
++#define BRAVE_NONCE_LENGTH
++#endif
++
+ namespace crypto {
+
+ namespace {
+@@ -184,6 +188,7 @@ size_t Aead::KeyLength() const {
  }
- 
+
  size_t Aead::NonceLength() const {
 +  BRAVE_NONCE_LENGTH
    return aead::NonceSizeFor(algorithm_);
  }
- 
+

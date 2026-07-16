@@ -8,6 +8,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
@@ -17,6 +18,10 @@ namespace brave {
 
 BLINK_EXPORT bool AllowFontByFamilyName(const blink::AtomicString& family_name,
                                         blink::String default_language);
+
+BLINK_EXPORT bool AllowFontByFamilyNameForPersona(
+    const blink::AtomicString& family_name,
+    const std::vector<std::string>& persona_fonts);
 
 BLINK_EXPORT bool IsFontAllowedForFarbling(
     const blink::AtomicString& family_name);

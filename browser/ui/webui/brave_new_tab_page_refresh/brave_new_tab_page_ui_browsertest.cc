@@ -5,7 +5,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/test/scoped_feature_list.h"
+#include "brave/browser/brave_browser_features.h"
 #include "brave/browser/extensions/brave_extension_functional_test.h"
+#include "brave/browser/ui/webui/brave_new_tab_page_refresh/brave_new_tab_page_ui.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
@@ -71,6 +74,32 @@ void VerifyNewTabPageLoadedExpectation(content::WebContents* web_contents) {
                   .ExtractBool());
 }
 
+void VerifyNewTabPageInitialized(content::WebContents* web_contents) {
+  constexpr std::string_view kScript = R"(
+    new Promise((resolve) => {
+      const deadline = performance.now() + 5000;
+      function poll() {
+        if (self._ntp?.newTab.getState().initialized) {
+          resolve(true);
+        } else if (performance.now() >= deadline) {
+          resolve(false);
+        } else {
+          setTimeout(poll, 50);
+        }
+      }
+      poll();
+    })
+  )";
+
+  EXPECT_EQ(true, content::EvalJs(web_contents, kScript));
+}
+
+void VerifyRefreshNewTabPageController(content::WebContents* web_contents) {
+  auto* web_ui = web_contents->GetPrimaryMainFrame()->GetWebUI();
+  ASSERT_TRUE(web_ui);
+  EXPECT_TRUE(web_ui->GetController()->GetAs<BraveNewTabPageUI>());
+}
+
 void SimulateGoBack(content::WebContents* web_contents) {
   content::TestNavigationObserver observer(
       web_contents, /*expected_number_of_navigations=*/1);
@@ -84,6 +113,11 @@ void SimulateGoBack(content::WebContents* web_contents) {
 class BraveNewTabPageUIBrowserTest
     : public extensions::ExtensionFunctionalTest {
  protected:
+  BraveNewTabPageUIBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kBraveNewTabPageRefreshEnabled);
+  }
+
   content::WebContents* GetActiveWebContents() {
     content::WebContents* web_contents =
         chrome_test_utils::GetActiveWebContents(this);
@@ -101,6 +135,9 @@ class BraveNewTabPageUIBrowserTest
     SimulateNavigateToUrlAndWaitForLoad(web_contents,
                                         GURL(chrome::kChromeUINewTabURL));
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Test that properties are set on the correct RenderViewHost.
@@ -112,14 +149,18 @@ IN_PROC_BROWSER_TEST_F(BraveNewTabPageUIBrowserTest, StartupURLTest) {
   RenderProcessExitObserver observer(render_process_host);
 
   SimulateOpenNewTabAndWaitForLoad(web_contents);
+  VerifyRefreshNewTabPageController(web_contents);
   VerifyNewTabPageLoadedExpectation(web_contents);
+  VerifyNewTabPageInitialized(web_contents);
 
   SimulateNavigateToUrlAndWaitForLoad(
       web_contents, embedded_test_server()->GetURL("/simple.html"));
   VerifyDocumentBodyInnerTextExpectation(web_contents, "Non empty simple page");
 
   SimulateGoBack(web_contents);
+  VerifyRefreshNewTabPageController(web_contents);
   VerifyNewTabPageLoadedExpectation(web_contents);
+  VerifyNewTabPageInitialized(web_contents);
 }
 
 // This test simply checks that by default the Brave new tab page is used.

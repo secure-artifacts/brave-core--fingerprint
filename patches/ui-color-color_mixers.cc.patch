@@ -1,0 +1,28 @@
+diff --git a/ui/color/color_mixers.cc b/ui/color/color_mixers.cc
+index 2c201cf798124..0ef4a52b74daf 100644
+--- a/ui/color/color_mixers.cc
++++ b/ui/color/color_mixers.cc
+@@ -4,6 +4,8 @@
+
+ #include "ui/color/color_mixers.h"
+
++#include "brave/ui/color/brave_ref_color_mixer.h"
++#include "brave/ui/color/nala/nala_color_mixer.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/color/core_default_color_mixer.h"
+ #include "ui/color/css_system_color_mixer.h"
+@@ -15,6 +17,8 @@
+ #include "ui/color/ui_color_mixer.h"
+ #include "ui/native_theme/features/native_theme_features.h"
+
++#define AddRefColorMixer(...) AddRefColorMixer(__VA_ARGS__); AddBraveRefColorMixer(__VA_ARGS__); nala::AddNalaColorMixer(__VA_ARGS__)
++
+ namespace ui {
+
+ void AddColorMixers(ColorProvider* provider, const ColorProviderKey& key) {
+@@ -38,3 +42,5 @@ void AddColorMixers(ColorProvider* provider, const ColorProviderKey& key) {
+ }
+
+ }  // namespace ui
++
++#undef AddRefColorMixer

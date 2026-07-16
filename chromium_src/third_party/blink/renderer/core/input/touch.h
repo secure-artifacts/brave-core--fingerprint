@@ -11,16 +11,16 @@
 #define screenX                                                                \
   screenX() const {                                                            \
     return brave::FarbledPointerScreenCoordinate(                              \
-        target()->ToDOMWindow(), brave::FarbleKey::kPointerScreenX, clientX(), \
-        screenX_ChromiumImpl());                                               \
+        brave::EventTargetToDOMWindow(target()),                               \
+        brave::FarbleKey::kPointerScreenX, clientX(), screenX_ChromiumImpl()); \
   }                                                                            \
   double screenX_ChromiumImpl
 
 #define screenY                                                                \
   screenY() const {                                                            \
     return brave::FarbledPointerScreenCoordinate(                              \
-        target()->ToDOMWindow(), brave::FarbleKey::kPointerScreenY, clientY(), \
-        screenY_ChromiumImpl());                                               \
+        brave::EventTargetToDOMWindow(target()),                               \
+        brave::FarbleKey::kPointerScreenY, clientY(), screenY_ChromiumImpl()); \
   }                                                                            \
   double screenY_ChromiumImpl
 

@@ -1,0 +1,20 @@
+diff --git a/net/http/http_proxy_connect_job.h b/net/http/http_proxy_connect_job.h
+index ef8e49c4d2dbb00eb3ceacb1d2faf622dcf81676..44eff1f36a7af35679a8d08b9c26b383d787ceff 100644
+--- a/net/http/http_proxy_connect_job.h
++++ b/net/http/http_proxy_connect_job.h
+@@ -297,6 +297,7 @@ class NET_EXPORT_PRIVATE HttpProxyConnectJob : public ConnectJob,
+   void OnTimedOutInternal() override;
+
+   void OnAuthChallenge();
++  bool RestartWithConfiguredProxyAuthCredentials();
+
+   const HostPortPair& GetDestination() const;
+
+@@ -311,6 +312,7 @@ class NET_EXPORT_PRIVATE HttpProxyConnectJob : public ConnectJob,
+   State next_state_ = STATE_NONE;
+
+   bool has_restarted_ = false;
++  bool configured_proxy_auth_credentials_attempted_ = false;
+
+   // Set to true once a connection has been successfully established. Remains
+   // true even if a new socket is being connected to retry with auth.

@@ -1,0 +1,16 @@
+diff --git a/content/public/browser/content_browser_client.h b/content/public/browser/content_browser_client.h
+index 6702d9295a99e14258f93d66dcdfadb65dfdf48b..903051f767e24938232a3e373fb7cf7822365d23 100644
+--- a/content/public/browser/content_browser_client.h
++++ b/content/public/browser/content_browser_client.h
+@@ -1004,6 +1004,11 @@ class CONTENT_EXPORT ContentBrowserClient {
+   // Defaults to true.
+   virtual bool IsPinchToZoomAllowed(BrowserContext* context);
+
++  // Updates preferences that a WebContents sends to its renderer process.
++  virtual void UpdateRendererPreferences(
++      BrowserContext* browser_context,
++      blink::RendererPreferences* out_prefs);
++
+   // Updates the given prefs for Service Worker and Shared Worker. The prefs
+   // are to be sent to the renderer process when a worker is created. Note that
+   // We don't use this method for Dedicated Workers as they inherit preferences

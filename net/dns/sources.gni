@@ -3,8 +3,20 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
+brave_net_dns_excluded_sources = [
+  "host_cache.cc",
+  "host_resolver_manager_job.cc",
+]
+
 brave_net_dns_sources = [
+  "//brave/chromium_src/net/dns/host_cache.cc",
+  "//brave/chromium_src/net/dns/host_resolver_manager_job.cc",
   "//brave/net/dns/secure_dns_counter.cc",
   "//brave/net/dns/secure_dns_counter.h",
   "//brave/net/dns/secure_dns_endpoints.h",
 ]
+
+brave_net_dns_built_in_excluded_sources = [ "dns_client.cc" ]
+
+brave_net_dns_built_in_sources =
+    [ "//brave/chromium_src/net/dns/dns_client.cc" ]

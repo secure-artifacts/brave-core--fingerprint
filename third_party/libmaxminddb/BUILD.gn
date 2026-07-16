@@ -1,0 +1,27 @@
+# Copyright (c) 2026 The Brave Authors. All rights reserved.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at https://mozilla.org/MPL/2.0/.
+
+static_library("libmaxminddb") {
+  sources = [
+    "include/maxminddb.h",
+    "include/maxminddb_config.h",
+    "src/data-pool.c",
+    "src/data-pool.h",
+    "src/maxminddb-compat-util.h",
+    "src/maxminddb.c",
+  ]
+
+  include_dirs = [ "include" ]
+
+  if (is_clang) {
+    configs -= [ "//build/config/clang:unsafe_buffers" ]
+  }
+
+  defines = [ "PACKAGE_VERSION=\"1.12.2\"" ]
+
+  cflags = [
+    "-Wno-incompatible-pointer-types-discards-qualifiers",
+  ]
+}

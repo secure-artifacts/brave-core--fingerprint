@@ -1,12 +1,15 @@
 diff --git a/content/public/browser/BUILD.gn b/content/public/browser/BUILD.gn
-index 95fe796458dea7f1a7ab48e15198dc489cfa7298..7f037bc6e4de5b0125b21260a4266e51eb23578c 100644
+index bea40fd122bef9366fd440fad1b5c591eeea491c..035eb3dc0ee646373db895e7d6eafb02c97feca8 100644
 --- a/content/public/browser/BUILD.gn
 +++ b/content/public/browser/BUILD.gn
-@@ -777,6 +777,7 @@ source_set("browser_sources") {
+@@ -772,6 +772,10 @@ source_set("browser_sources") {
    if (use_clang_profiling_inside_sandbox) {
      sources += [ "profiling_utils.h" ]
    }
-+  import("//brave/content/public/browser/sources.gni") sources += brave_content_public_browser_sources
++  import("//brave/content/public/browser/sources.gni")
++  sources -= brave_content_public_browser_excluded_sources
++  sources += brave_content_public_browser_sources
++  deps += brave_content_public_browser_deps
  }
- 
+
  if (is_android) {

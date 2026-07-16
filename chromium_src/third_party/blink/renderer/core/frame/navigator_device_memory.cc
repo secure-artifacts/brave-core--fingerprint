@@ -27,6 +27,10 @@ float FarbleDeviceMemory(blink::ExecutionContext* context) {
   if (farbling_level == BraveFarblingLevel::OFF) {
     return true_value;
   }
+  if (auto persona_value =
+          BraveSessionCache::From(*context).PersonaDeviceMemory()) {
+    return *persona_value;
+  }
 
   // See kMinMemory and kMaxMemory values in
   // ApproximatedDeviceMemory::CalculateAndSetApproximatedDeviceMemory

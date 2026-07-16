@@ -1,0 +1,18 @@
+diff --git a/third_party/blink/common/renderer_preferences/renderer_preferences_mojom_traits.cc b/third_party/blink/common/renderer_preferences/renderer_preferences_mojom_traits.cc
+index a42179970119cd5bd209277cdaf56f6b38fa19bb..b292985bce5e0bb10a10772a5876d6bbe031b5a4 100644
+--- a/third_party/blink/common/renderer_preferences/renderer_preferences_mojom_traits.cc
++++ b/third_party/blink/common/renderer_preferences/renderer_preferences_mojom_traits.cc
+@@ -76,6 +76,13 @@ bool StructTraits<blink::mojom::RendererPreferencesDataView,
+   if (!data.ReadAcceptLanguages(&out->accept_languages))
+     return false;
+
++  if (!data.ReadFingerprintBrowserTimezoneOverride(
++          &out->fingerprint_browser_timezone_override)) {
++    return false;
++  }
++  out->fingerprint_browser_timezone_override_initialized =
++      data.fingerprint_browser_timezone_override_initialized();
++
+   out->send_subresource_notification = data.send_subresource_notification();
+
+ #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

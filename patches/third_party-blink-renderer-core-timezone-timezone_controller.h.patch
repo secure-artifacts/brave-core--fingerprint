@@ -1,0 +1,21 @@
+diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.h b/third_party/blink/renderer/core/timezone/timezone_controller.h
+index 3a64ead085154017d92988bea891fc22f5ed781e..4ed72042b6df9d8c76c257853029e96c25a74357 100644
+--- a/third_party/blink/renderer/core/timezone/timezone_controller.h
++++ b/third_party/blink/renderer/core/timezone/timezone_controller.h
+@@ -76,6 +76,8 @@ class CORE_EXPORT TimeZoneController final
+   // only if no other override is currently active.
+   static TimeZoneOverrideResult SetTimeZoneOverride(const String& timezone_id);
+
++  static void SetFingerprintBrowserTimezoneOverride(const String& timezone_id);
++
+   static void ChangeTimeZoneForTesting(const String&);
+
+  private:
+@@ -100,6 +102,7 @@ class CORE_EXPORT TimeZoneController final
+
+   String host_timezone_id_ GUARDED_BY(lock_);
+   String override_timezone_id_ GUARDED_BY(lock_);
++  std::unique_ptr<TimeZoneOverride> fingerprint_browser_timezone_override_;
+ };
+
+ }  // namespace blink

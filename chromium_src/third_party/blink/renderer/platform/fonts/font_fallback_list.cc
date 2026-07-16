@@ -34,6 +34,7 @@ void RegisterAllowFontFamilyCallback(AllowFontFamilyCallback callback) {
 #define BRAVE_GET_FONT_DATA                         \
   if ((!curr_family->FamilyIsGeneric()) &&          \
       brave::GetAllowFontFamilyCallback() &&        \
+      !brave::GetAllowFontFamilyCallback()->is_null() && \
       !brave::GetAllowFontFamilyCallback()->Run(    \
           GetFontSelector()->GetExecutionContext(), \
           curr_family->FamilyName()))               \

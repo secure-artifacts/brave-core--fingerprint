@@ -1,0 +1,30 @@
+diff --git a/chrome/browser/ui/color/chrome_color_mixers.cc b/chrome/browser/ui/color/chrome_color_mixers.cc
+index 9dfe5e7cd531dda152988c6b0ba89098a18cf53a..77617289274666266f67aa66898c0887e53a3dcf 100644
+--- a/chrome/browser/ui/color/chrome_color_mixers.cc
++++ b/chrome/browser/ui/color/chrome_color_mixers.cc
+@@ -33,6 +33,9 @@ class ChromeColorProviderUtilsCallbacks
+   bool ColorIdName(ui::ColorId color_id, std::string_view* color_name) override;
+ };
+
++void EmptyColorMixer(ui::ColorProvider* provider,
++                     const ui::ColorProviderKey& key) {}
++
+ #include "ui/color/color_id_map_macros.inc"
+
+ bool ChromeColorProviderUtilsCallbacks::ColorIdName(
+@@ -67,11 +70,11 @@ void AddChromeColorMixers(ui::ColorProvider* provider,
+   AddProjectsPanelColorMixer(provider, key);
+   AddTabStripColorMixer(provider, key);
+
+-  AddMaterialChromeColorMixer(provider, key);
++  EmptyColorMixer(provider, key);
+   AddMaterialNewTabPageColorMixer(provider, key);
+-  AddMaterialOmniboxColorMixer(provider, key);
+-  AddMaterialSidePanelColorMixer(provider, key);
+-  AddMaterialTabStripColorMixer(provider, key);
++  EmptyColorMixer(provider, key);
++  EmptyColorMixer(provider, key);
++  EmptyColorMixer(provider, key);
+
+   // Must be the last one in order to override other mixer colors.
+   AddNativeChromeColorMixer(provider, key);

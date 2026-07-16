@@ -6,28 +6,6 @@
 #ifndef BRAVE_CHROMIUM_SRC_THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_NAVIGATOR_LANGUAGE_H_
 #define BRAVE_CHROMIUM_SRC_THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_NAVIGATOR_LANGUAGE_H_
 
-#define NavigatorLanguage NavigatorLanguage_ChromiumImpl
-#define EnsureUpdatedLanguage \
-  UnusedMethod() {}           \
-                              \
- protected:                   \
-  virtual void EnsureUpdatedLanguage
-
 #include <third_party/blink/renderer/core/frame/navigator_language.h>  // IWYU pragma: export
-
-#undef EnsureUpdatedLanguage
-#undef NavigatorLanguage
-
-namespace blink {
-
-class CORE_EXPORT NavigatorLanguage : public NavigatorLanguage_ChromiumImpl {
- public:
-  explicit NavigatorLanguage(ExecutionContext*);
-
- protected:
-  void EnsureUpdatedLanguage() override;
-};
-
-}  // namespace blink
 
 #endif  // BRAVE_CHROMIUM_SRC_THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_NAVIGATOR_LANGUAGE_H_

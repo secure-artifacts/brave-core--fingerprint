@@ -21,7 +21,8 @@
           return 'no-device';
         }
         const info = device.adapterInfo;
-        return info.vendor + ',' + info.architecture + ',' + info.device;
+        return info.vendor + ',' + info.architecture + ',' + info.device +
+            ',' + info.description;
       })();
     </script>
   </body>

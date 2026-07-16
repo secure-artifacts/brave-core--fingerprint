@@ -1,12 +1,15 @@
 diff --git a/components/update_client/BUILD.gn b/components/update_client/BUILD.gn
-index eb06944cbb1f3ae54162959b33cda272e7efa7d0..5a922fe5f00b9cb36b835c28a8b811db73019c0b 100644
+index eb06944cbb1f3ae54162959b33cda272e7efa7d0..f2900ab55980ef844baf4a101a237969ee7b6d71 100644
 --- a/components/update_client/BUILD.gn
 +++ b/components/update_client/BUILD.gn
-@@ -201,6 +201,7 @@ static_library("update_client") {
+@@ -201,6 +201,10 @@ static_library("update_client") {
        "background_downloader_win.h",
      ]
    }
-+  sources += brave_components_update_client_sources deps += brave_components_update_client_deps public_deps = brave_components_update_client_public_deps
++  sources -= brave_components_update_client_excluded_sources
++  sources += brave_components_update_client_sources
++  deps += brave_components_update_client_deps
++  public_deps = brave_components_update_client_public_deps
  }
- 
+
  if (is_mac) {

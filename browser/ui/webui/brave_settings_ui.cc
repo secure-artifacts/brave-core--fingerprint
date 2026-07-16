@@ -28,6 +28,7 @@
 #include "brave/browser/ui/webui/settings/brave_privacy_handler.h"
 #include "brave/browser/ui/webui/settings/brave_sync_handler.h"
 #include "brave/browser/ui/webui/settings/default_brave_shields_handler.h"
+#include "brave/browser/ui/webui/settings/fingerprint_profile_proxy_handler.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_account/brave_account_service.h"
 #include "brave/components/brave_account/features.h"
@@ -160,6 +161,7 @@ BraveSettingsUI::BraveSettingsUI(content::WebUI* web_ui) : SettingsUI(web_ui) {
   web_ui->AddMessageHandler(std::make_unique<BraveDefaultExtensionsHandler>());
   web_ui->AddMessageHandler(std::make_unique<BraveAppearanceHandler>());
   web_ui->AddMessageHandler(std::make_unique<BraveSyncHandler>());
+  web_ui->AddMessageHandler(std::make_unique<FingerprintProfileProxyHandler>());
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)
   web_ui->AddMessageHandler(std::make_unique<BraveWalletHandler>());
 #endif

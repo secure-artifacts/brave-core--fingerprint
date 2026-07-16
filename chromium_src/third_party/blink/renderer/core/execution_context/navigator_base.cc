@@ -42,6 +42,12 @@ void ApplyBraveHardwareConcurrencyOverride(blink::ExecutionContext* context,
       [[fallthrough]];
     }
     case BraveFarblingLevel::BALANCED: {
+      if (auto persona_value =
+              brave::BraveSessionCache::From(*context)
+                  .PersonaHardwareConcurrency()) {
+        *hardware_concurrency = *persona_value;
+        return;
+      }
       brave_shields::FarblingPRNG prng =
           brave::BraveSessionCache::From(*context).MakePseudoRandomGenerator();
       farbled_value =
@@ -70,8 +76,16 @@ namespace blink {
 
 String NavigatorBase::userAgent() const {
   if (ExecutionContext* context = GetExecutionContext()) {
-    if (!brave::AllowFingerprinting(
-            context, ContentSettingsType::BRAVE_WEBCOMPAT_USER_AGENT)) {
+    const BraveFarblingLevel farbling_level = brave::GetBraveFarblingLevelFor(
+        context, ContentSettingsType::BRAVE_WEBCOMPAT_USER_AGENT,
+        BraveFarblingLevel::OFF);
+    if (farbling_level != BraveFarblingLevel::OFF) {
+      if (auto persona_user_agent =
+              brave::BraveSessionCache::From(*context).PersonaUserAgent()) {
+        return *persona_user_agent;
+      }
+    }
+    if (farbling_level == BraveFarblingLevel::MAXIMUM) {
       return brave::BraveSessionCache::From(*context).FarbledUserAgent(
           context->UserAgent());
     }

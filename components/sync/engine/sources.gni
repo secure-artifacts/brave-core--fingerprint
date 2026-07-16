@@ -3,7 +3,22 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 
+brave_components_sync_engine_excluded_sources = [
+  "cycle/status_controller.cc",
+  "data_type_registry.cc",
+  "net/sync_server_connection_manager.cc",
+  "sync_manager_factory.cc",
+  "sync_scheduler_impl.cc",
+  "syncer_proto_util.cc",
+]
+
 brave_components_sync_engine_sources = [
+  "//brave/chromium_src/components/sync/engine/cycle/status_controller.cc",
+  "//brave/chromium_src/components/sync/engine/data_type_registry.cc",
+  "//brave/chromium_src/components/sync/engine/net/sync_server_connection_manager.cc",
+  "//brave/chromium_src/components/sync/engine/sync_manager_factory.cc",
+  "//brave/chromium_src/components/sync/engine/sync_scheduler_impl.cc",
+  "//brave/chromium_src/components/sync/engine/syncer_proto_util.cc",
   "//brave/components/sync/engine/brave_data_type_worker.cc",
   "//brave/components/sync/engine/brave_data_type_worker.h",
   "//brave/components/sync/engine/brave_sync_manager_impl.cc",

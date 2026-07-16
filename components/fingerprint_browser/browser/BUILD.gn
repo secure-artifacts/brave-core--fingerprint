@@ -1,0 +1,48 @@
+# Copyright (c) 2026 The Brave Authors. All rights reserved.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at https://mozilla.org/MPL/2.0/.
+
+source_set("browser") {
+  sources = [
+    "persona.cc",
+    "persona.h",
+    "persona_generator.cc",
+    "persona_generator.h",
+    "persona_service.cc",
+    "persona_service.h",
+    "offline_geoip_database.cc",
+    "offline_geoip_database.h",
+    "pref_names.cc",
+    "pref_names.h",
+    "profile_proxy_config.cc",
+    "profile_proxy_config.h",
+    "truth_pool.cc",
+    "truth_pool.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/keyed_service/core",
+    "//components/pref_registry",
+    "//components/prefs",
+    "//components/proxy_config",
+    "//net",
+    "//brave/third_party/libmaxminddb:libmaxminddb",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "persona_service_unittest.cc" ]
+
+  deps = [
+    ":browser",
+    "//base/test:test_support",
+    "//components/prefs:test_support",
+    "//components/proxy_config",
+    "//net",
+    "//testing/gtest",
+  ]
+}

@@ -36,6 +36,23 @@ void SpeechSynthesis::OnSetVoiceList(
     VoicesDidChange();
     return;
   }
+  if (ExecutionContext* context = GetExecutionContext()) {
+    if (auto persona_voices =
+            brave::BraveSessionCache::From(*context).PersonaSpeechVoices()) {
+      for (const auto& persona_voice : *persona_voices) {
+        auto mojom_voice = mojom::blink::SpeechSynthesisVoice::New();
+        mojom_voice->voice_uri = persona_voice.voice_uri;
+        mojom_voice->name = persona_voice.name;
+        mojom_voice->lang = persona_voice.lang;
+        mojom_voice->is_local_service = persona_voice.local_service;
+        mojom_voice->is_default = persona_voice.is_default;
+        voice_list_.push_back(
+            MakeGarbageCollected<SpeechSynthesisVoice>(std::move(mojom_voice)));
+      }
+      VoicesDidChange();
+      return;
+    }
+  }
   mojom::blink::SpeechSynthesisVoicePtr fake_voice;
   for (auto& mojom_voice : mojom_voices) {
     if (!fake_voice && mojom_voice->is_default) {

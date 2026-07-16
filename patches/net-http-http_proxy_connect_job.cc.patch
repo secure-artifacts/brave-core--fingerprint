@@ -1,0 +1,65 @@
+diff --git a/net/http/http_proxy_connect_job.cc b/net/http/http_proxy_connect_job.cc
+index e40cf32cb9c1e3624a196fe54f8db74246812b6b..e1861f3de44b6a0b92100a60b77bd5a0cd68b75a 100644
+--- a/net/http/http_proxy_connect_job.cc
++++ b/net/http/http_proxy_connect_job.cc
+@@ -18,11 +18,13 @@
+ #include "base/strings/strcat.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/utf_string_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
+ #include "base/values.h"
+ #include "build/build_config.h"
+ #include "http_proxy_client_socket.h"
++#include "net/base/auth.h"
+ #include "net/base/features.h"
+ #include "net/base/host_port_pair.h"
+ #include "net/base/http_user_agent_settings.h"
+@@ -906,6 +908,10 @@ void HttpProxyConnectJob::OnAuthChallenge() {
+   // Stop timer while potentially waiting for user input.
+   ResetTimer(base::TimeDelta());
+
++  if (RestartWithConfiguredProxyAuthCredentials()) {
++    return;
++  }
++
+   NotifyDelegateOfProxyAuth(
+       *transport_socket_->GetConnectResponseInfo(),
+       transport_socket_->GetAuthController().get(),
+@@ -913,6 +919,35 @@ void HttpProxyConnectJob::OnAuthChallenge() {
+                      weak_ptr_factory_.GetWeakPtr()));
+ }
+
++bool HttpProxyConnectJob::RestartWithConfiguredProxyAuthCredentials() {
++  const HostPortPair& proxy_host_port =
++      params_->proxy_server().host_port_pair();
++  if (proxy_host_port.username().empty() &&
++      proxy_host_port.password().empty()) {
++    return false;
++  }
++
++  if (configured_proxy_auth_credentials_attempted_) {
++    NotifyDelegateOfCompletion(ERR_INVALID_AUTH_CREDENTIALS);
++    return true;
++  }
++
++  HttpAuthController* auth_controller =
++      transport_socket_->GetAuthController().get();
++  if (!auth_controller || !auth_controller->HaveAuthHandler()) {
++    return false;
++  }
++
++  configured_proxy_auth_credentials_attempted_ = true;
++  if (!auth_controller->HaveAuth()) {
++    auth_controller->ResetAuth(
++        AuthCredentials(base::UTF8ToUTF16(proxy_host_port.username()),
++                        base::UTF8ToUTF16(proxy_host_port.password())));
++  }
++  RestartWithAuthCredentials();
++  return true;
++}
++
+ std::string HttpProxyConnectJob::GetUserAgent() const {
+   if (!http_user_agent_settings()) {
+     return std::string();

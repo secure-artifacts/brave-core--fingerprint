@@ -1,0 +1,49 @@
+diff --git a/chrome/browser/ui/color/chrome_color_mixer.cc b/chrome/browser/ui/color/chrome_color_mixer.cc
+index 599797319f5009fc72ec6210810fe8499e47ca8f..18d2c397a4e4e2bbfde45e29d97282f361787426 100644
+--- a/chrome/browser/ui/color/chrome_color_mixer.cc
++++ b/chrome/browser/ui/color/chrome_color_mixer.cc
+@@ -9,7 +9,9 @@
+ #include "base/feature_list.h"
+ #include "base/logging.h"
+ #include "base/strings/string_number_conversions.h"
++#include "brave/browser/ui/color/brave_color_mixer.h"
+ #include "build/branding_buildflags.h"
++#include "build/build_config.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/color/chrome_color_provider_utils.h"
+@@ -1117,18 +1119,21 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
+   mixer[kColorReadAnythingFullPageScrollbarLowContrastDark] = {
+       SkColorSetRGB(0xC7, 0xC7, 0xC7)};
+
+-  // Apply high contrast recipes if necessary.
+-  if (!ShouldApplyHighContrastColors(key)) {
+-    return;
++  if (ShouldApplyHighContrastColors(key)) {
++    mixer[kColorInfoBarContentAreaSeparator] = {
++        kColorToolbarContentAreaSeparator};
++    mixer[kColorLocationBarBorder] = {kColorToolbarText};
++    mixer[kColorToolbar] = {dark_mode ? SK_ColorBLACK : SK_ColorWHITE};
++    mixer[kColorToolbarContentAreaSeparator] = {kColorToolbarText};
++    mixer[kColorToolbarText] = {dark_mode ? SK_ColorWHITE : SK_ColorBLACK};
++    mixer[kColorToolbarTopSeparatorFrameActive] = {
++        dark_mode ? SK_ColorDKGRAY : SK_ColorLTGRAY};
++    mixer[ui::kColorFrameActive] = {SK_ColorDKGRAY};
++    mixer[ui::kColorFrameInactive] = {SK_ColorGRAY};
+   }
+-  mixer[kColorInfoBarContentAreaSeparator] = {
+-      kColorToolbarContentAreaSeparator};
+-  mixer[kColorLocationBarBorder] = {kColorToolbarText};
+-  mixer[kColorToolbar] = {dark_mode ? SK_ColorBLACK : SK_ColorWHITE};
+-  mixer[kColorToolbarContentAreaSeparator] = {kColorToolbarText};
+-  mixer[kColorToolbarText] = {dark_mode ? SK_ColorWHITE : SK_ColorBLACK};
+-  mixer[kColorToolbarTopSeparatorFrameActive] = {dark_mode ? SK_ColorDKGRAY
+-                                                           : SK_ColorLTGRAY};
+-  mixer[ui::kColorFrameActive] = {SK_ColorDKGRAY};
+-  mixer[ui::kColorFrameInactive] = {SK_ColorGRAY};
++
++#if !BUILDFLAG(IS_ANDROID)
++  AddBraveThemeColorMixer(provider, key);
++  AddBravifiedChromeThemeColorMixer(provider, key);
++#endif
+ }

@@ -200,6 +200,7 @@ IN_PROC_BROWSER_TEST_F(BraveWebGLFarblingBrowserTest,
     std::vector<int64_t> real_values2 =
         SplitStringAsInts(EvalJs(contents(), kTitleScript).ExtractString());
     ASSERT_EQ(real_values2.size(), 12UL);
+    EXPECT_EQ(real_values2, real_values);
   }
 }
 

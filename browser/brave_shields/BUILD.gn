@@ -49,6 +49,7 @@ source_set("brave_shields_impl") {
   deps = [
     "//base:i18n",
     "//brave/browser:browser_process",
+    "//brave/browser/fingerprint_browser",
     "//brave/components/brave_perf_predictor/browser",
     "//brave/components/brave_shields/core/browser",
     "//brave/components/brave_shields/core/common",

@@ -331,7 +331,7 @@ BraveContentRendererClient::CreateURLLoaderThrottleProvider(
 }
 
 bool BraveContentRendererClient::IsOnionAllowed() const {
-  return brave_observer_->IsOnionAllowed();
+  return brave_observer_ && brave_observer_->IsOnionAllowed();
 }
 
 bool BraveContentRendererClient::IsBackupResultsProcess() const {

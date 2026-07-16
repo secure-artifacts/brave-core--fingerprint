@@ -99,11 +99,7 @@ IN_PROC_BROWSER_TEST_F(BraveSpeechSynthesisFarblingBrowserTest, FarbleVoices) {
   std::string off_voices_b =
       EvalJs(web_contents(), kTitleScript).ExtractString();
   ASSERT_NE("failed", off_voices_b);
-
-  // On platforms without any voices, the rest of this test is invalid.
-  if (off_voices_b == "") {
-    return;
-  }
+  const bool has_real_voices = !off_voices_b.empty();
 
   AllowFingerprinting(domain_z);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_z));
@@ -119,17 +115,18 @@ IN_PROC_BROWSER_TEST_F(BraveSpeechSynthesisFarblingBrowserTest, FarbleVoices) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
   std::string default_voices_b =
       EvalJs(web_contents(), kTitleScript).ExtractString();
+  ASSERT_NE("failed", default_voices_b);
   SetFingerprintingDefault(domain_z);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_z));
   std::string default_voices_z =
       EvalJs(web_contents(), kTitleScript).ExtractString();
-  // The farbled voices list should be different from the unfarbled voices
-  // list, and each domain's lists should be different from each other.
-  // (That is not true of all domains, because there are a finite number of
-  // farbling choices, but it should be true of these two domains.)
-  EXPECT_NE(off_voices_b, default_voices_b);
-  EXPECT_NE(off_voices_z, default_voices_z);
-  EXPECT_NE(default_voices_b, default_voices_z);
+  ASSERT_NE("failed", default_voices_z);
+  EXPECT_FALSE(default_voices_b.empty());
+  EXPECT_EQ(default_voices_b, default_voices_z);
+  if (has_real_voices) {
+    EXPECT_NE(off_voices_b, default_voices_b);
+    EXPECT_NE(off_voices_z, default_voices_z);
+  }
 
   // Farbling level: maximum
   // The voices list is empty.

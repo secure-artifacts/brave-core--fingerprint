@@ -1,0 +1,55 @@
+diff --git a/third_party/blink/renderer/modules/font_access/font_metadata.cc b/third_party/blink/renderer/modules/font_access/font_metadata.cc
+index b68a44d4546a0b1cc1bed83222d147b7ffc5f091..29bc5f9578f445a38ffcf59c238dbcda5ff46f8f 100644
+--- a/third_party/blink/renderer/modules/font_access/font_metadata.cc
++++ b/third_party/blink/renderer/modules/font_access/font_metadata.cc
+@@ -9,6 +9,7 @@
+
+ #include "base/metrics/histogram_functions.h"
+ #include "base/numerics/safe_conversions.h"
++#include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
+ #include "build/build_config.h"
+ #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+ #include "third_party/blink/renderer/core/fileapi/blob.h"
+@@ -29,8 +30,9 @@ namespace {
+ void SetUpFontUniqueLookupIfNecessary() {
+   FontUniqueNameLookup* unique_name_lookup =
+       FontGlobalContext::Get().GetFontUniqueNameLookup();
+-  if (!unique_name_lookup)
++  if (!unique_name_lookup) {
+     return;
++  }
+   // Contrary to what the method name might imply, this is not an idempotent
+   // method. It also initializes state in the FontUniqueNameLookup object.
+   unique_name_lookup->IsFontUniqueNameLookupReadyForSyncLookup();
+@@ -57,7 +59,7 @@ ScriptPromise<Blob> FontMetadata::blob(ScriptState* script_state) {
+       ->GetTaskRunner(TaskType::kFontLoading)
+       ->PostTask(FROM_HERE,
+                  BindOnce(&FontMetadata::BlobImpl, WrapPersistent(resolver),
+-                          postscriptName_));
++                          postscriptName_, family_));
+
+   return promise;
+ }
+@@ -68,9 +70,21 @@ void FontMetadata::Trace(blink::Visitor* visitor) const {
+
+ // static
+ void FontMetadata::BlobImpl(ScriptPromiseResolver<Blob>* resolver,
+-                            const String& postscriptName) {
+-  if (!resolver->GetScriptState()->ContextIsValid())
++                            const String& postscriptName,
++                            const String& family) {
++  if (!resolver->GetScriptState()->ContextIsValid()) {
+     return;
++  }
++
++  if (!brave::AllowFontFamily(
++          ExecutionContext::From(resolver->GetScriptState()),
++          AtomicString(family))) {
++    ScriptState::Scope scope(resolver->GetScriptState());
++    resolver->Reject(V8ThrowException::CreateTypeError(
++        resolver->GetScriptState()->GetIsolate(),
++        "The font could not be accessed."));
++    return;
++  }
+
+   SetUpFontUniqueLookupIfNecessary();

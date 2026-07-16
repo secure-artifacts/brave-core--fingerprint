@@ -6,6 +6,7 @@
 #include "chrome/renderer/worker_content_settings_client.h"
 
 #include <optional>
+#include <string>
 
 #include "base/check.h"
 #include "base/debug/crash_logging.h"
@@ -89,8 +90,18 @@ WorkerContentSettingsClient_BraveImpl::GetBraveShieldsSettings(
                           HasContentSettingsRules());
     base::debug::DumpWithoutCrashing();
     return brave_shields::mojom::ShieldsSettings::New(
-        farbling_level, base::Token(), std::vector<std::string>(), false,
-        false);
+        farbling_level, base::Token(), false, false, false, std::string(),
+        std::string(), std::vector<std::string>(), std::string(), std::string(),
+        std::string(), std::string(), std::vector<std::string>(),
+        std::vector<std::string>(), std::vector<std::string>(),
+        std::vector<std::string>(), false, 0, 0.0, 0, 0, 0, 0, 0, 0, 0.0, 0, 0,
+        std::string(), std::string(), std::string(), std::string(),
+        std::string(), std::string(), std::vector<std::string>(),
+        std::vector<std::string>(), std::vector<std::string>(),
+        std::vector<std::string>(), std::vector<std::string>(),
+        std::vector<std::string>(), std::vector<std::string>(),
+        std::vector<std::string>(), std::vector<bool>(), std::vector<bool>(),
+        std::vector<std::string>(), false, false);
   }
 }
 

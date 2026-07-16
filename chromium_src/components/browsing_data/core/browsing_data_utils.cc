@@ -17,6 +17,10 @@
 #define GetDataTypeFromDeletionPreference \
   GetDataTypeFromDeletionPreference_ChromiumImpl
 #if BUILDFLAG(ENABLE_AI_CHAT)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
+#endif
+#if BUILDFLAG(ENABLE_AI_CHAT)
 #define TABS \
   TABS:      \
   case BrowsingDataType::BRAVE_AI_CHAT
@@ -26,6 +30,7 @@
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #undef TABS
+#pragma clang diagnostic pop
 #endif
 #undef GetDataTypeFromDeletionPreference
 #undef GetDeletionPreferenceFromDataType

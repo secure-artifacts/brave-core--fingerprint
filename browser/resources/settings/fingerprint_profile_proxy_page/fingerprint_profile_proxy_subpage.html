@@ -1,0 +1,222 @@
+<style include="settings-shared md-select">
+  .proxy-field {
+    padding: 12px var(--cr-section-padding);
+  }
+
+  .proxy-grid {
+    box-sizing: border-box;
+    display: grid;
+    gap: 12px 16px;
+    grid-template-columns: minmax(0, 1fr) 120px;
+    width: 100%;
+  }
+
+  .full-width {
+    grid-column: 1 / -1;
+  }
+
+  .status-row {
+    align-items: flex-start;
+    color: var(--google-grey-700);
+    min-height: auto;
+    padding-bottom: 12px;
+    padding-top: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .status-row {
+      color: var(--google-grey-300);
+    }
+  }
+
+  .error-row {
+    color: var(--cr-fallback-color-error);
+  }
+
+  .status-title {
+    font-weight: 500;
+  }
+
+  .actions-row {
+    justify-content: flex-end;
+  }
+
+  .actions-row cr-button {
+    margin-inline-start: 8px;
+  }
+
+  #scheme {
+    width: 160px;
+  }
+
+  @media (max-width: 600px) {
+    .proxy-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>
+
+<settings-section page-title="$i18n{profileProxyTitle}">
+  <settings-toggle-button id="profileProxyEnabled"
+      class="cr-row"
+      pref="[[enabledPref_]]"
+      label="$i18n{profileProxyEnabledLabel}"
+      sub-label="$i18n{profileProxyEnabledDesc}"
+      on-settings-boolean-control-change="onEnabledChange_">
+  </settings-toggle-button>
+
+  <template is="dom-if" if="[[showNoProxyRisk_]]">
+    <div id="noProxyRisk" class="cr-row continuation status-row"
+        role="alert">
+      <div>
+        <div class="status-title">$i18n{profileProxyNoProxyRiskTitle}</div>
+        <div>$i18n{profileProxyNoProxyRiskDesc}</div>
+      </div>
+    </div>
+  </template>
+
+  <div class="cr-row">
+    <div class="flex">
+      <div class="label">$i18n{profileProxySchemeLabel}</div>
+      <div class="secondary">$i18n{profileProxySchemeDesc}</div>
+    </div>
+    <select id="scheme" class="md-select" on-change="onSchemeChanged_">
+      <option value="http"
+          selected="[[schemeEqual_('http', scheme_)]]">
+        $i18n{profileProxyHttp}
+      </option>
+      <option value="socks5"
+          selected="[[schemeEqual_('socks5', scheme_)]]">
+        $i18n{profileProxySocks5}
+      </option>
+    </select>
+  </div>
+
+  <div class="proxy-field">
+    <div class="proxy-grid">
+      <cr-input id="host"
+          label="$i18n{profileProxyHostLabel}"
+          value="{{host_::input}}"
+          spellcheck="false"
+          invalid="[[isNonEmpty_(hostError_)]]"
+          error-message="[[hostError_]]"
+          on-input="onInputChanged_">
+      </cr-input>
+      <cr-input id="port"
+          label="$i18n{profileProxyPortLabel}"
+          value="{{port_::input}}"
+          type="number"
+          min="1"
+          max="65535"
+          invalid="[[isNonEmpty_(portError_)]]"
+          error-message="[[portError_]]"
+          on-input="onInputChanged_">
+      </cr-input>
+      <cr-input id="username"
+          class="full-width"
+          label="$i18n{profileProxyUsernameLabel}"
+          value="{{username_::input}}"
+          spellcheck="false"
+          on-input="onInputChanged_">
+      </cr-input>
+      <cr-input id="password"
+          class="full-width"
+          label="$i18n{profileProxyPasswordLabel}"
+          value="{{password_::input}}"
+          type="password"
+          on-input="onInputChanged_">
+      </cr-input>
+    </div>
+  </div>
+
+  <div class="cr-row first">
+    <div class="flex">
+      <div class="label">$i18n{profileProxyManualGeoTitle}</div>
+      <div class="secondary">$i18n{profileProxyManualGeoDesc}</div>
+    </div>
+  </div>
+
+  <div class="proxy-field">
+    <div class="proxy-grid">
+      <cr-input id="manualCountryCode"
+          label="$i18n{profileProxyManualCountryCodeLabel}"
+          value="{{manualCountryCode_::input}}"
+          maxlength="2"
+          spellcheck="false"
+          on-input="onInputChanged_">
+      </cr-input>
+      <cr-input id="manualTimezone"
+          label="$i18n{profileProxyManualTimezoneLabel}"
+          value="{{manualTimezone_::input}}"
+          spellcheck="false"
+          on-input="onInputChanged_">
+      </cr-input>
+      <cr-input id="manualLatitude"
+          label="$i18n{profileProxyManualLatitudeLabel}"
+          value="{{manualLatitude_::input}}"
+          type="number"
+          min="-90"
+          max="90"
+          on-input="onInputChanged_">
+      </cr-input>
+      <cr-input id="manualLongitude"
+          label="$i18n{profileProxyManualLongitudeLabel}"
+          value="{{manualLongitude_::input}}"
+          type="number"
+          min="-180"
+          max="180"
+          on-input="onInputChanged_">
+      </cr-input>
+    </div>
+  </div>
+
+  <template is="dom-if" if="[[isNonEmpty_(conflictWarning_)]]">
+    <div id="conflictWarning" class="cr-row continuation status-row"
+        role="alert">
+      <div>
+        <div class="status-title">$i18n{profileProxyConflictWarningTitle}</div>
+        <div>[[conflictWarning_]]</div>
+      </div>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[isNonEmpty_(geoWarning_)]]">
+    <div id="geoWarning" class="cr-row continuation status-row error-row"
+        role="alert">
+      <div>
+        <div class="status-title">$i18n{profileProxyGeoWarningTitle}</div>
+        <div>[[geoWarning_]]</div>
+      </div>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[isNonEmpty_(lastError_)]]">
+    <div id="runtimeError" class="cr-row continuation status-row error-row"
+        role="alert">
+      <div>
+        <div class="status-title">$i18n{profileProxyRuntimeErrorTitle}</div>
+        <div>[[lastError_]]</div>
+      </div>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[isNonEmpty_(saveError_)]]">
+    <div id="saveError" class="cr-row continuation status-row error-row"
+        role="alert">
+      <div>[[saveError_]]</div>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[isNonEmpty_(savedStatus_)]]">
+    <div id="savedStatus" class="cr-row continuation status-row">
+      <div>[[savedStatus_]]</div>
+    </div>
+  </template>
+
+  <div class="cr-row continuation actions-row">
+    <cr-button id="save" class="action-button" on-click="onSave_"
+        disabled="[[isSaving_]]">
+      $i18n{profileProxySave}
+    </cr-button>
+  </div>
+</settings-section>

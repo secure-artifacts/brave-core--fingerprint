@@ -11,6 +11,7 @@
 #include "brave/components/brave_shields/core/common/farbling_prng.h"
 #include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
 #include "third_party/blink/renderer/bindings/modules/v8/webgl_any.h"
+#include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_host.h"
 
 using blink::ExecutionContext;
 using blink::ScriptState;
@@ -25,8 +26,9 @@ ScriptValue FarbleGLIntParameter(WebGL2RenderingContextBase* owner,
                                  GLenum pname,
                                  int discard) {
   GLint value = 0;
-  if (!owner->isContextLost())
+  if (!owner->isContextLost()) {
     owner->ContextGL()->GetIntegerv(pname, &value);
+  }
   if (value > 0) {
     brave_shields::FarblingPRNG prng =
         brave::BraveSessionCache::From(*ExecutionContext::From(script_state))
@@ -44,8 +46,9 @@ ScriptValue FarbleGLInt64Parameter(WebGL2RenderingContextBase* owner,
                                    GLenum pname,
                                    int discard) {
   GLint64 value = 0;
-  if (!owner->isContextLost())
+  if (!owner->isContextLost()) {
     owner->ContextGL()->GetInteger64v(pname, &value);
+  }
   if (value > 0) {
     brave_shields::FarblingPRNG prng =
         brave::BraveSessionCache::From(*ExecutionContext::From(script_state))
@@ -129,6 +132,65 @@ ScriptValue FarbleGLInt64Parameter(WebGL2RenderingContextBase* owner,
       NOTREACHED();                                                            \
   }
 
+#define readPixels readPixels_ChromiumImpl
 #include <third_party/blink/renderer/modules/webgl/webgl2_rendering_context_base.cc>
+#undef readPixels
 #undef BRAVE_WEBGL2_RENDERING_CONTEXT_BASE
 #undef BRAVE_WEBGL2_RENDERING_CONTEXT_BASE_GETPARAMETER
+
+namespace blink {
+
+namespace {
+
+bool ShouldBlockWebGL2PixelPackReadPixels(CanvasRenderingContextHost* host) {
+  if (!host) {
+    return false;
+  }
+  return brave::GetBraveFarblingLevelFor(
+             host->GetTopExecutionContext(),
+             ContentSettingsType::BRAVE_WEBCOMPAT_WEBGL2,
+             BraveFarblingLevel::OFF) != BraveFarblingLevel::OFF;
+}
+
+}  // namespace
+
+void WebGL2RenderingContextBase::readPixels(
+    GLint x,
+    GLint y,
+    GLsizei width,
+    GLsizei height,
+    GLenum format,
+    GLenum type,
+    MaybeShared<DOMArrayBufferView> pixels) {
+  readPixels_ChromiumImpl(x, y, width, height, format, type, pixels);
+}
+
+void WebGL2RenderingContextBase::readPixels(
+    GLint x,
+    GLint y,
+    GLsizei width,
+    GLsizei height,
+    GLenum format,
+    GLenum type,
+    MaybeShared<DOMArrayBufferView> pixels,
+    int64_t offset) {
+  readPixels_ChromiumImpl(x, y, width, height, format, type, pixels, offset);
+}
+
+void WebGL2RenderingContextBase::readPixels(GLint x,
+                                            GLint y,
+                                            GLsizei width,
+                                            GLsizei height,
+                                            GLenum format,
+                                            GLenum type,
+                                            int64_t offset) {
+  if (ShouldBlockWebGL2PixelPackReadPixels(Host())) {
+    SynthesizeGLError(GL_INVALID_OPERATION, "readPixels",
+                      "PIXEL_PACK buffer is unavailable under fingerprinting "
+                      "protections");
+    return;
+  }
+  readPixels_ChromiumImpl(x, y, width, height, format, type, offset);
+}
+
+}  // namespace blink

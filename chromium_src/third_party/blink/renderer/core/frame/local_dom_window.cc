@@ -16,6 +16,7 @@
 #define outerWidth outerWidth_ChromiumImpl
 #define screenX screenX_ChromiumImpl
 #define screenY screenY_ChromiumImpl
+#define devicePixelRatio devicePixelRatio_ChromiumImpl
 #define resizeTo resizeTo_ChromiumImpl
 #define moveTo moveTo_ChromiumImpl
 
@@ -35,6 +36,7 @@
 #undef outerWidth
 #undef screenX
 #undef screenY
+#undef devicePixelRatio
 #undef resizeTo
 #undef moveTo
 #undef ScriptEnabled
@@ -81,19 +83,36 @@ int LocalDOMWindow::outerHeight() const {
 }
 
 int LocalDOMWindow::screenX() const {
-  // Prevent fingerprinter use of screenX, screenLeft by returning value near 0:
   ExecutionContext* context = GetExecutionContext();
-  return BlockScreenFingerprinting(context)
-             ? FarbleInteger(context, brave::FarbleKey::kWindowScreenX, 0, 0, 8)
-             : screenX_ChromiumImpl();
+  if (!BlockScreenFingerprinting(context)) {
+    return screenX_ChromiumImpl();
+  }
+  if (auto value = brave::BraveSessionCache::From(*context).PersonaWindowX()) {
+    return *value;
+  }
+  return FarbleInteger(context, brave::FarbleKey::kWindowScreenX, 0, 0, 8);
 }
 
 int LocalDOMWindow::screenY() const {
-  // Prevent fingerprinter use of screenY, screenTop by returning value near 0:
   ExecutionContext* context = GetExecutionContext();
-  return BlockScreenFingerprinting(context)
-             ? FarbleInteger(context, brave::FarbleKey::kWindowScreenY, 0, 0, 8)
-             : screenY_ChromiumImpl();
+  if (!BlockScreenFingerprinting(context)) {
+    return screenY_ChromiumImpl();
+  }
+  if (auto value = brave::BraveSessionCache::From(*context).PersonaWindowY()) {
+    return *value;
+  }
+  return FarbleInteger(context, brave::FarbleKey::kWindowScreenY, 0, 0, 8);
+}
+
+double LocalDOMWindow::devicePixelRatio() const {
+  ExecutionContext* context = GetExecutionContext();
+  if (BlockScreenFingerprinting(context)) {
+    if (auto value = brave::BraveSessionCache::From(*context)
+                         .PersonaScreenDeviceScaleFactor()) {
+      return *value;
+    }
+  }
+  return devicePixelRatio_ChromiumImpl();
 }
 
 void LocalDOMWindow::resizeTo(int width,

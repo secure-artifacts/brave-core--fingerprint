@@ -5,6 +5,8 @@
 
 #include <cmath>
 
+#include "brave/browser/ui/color/brave_color_id.h"
+#include "brave/ui/color/nala/nala_color_id.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/color/chrome_color_mixers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,4 +39,18 @@ TEST_F(BraveColorMixersTest, ColorOverrideTest) {
                         std::ceil(0.10f * 255.0f)));
   EXPECT_EQ(color_provider().GetColor(kColorOmniboxSecurityChipText),
             color_provider().GetColor(kColorOmniboxSecurityChipDangerous));
+}
+
+TEST_F(BraveColorMixersTest, ProvidesNalaNeutral5) {
+  AddColorMixers();
+
+  EXPECT_EQ(color_provider().GetColor(nala::kColorPrimitiveNeutral5),
+            SkColorSetRGB(0x14, 0x14, 0x15));
+}
+
+TEST_F(BraveColorMixersTest, InitializesSidebarButtonColor) {
+  AddColorMixers();
+
+  EXPECT_NE(color_provider().GetColor(kColorSidebarButtonBase),
+            SkColorSetRGB(0xff, 0x00, 0x00));
 }

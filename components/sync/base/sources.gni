@@ -3,5 +3,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
+brave_components_sync_base_excluded_sources = [ "user_selectable_type.cc" ]
+
+brave_components_sync_base_sources =
+    [ "//brave/chromium_src/components/sync/base/user_selectable_type.cc" ]
+
 brave_components_sync_base_public_deps =
     [ "//brave/components/brave_sync:buildflags" ]

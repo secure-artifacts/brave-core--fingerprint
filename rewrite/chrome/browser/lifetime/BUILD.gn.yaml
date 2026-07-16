@@ -4,6 +4,9 @@
 # You can obtain one at https://mozilla.org/MPL/2.0/.
 
 substitutions:
+  - description: 'Use Brave browser close manager implementation'
+    re_pattern: '"browser_close_manager\.cc"'
+    replace: '"//brave/chromium_src/chrome/browser/lifetime/browser_close_manager.cc"'
   - description:
       'Add deps needed by Brave overrides in the lifetime:impl target'
     regex:

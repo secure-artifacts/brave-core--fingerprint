@@ -1,0 +1,15 @@
+diff --git a/components/embedder_support/BUILD.gn b/components/embedder_support/BUILD.gn
+index 847ba42327e113d0ccf22a9f366965700825acbc..bb95d9f890afeb22f2bb20e76a040b20b405bc9c 100644
+--- a/components/embedder_support/BUILD.gn
++++ b/components/embedder_support/BUILD.gn
+@@ -55,6 +55,10 @@ static_library("user_agent") {
+     "user_agent_utils.h",
+   ]
+
++  sources -= [ "user_agent_utils.cc" ]
++  sources +=
++      [ "//brave/chromium_src/components/embedder_support/user_agent_utils.cc" ]
++
+   deps = [
+     ":embedder_support",
+     "//build:branding_buildflags",

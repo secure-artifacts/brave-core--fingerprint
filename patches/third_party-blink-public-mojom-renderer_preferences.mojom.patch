@@ -1,0 +1,17 @@
+diff --git a/third_party/blink/public/mojom/renderer_preferences.mojom b/third_party/blink/public/mojom/renderer_preferences.mojom
+index aa6d396335d3348562ca517761723470342833a8..7b3f7c4b3294854a6f2f1b7bae1aab5d2e292804 100644
+--- a/third_party/blink/public/mojom/renderer_preferences.mojom
++++ b/third_party/blink/public/mojom/renderer_preferences.mojom
+@@ -125,6 +125,12 @@ struct RendererPreferences {
+   // The accept-languages of the browser, comma-separated.
+   string accept_languages;
+
++  // Profile 级浏览器功能传入的 IANA 时区。
++  string fingerprint_browser_timezone_override;
++
++  // 浏览器是否显式同步了时区覆盖。
++  bool fingerprint_browser_timezone_override_initialized = false;
++
+   // Whether renderers need to send SubresourceResponseStarted IPC to
+   // the browser. Renderers send the IPC if user has allowed any certificate or
+   // HTTP

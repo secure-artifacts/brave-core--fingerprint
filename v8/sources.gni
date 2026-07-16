@@ -13,3 +13,17 @@ if (enable_brave_page_graph) {
   brave_v8_headers_sources +=
       [ "//brave/v8/include/v8-isolate-page-graph-utils.h" ]
 }
+
+brave_v8_base_without_compiler_excluded_sources = [
+  "src/api/api.cc",
+  "src/builtins/builtins.cc",
+  "src/codegen/compiler.cc",
+  "src/execution/isolate.cc",
+]
+
+brave_v8_base_without_compiler_sources = [
+  "//brave/chromium_src/v8/src/api/api.cc",
+  "//brave/chromium_src/v8/src/builtins/builtins.cc",
+  "//brave/chromium_src/v8/src/codegen/compiler.cc",
+  "//brave/chromium_src/v8/src/execution/isolate.cc",
+]

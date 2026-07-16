@@ -1,13 +1,38 @@
 diff --git a/chrome/browser/net/proxy_config_monitor.h b/chrome/browser/net/proxy_config_monitor.h
-index 6c060b52d25799c6a7c4e4ee86ed7490060560d6..1776145eb5b604ff1e13bb8319f4a9ebb9293adf 100644
+index 6c060b52d25799c6a7c4e4ee86ed7490060560d6..dc15887842653a8952c36711c9c485f9f5d86b57 100644
 --- a/chrome/browser/net/proxy_config_monitor.h
 +++ b/chrome/browser/net/proxy_config_monitor.h
-@@ -66,7 +66,7 @@ class ProxyConfigMonitor : public net::ProxyConfigService::Observer,
+@@ -24,6 +24,7 @@ class ProxyConfigWithAnnotation;
+ }
+
+ class Profile;
++class PrefChangeRegistrar;
+ class PrefProxyConfigTracker;
+ class PrefService;
+
+@@ -66,8 +67,13 @@ class ProxyConfigMonitor : public net::ProxyConfigService::Observer,
    // they're received, to allow tests to wait until all pending proxy
    // configuration changes have been applied.
    void FlushForTesting();
 -
 +  BRAVE_PROXY_CONFIG_MONITOR_H
   private:
++  void UpdateFingerprintBrowserProfileProxyConfig();
++  void ReplaceProxyConfigService(
++      std::unique_ptr<net::ProxyConfigService> proxy_config_service,
++      bool uses_fingerprint_browser_profile_proxy);
++
    // net::ProxyConfigService::Observer implementation:
    void OnProxyConfigChanged(
+       const net::ProxyConfigWithAnnotation& config,
+@@ -86,6 +92,10 @@ class ProxyConfigMonitor : public net::ProxyConfigService::Observer,
+   std::unique_ptr<net::ProxyConfigService> proxy_config_service_;
+   // Monitors global and Profile prefs related to proxy configuration.
+   std::unique_ptr<PrefProxyConfigTracker> pref_proxy_config_tracker_;
++  raw_ptr<Profile> fingerprint_browser_profile_ = nullptr;
++  std::unique_ptr<PrefChangeRegistrar>
++      fingerprint_browser_profile_proxy_pref_change_registrar_;
++  bool uses_fingerprint_browser_profile_proxy_ = false;
+
+   mojo::ReceiverSet<network::mojom::ProxyConfigPollerClient>
+       poller_receiver_set_;

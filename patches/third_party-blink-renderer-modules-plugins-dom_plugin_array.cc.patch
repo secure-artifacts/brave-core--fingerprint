@@ -1,12 +1,141 @@
 diff --git a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
-index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..a84d9304fafa68e0a68315e9a66d6a154ab2358d 100644
+index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..2eac638f4685c7073d8ac0d057c7a3e867f9dcc9 100644
 --- a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
 +++ b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
-@@ -63,6 +63,7 @@ DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
+@@ -18,8 +18,12 @@
+  *  MA 02110-1301 USA
+  */
+
++#include <algorithm>
++#include <vector>
++
+ #include "third_party/blink/renderer/modules/plugins/dom_plugin_array.h"
+
++#include "brave/components/brave_shields/core/common/farbling_prng.h"
++#include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+ #include "third_party/blink/renderer/core/frame/local_frame.h"
+@@ -30,6 +34,7 @@
+ #include "third_party/blink/renderer/modules/plugins/navigator_plugins.h"
+ #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+ #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
++#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+ #include "third_party/blink/renderer/platform/wtf/vector.h"
+
+ namespace blink {
+@@ -50,6 +55,106 @@ DOMPlugin* MakeFakePlugin(String plugin_name, LocalDOMWindow* window) {
+   }
+   return MakeGarbageCollected<DOMPlugin>(window, *plugin_info);
+ }
++
++String PluginReplacementName(brave_shields::FarblingPRNG* prng) {
++  std::vector<String> chrome{"Chrome ", "Chromium ",   "Brave ",
++                             "Web ",    "Browser ",    "OpenSource ",
++                             "Online ", "JavaScript ", ""};
++  std::vector<String> pdf{"PDF ",
++                          "Portable Document Format ",
++                          "portable-document-format ",
++                          "document ",
++                          "doc ",
++                          "PDF and PS ",
++                          "com.adobe.pdf "};
++  std::vector<String> viewer{"Viewer",  "Renderer", "Display",   "Plugin",
++                             "plug-in", "plug in",  "extension", ""};
++  return StrCat({chrome[(*prng)() % chrome.size()], pdf[(*prng)() % pdf.size()],
++                 viewer[(*prng)() % viewer.size()]});
++}
++
++MimeClassInfo* AddMimeTypeToPluginInfo(PluginInfo* plugin_info,
++                                       const String& mime_type,
++                                       const String& description,
++                                       const String& extension) {
++  Vector<String> extensions{extension};
++  auto* mime_info = MakeGarbageCollected<MimeClassInfo>(
++      mime_type, description, *plugin_info, extensions);
++  plugin_info->AddMimeType(mime_info);
++  return mime_info;
++}
++
++DOMPlugin* MakeBraveFakePlugin(LocalDOMWindow* window,
++                               const String& name,
++                               const String& filename,
++                               const String& description,
++                               const std::vector<const char*>& mime_types,
++                               const String& mime_description,
++                               const String& plugin_extension) {
++  auto* plugin_info = MakeGarbageCollected<PluginInfo>(
++      name, filename, description, Color::kTransparent,
++      /*may_use_external_handler=*/false);
++  for (const char* mime_type : mime_types) {
++    AddMimeTypeToPluginInfo(plugin_info, mime_type, mime_description,
++                            plugin_extension);
++  }
++  return MakeGarbageCollected<DOMPlugin>(window, *plugin_info);
++}
++
++void ApplyBravePluginPolicy(LocalDOMWindow* window,
++                            HeapVector<Member<DOMPlugin>>& dom_plugins) {
++  auto farbling_level = brave::GetBraveFarblingLevelFor(
++      window, ContentSettingsType::BRAVE_WEBCOMPAT_PLUGINS,
++      BraveFarblingLevel::OFF);
++  if (farbling_level == BraveFarblingLevel::OFF || !window) {
++    return;
++  }
++
++  brave::BraveSessionCache& cache = brave::BraveSessionCache::From(*window);
++  if (cache.HasPersonaL1()) {
++    return;
++  }
++
++  switch (farbling_level) {
++    case BraveFarblingLevel::MAXIMUM:
++      dom_plugins.clear();
++      [[fallthrough]];
++    case BraveFarblingLevel::BALANCED: {
++      brave_shields::FarblingPRNG prng = cache.MakePseudoRandomGenerator();
++      for (unsigned index = 0; index < dom_plugins.size(); index++) {
++        auto plugin = dom_plugins[index];
++        String name = plugin->name();
++        String description = plugin->description();
++        if ((name == "Chrome PDF Plugin") || (name == "Chrome PDF Viewer")) {
++          std::vector<const char*> mime_types{"application/pdf", "text/pdf"};
++          dom_plugins[index] = MakeBraveFakePlugin(
++              window, PluginReplacementName(&prng),
++              cache.GenerateRandomString(plugin->filename().Ascii(), 32),
++              description, mime_types, description, "pdf");
++        }
++      }
++
++      dom_plugins.push_back(MakeBraveFakePlugin(
++          window, cache.GenerateRandomString("PLUGIN_1_NAME", 8),
++          cache.GenerateRandomString("PLUGIN_1_FILENAME", 16),
++          cache.GenerateRandomString("PLUGIN_1_DESCRIPTION", 32),
++          std::vector<const char*>{"", ""},
++          cache.GenerateRandomString("MIME_1_DESCRIPTION", 32),
++          cache.GenerateRandomString("PLUGIN_1_EXTENSION", 3)));
++      dom_plugins.push_back(MakeBraveFakePlugin(
++          window, cache.GenerateRandomString("PLUGIN_2_NAME", 7),
++          cache.GenerateRandomString("PLUGIN_2_FILENAME", 15),
++          cache.GenerateRandomString("PLUGIN_2_DESCRIPTION", 31),
++          std::vector<const char*>{"", ""},
++          cache.GenerateRandomString("MIME_2_DESCRIPTION", 32),
++          cache.GenerateRandomString("PLUGIN_2_EXTENSION", 3)));
++      std::shuffle(dom_plugins.begin(), dom_plugins.end(), prng);
++      return;
++    }
++    case BraveFarblingLevel::OFF:
++      return;
++  }
++}
+ }  // namespace
+
+ DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
+@@ -63,6 +168,7 @@ DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
      for (auto name : plugins) {
        dom_plugins_.push_back(MakeFakePlugin(name, window));
      }
-+    BRAVE_DOM_PLUGINS_UPDATE_PLUGIN_DATA__FARBLE_PLUGIN_DATA
++    ApplyBravePluginPolicy(window, dom_plugins_);
    }
  }
- 
+

@@ -6,6 +6,8 @@
 #ifndef BRAVE_CHROMIUM_SRC_BASE_CHECK_IS_TEST_H_
 #define BRAVE_CHROMIUM_SRC_BASE_CHECK_IS_TEST_H_
 
+#define BRAVE_CHECK_IS_TEST_HEADER_OVERRIDE
+
 #include <base/check_is_test.h>  // IWYU pragma: export
 
 #include "base/gtest_prod_util.h"

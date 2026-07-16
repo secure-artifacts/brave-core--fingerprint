@@ -89,6 +89,10 @@ void FarblePlugins(blink::LocalDOMWindow* window,
   auto farbling_level = brave::GetBraveFarblingLevelFor(
       window, ContentSettingsType::BRAVE_WEBCOMPAT_PLUGINS,
       BraveFarblingLevel::OFF);
+  if (farbling_level != BraveFarblingLevel::OFF &&
+      window && BraveSessionCache::From(*window).HasPersonaL1()) {
+    return;
+  }
   switch (farbling_level) {
     case BraveFarblingLevel::OFF: {
       return;

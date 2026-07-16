@@ -47,8 +47,9 @@
   (UA + 显卡串 + 屏幕档 + 字体集 + 时区 + …),同 Profile 跨 session 恒定。
 - **Profile**:一个 Chromium Profile = 一个身份单元,自带独立 storage + NetworkContext +
   代理 + persona。多号 = 多 Profile 并发。区别于「浏览器窗口」(同 Profile 多窗口共享身份)。
-- **Farbling**:Brave 现有的**防护**机制——per-session/per-eTLD+1 随机加噪,目的是**不可追踪**。
-  本项目目标相反(稳定一致假身份),故**复用其拦截点、替换其逻辑**。别把 farbling 当敌人,当脚手架。
+- **Farbling**:Brave 现有的**防护**机制——原生目标是 per-session/per-eTLD+1 随机加噪、使站点难追踪。
+  本项目目标相反(稳定一致假身份),故在 `fingerprint` 分支**复用其拦截点、替换其 token/返回逻辑**:
+  persona 有效时用 per-Profile persona 派生 token;persona 缺失/损坏时回退 Brave 原随机 token。别把 farbling 当敌人,当脚手架。
 - **真值池(real-value pool)**:人工维护的、真实存在的候选值集合(真 WebGL renderer 串、各 OS
   真屏幕档、各 OS/locale 真字体集、真 UA+版本)。persona 从池里按规则组装,保证组合真机存在。
 - **一致性 / crowd-blending**:检测器不单看单值,看各信号是否互相自洽 + 是否跟出口 IP 一致,且是否
@@ -91,7 +92,9 @@
   navigator=`navigator_base.cc` / `navigator_device_memory.cc` / `navigator_language.cc`;
   screen=`local_dom_window.cc`(FarbleInteger);字体=`css/local_font_face_source.cc` +
   `brave_font_whitelist.cc`。
-- **未挂钩、需自己加**:maxTouchPoints、Gamepad、WebGL readPixels、**整个 L3 时区/geo**。
+- **本分支已补挂钩面**:maxTouchPoints、Gamepad、WebGL readPixels、pointer/touch screenX/screenY、
+  Local Font Access、media devices、speech voices、WebUSB serial。**仍缺**:L3 时区/geo/语言原子联动与实测;
+  WebRTC pref 已随 profile proxy 启停保存/恢复,仍需 ICE 泄漏实测。
 - 控制设置:`ContentSettingsType::BRAVE_FINGERPRINTING_V2`;`GetFarblingLevel`
   in `components/brave_shields/core/browser/brave_shields_utils.cc`。
 
@@ -110,12 +113,24 @@
   `brave/browser/ui/webui/brave_settings_ui.cc`。
 - 前端:`brave/browser/resources/settings/brave_tor_page/brave_tor_browser_proxy.ts`。
 
-**L3 时区/geo 覆盖点(Chromium 原生,需自己接 per-profile)**
-- 时区:`base/i18n/timezone.cc`(读 OS,不知代理);可 ICU 级 override 或 CDP `Emulation.setTimezoneOverride`。
+**L3 时区/geo 覆盖点**
+- 时区: Profile 代理生效后,`BraveContentBrowserClient::AppendExtraCommandLineSwitches()`
+  只向新 renderer 注入 `--brave-fingerprint-browser-timezone`; Blink
+  `TimeZoneController::Init()` 持有对应 override。保存设置后,WebUI 调用
+  `WebContents::SyncRendererPrefsForBrowserContext()` →
+  `ContentBrowserClient::UpdateRendererPreferences()` →
+  `WebViewImpl::UpdateRendererPreferences()` →
+  `TimeZoneController::SetFingerprintBrowserTimezoneOverride()`,现有页面无需重启 renderer。
+  renderer 归属单一 BrowserContext,因而 Profile 并发不会互抢。禁止改
+  `base/i18n/timezone.cc` 的进程级 ICU;CDP `Emulation.setTimezoneOverride` 仅测试/DevTools 用。
 - WebRTC 防漏:`--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
   (pref `webrtc.ip_handling_policy`);唯一能彻底防公网 IP 泄漏的值(代价:UDP WebRTC 断)。
+  当前实现锚点:`fingerprint_browser::SyncProfileProxyWebRTCPolicy()` 保存原 pref,profile proxy 生效时强制,
+  停用/冲突/无有效代理时恢复。
 - Accept-Language:pref `intl.accept_languages` / `--lang`。⚠️ Strict 模式(`ControlType::BLOCK`)下
   `brave_reduce_language_network_delegate_helper.cc:147-151` 硬编码 "en-US,en;q=0.9",会盖掉 geo 语言,须协调。
-- geo:需**生产级 per-Profile override**(Profile 级 `GeolocationContext` 拦截/权限层覆盖)。
-  CDP `Emulation.setGeolocationOverride` 仅 per-tab/DevTools 测试用,非生产机制。+ 关 OS 定位权限。
+- geo:`content::GeolocationServiceImpl` 先调用
+  `ContentBrowserClient::GetProfileGeolocationOverride()`; Brave 从当前
+  RenderFrameHost 的 Profile 读取代理导出的坐标。普通页面
+  `navigator.geolocation` 直接收到代理坐标,不经 CDP。
 - WebRTC pref `webrtc.ip_handling_policy` 已由 brave://settings 暴露给用户,覆盖前须存原值、关代理时恢复。

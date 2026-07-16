@@ -1,0 +1,14 @@
+diff --git a/third_party/blink/renderer/modules/font_access/font_metadata.h b/third_party/blink/renderer/modules/font_access/font_metadata.h
+index f756d60e2a85490c6c5c8e9ed382013fd4bd0eca..547bb98750c8b85d744e2ebdb45a2195a62371a5 100644
+--- a/third_party/blink/renderer/modules/font_access/font_metadata.h
++++ b/third_party/blink/renderer/modules/font_access/font_metadata.h
+@@ -62,7 +62,8 @@ class BLINK_EXPORT FontMetadata final : public ScriptWrappable {
+
+  private:
+   static void BlobImpl(ScriptPromiseResolver<Blob>* resolver,
+-                       const String& postscriptName);
++                       const String& postscriptName,
++                       const String& family);
+   String postscriptName_;
+   String fullName_;
+   String family_;
