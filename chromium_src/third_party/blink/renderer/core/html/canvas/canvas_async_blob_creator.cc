@@ -7,9 +7,15 @@
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 #include "ui/gfx/skia_span_util.h"
 
-#define BRAVE_CANVAS_ASYNC_BLOB_CREATOR                    \
-  brave::BraveSessionCache::From(*context_).PerturbPixels( \
-      gfx::SkPixmapToWritableSpan(src_data_));
+#define BRAVE_CANVAS_ASYNC_BLOB_CREATOR                                       \
+  if (static_bitmap_image_loaded_) {                                          \
+    sk_sp<SkImage> farbled_image = SkImages::RasterFromPixmapCopy(src_data_); \
+    if (farbled_image && farbled_image->peekPixels(&src_data_)) {             \
+      skia_image_ = std::move(farbled_image);                                 \
+      brave::BraveSessionCache::From(*context_).PerturbPixels(                \
+          gfx::SkPixmapToWritableSpan(src_data_));                            \
+    }                                                                         \
+  }
 
 #include <third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc>
 

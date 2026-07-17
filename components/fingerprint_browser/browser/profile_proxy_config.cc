@@ -93,6 +93,14 @@ std::optional<std::string> AcceptLanguagesForCountryCode(
   return std::nullopt;
 }
 
+std::optional<net::IPAddress> ParseIpLiteralHost(std::string_view host) {
+  if (host.size() > 2 && host.front() == '[' && host.back() == ']') {
+    host.remove_prefix(1);
+    host.remove_suffix(1);
+  }
+  return net::IPAddress::FromIPLiteral(host);
+}
+
 ProfileProxyGeo MakeProfileProxyGeo(std::string_view country_code,
                                     std::string_view timezone,
                                     double latitude,
@@ -109,7 +117,7 @@ ProfileProxyGeo MakeProfileProxyGeo(std::string_view country_code,
 
 std::optional<ProfileProxyGeo> ResolveProfileProxyGeoFromHost(
     std::string_view host) {
-  const std::optional<net::IPAddress> ip = net::IPAddress::FromIPLiteral(host);
+  const std::optional<net::IPAddress> ip = ParseIpLiteralHost(host);
   if (!ip) {
     return std::nullopt;
   }
@@ -216,8 +224,13 @@ std::optional<net::ProxyServer> GetProfileProxyServerFromPrefs(
     return std::nullopt;
   }
 
+  std::string proxy_host(host);
+  const auto ip = ParseIpLiteralHost(host);
+  if (ip && ip->IsIPv6()) {
+    proxy_host = "[" + ip->ToString() + "]";
+  }
   const net::ProxyServer parsed_server =
-      net::ProxyServer::FromSchemeHostAndPort(*scheme, host,
+      net::ProxyServer::FromSchemeHostAndPort(*scheme, proxy_host,
                                               static_cast<uint16_t>(port));
   if (!parsed_server.is_valid()) {
     return std::nullopt;

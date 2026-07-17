@@ -13,6 +13,7 @@
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "brave/components/fingerprint_browser/browser/offline_geoip_database.h"
 #include "brave/components/fingerprint_browser/browser/persona_generator.h"
@@ -62,12 +63,14 @@ void RegisterProxyConflictPrefs(TestingPrefServiceSimple* prefs) {
 base::FilePath GetGeoIpTestDataDirectory() {
   base::FilePath source_root;
   CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
-  return source_root.AppendASCII("brave")
-      .AppendASCII("components")
-      .AppendASCII("fingerprint_browser")
-      .AppendASCII("browser")
-      .AppendASCII("test")
-      .AppendASCII("data");
+  const base::FilePath directory = source_root.AppendASCII("brave")
+                                       .AppendASCII("components")
+                                       .AppendASCII("fingerprint_browser")
+                                       .AppendASCII("browser")
+                                       .AppendASCII("test")
+                                       .AppendASCII("data");
+  CHECK(base::DirectoryExists(directory)) << directory;
+  return directory;
 }
 
 void SetProfileProxyPrefs(TestingPrefServiceSimple* prefs,
@@ -340,6 +343,19 @@ TEST(ProfileProxyConfigTest, BuildsHttpProxyWithCredentials) {
   EXPECT_EQ(8080, proxy_server->host_port_pair().port());
   EXPECT_EQ("user", proxy_server->host_port_pair().username());
   EXPECT_EQ("pass", proxy_server->host_port_pair().password());
+}
+
+TEST(ProfileProxyConfigTest, BuildsHttpProxyWithIPv6Host) {
+  TestingPrefServiceSimple prefs;
+  RegisterPrefs(&prefs);
+
+  SetProfileProxyPrefs(&prefs, prefs::kProfileProxySchemeHttp, "2001:218::1",
+                       8080);
+
+  auto proxy_server = GetProfileProxyServerFromPrefs(prefs);
+  ASSERT_TRUE(proxy_server);
+  EXPECT_EQ("2001:218::1", proxy_server->host_port_pair().host());
+  EXPECT_EQ(8080, proxy_server->host_port_pair().port());
 }
 
 TEST(ProfileProxyConfigTest, BuildsSocks5ProxyWithCredentials) {

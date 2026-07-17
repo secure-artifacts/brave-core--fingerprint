@@ -29,7 +29,7 @@ index c30ac8186a526d56b01e4deb87a747ac952e9d89..dbee44b1c785ab27ec63c3c52db356e3
    return network::mojom::CTPolicy::New(std::move(excluded),
                                         std::move(excluded_spkis));
  }
-@@ -1351,6 +1357,11 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
+@@ -1351,5 +1357,10 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
    g_browser_process->system_network_context_manager()
        ->ConfigureDefaultNetworkContextParams(network_context_params);
 

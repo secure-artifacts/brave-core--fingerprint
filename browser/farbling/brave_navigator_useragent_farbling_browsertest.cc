@@ -34,6 +34,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/permissions/permission_request.h"
 #include "components/prefs/pref_service.h"
@@ -154,8 +155,7 @@ constexpr char kPersonaCanvasFingerprintScript[] = R"(
 
 constexpr char kPersonaWorkerPagePath[] = "/persona-workers.html";
 constexpr char kSimplePagePath[] = "/simple.html";
-constexpr char kPersonaDedicatedWorkerPath[] =
-    "/persona-dedicated-worker.js";
+constexpr char kPersonaDedicatedWorkerPath[] = "/persona-dedicated-worker.js";
 constexpr char kPersonaNestedWorkerPath[] = "/persona-nested-worker.js";
 constexpr char kPersonaSharedWorkerPath[] = "/persona-shared-worker.js";
 constexpr char kPersonaServiceWorkerPath[] = "/persona-service-worker.js";
@@ -216,11 +216,12 @@ std::unique_ptr<net::test_server::HttpResponse> HandlePersonaWorkerRequest(
     const char* worker_path = path == kWorkersUserAgentPagePath
                                   ? kWorkersUserAgentScriptPath
                                   : kWorkersUserAgentNetworkScriptPath;
-    content = base::StrCat({"<!doctype html><script>const worker = new "
-                            "Worker('",
-                            worker_path,
-                            "'); worker.onmessage = () => document.title = "
-                            "'pass'; worker.postMessage('ready');</script>"});
+    content =
+        base::StrCat({"<!doctype html><script>const worker = new "
+                      "Worker('",
+                      worker_path,
+                      "'); worker.onmessage = () => document.title = "
+                      "'pass'; worker.postMessage('ready');</script>"});
     content_type = "text/html";
   } else if (path == kServiceWorkersUserAgentPagePath) {
     content = R"(
@@ -260,7 +261,8 @@ std::unique_ptr<net::test_server::HttpResponse> HandlePersonaWorkerRequest(
     )";
   } else if (path == kPersonaDedicatedWorkerPath) {
     content = base::StrCat({R"(
-      )", kPersonaWorkerFingerprintScript, R"(
+      )",
+                            kPersonaWorkerFingerprintScript, R"(
       self.onmessage = () => {
         const nested = new Worker('/persona-nested-worker.js');
         nested.onmessage = (event) => {
@@ -272,12 +274,14 @@ std::unique_ptr<net::test_server::HttpResponse> HandlePersonaWorkerRequest(
     )"});
   } else if (path == kPersonaNestedWorkerPath) {
     content = base::StrCat({R"(
-      )", kPersonaWorkerFingerprintScript, R"(
+      )",
+                            kPersonaWorkerFingerprintScript, R"(
       self.onmessage = () => self.postMessage(fingerprint());
     )"});
   } else if (path == kPersonaSharedWorkerPath) {
     content = base::StrCat({R"(
-      )", kPersonaWorkerFingerprintScript, R"(
+      )",
+                            kPersonaWorkerFingerprintScript, R"(
       self.onconnect = (event) => {
         const port = event.ports[0];
         port.onmessage = () => port.postMessage(fingerprint());
@@ -286,7 +290,8 @@ std::unique_ptr<net::test_server::HttpResponse> HandlePersonaWorkerRequest(
     )"});
   } else if (path == kPersonaServiceWorkerPath) {
     content = base::StrCat({R"(
-      )", kPersonaWorkerFingerprintScript, R"(
+      )",
+                            kPersonaWorkerFingerprintScript, R"(
       self.addEventListener('install', () => self.skipWaiting());
       self.addEventListener('activate', (event) => {
         event.waitUntil(self.clients.claim());
@@ -669,7 +674,28 @@ class BraveNavigatorUserAgentFarblingBrowserTest : public InProcessBrowserTest {
     content::WaitForLoadStop(offscreen_document->host_contents());
 
     TitleWatcher watcher(offscreen_document->host_contents(), u"pass");
-    EXPECT_EQ(u"pass", watcher.WaitAndGetTitle());
+    watcher.AlsoWaitForTitle(u"fail");
+    const std::u16string title = watcher.WaitAndGetTitle();
+    ASSERT_EQ(u"pass", title)
+        << content::EvalJs(offscreen_document->host_contents(), R"(
+             JSON.stringify({
+               documentUserAgent: navigator.userAgent,
+               remoteUserAgent: window.remoteUserAgent || ''
+             }))")
+               .ExtractString();
+    const auto* persona =
+        fingerprint_browser::GetPersonaForProfile(browser()->profile());
+    ASSERT_TRUE(persona);
+    EXPECT_EQ(persona->user_agent,
+              content::EvalJs(offscreen_document->host_contents(),
+                              "navigator.userAgent")
+                  .ExtractString());
+    if (!script_path2.empty()) {
+      EXPECT_EQ(persona->user_agent,
+                content::EvalJs(offscreen_document->host_contents(),
+                                "window.sharedWorkerUserAgent")
+                    .ExtractString());
+    }
   }
 #endif
 
@@ -698,46 +724,55 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
   ASSERT_NE(unfarbled_ua, persona->user_agent);
   // Farbling level: off
   AllowFingerprinting(domain_b);
+  ClearObservedRequests();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
   // HTTP User-Agent header we just sent in that request should be the same as
   // the unfarbled user agent
-  EXPECT_EQ(last_requested_http_user_agent(), unfarbled_ua);
+  ExpectLastHeaderForPathEquals("/simple.html", "user-agent", unfarbled_ua);
   auto off_ua_b = EvalJs(contents(), kUserAgentScript);
   // user agent should be the same as the unfarbled user agent
   EXPECT_EQ(unfarbled_ua, off_ua_b);
   AllowFingerprinting(domain_z);
+  ClearObservedRequests();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_z));
   // HTTP User-Agent header we just sent in that request should be the same as
   // the unfarbled user agent
-  EXPECT_EQ(last_requested_http_user_agent(), unfarbled_ua);
+  ExpectLastHeaderForPathEquals("/simple.html", "user-agent", unfarbled_ua);
   auto off_ua_z = EvalJs(contents(), kUserAgentScript);
   // user agent should be the same on every domain if farbling is off
   EXPECT_EQ(unfarbled_ua, off_ua_z);
 
   // Farbling level: default
   SetFingerprintingDefault(domain_b);
+  ClearObservedRequests();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
-  EXPECT_EQ(persona->user_agent, last_requested_http_user_agent());
+  ExpectLastHeaderForPathEquals("/simple.html", "user-agent",
+                                persona->user_agent);
   std::string default_ua_b =
       EvalJs(contents(), kUserAgentScript).ExtractString();
   EXPECT_EQ(persona->user_agent, default_ua_b);
   SetFingerprintingDefault(domain_z);
+  ClearObservedRequests();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_z));
-  EXPECT_EQ(persona->user_agent, last_requested_http_user_agent());
+  ExpectLastHeaderForPathEquals("/simple.html", "user-agent",
+                                persona->user_agent);
   std::string default_ua_z =
       EvalJs(contents(), kUserAgentScript).ExtractString();
   EXPECT_EQ(persona->user_agent, default_ua_z);
 
   // Farbling level: maximum
   BlockFingerprinting(domain_b);
+  ClearObservedRequests();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
   ExpectLastHeaderForPathEquals("/simple.html", "user-agent",
                                 persona->user_agent);
   auto max_ua_b = EvalJs(contents(), kUserAgentScript);
   EXPECT_EQ(persona->user_agent, max_ua_b);
   BlockFingerprinting(domain_z);
+  ClearObservedRequests();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_z));
-  EXPECT_EQ(persona->user_agent, last_requested_http_user_agent());
+  ExpectLastHeaderForPathEquals("/simple.html", "user-agent",
+                                persona->user_agent);
   auto max_ua_z = EvalJs(contents(), kUserAgentScript);
   EXPECT_EQ(persona->user_agent, max_ua_z);
 
@@ -1801,9 +1836,11 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
       }));
     })();
   )";
-  base::Value worker_result = extensions::BackgroundScriptExecutor::ExecuteScript(
-      browser()->profile(), extension->id(), kWorkerFingerprintScript,
-      extensions::BackgroundScriptExecutor::ResultCapture::kSendScriptResult);
+  base::Value worker_result =
+      extensions::BackgroundScriptExecutor::ExecuteScript(
+          browser()->profile(), extension->id(), kWorkerFingerprintScript,
+          extensions::BackgroundScriptExecutor::ResultCapture::
+              kSendScriptResult);
   ASSERT_TRUE(worker_result.is_string());
   std::optional<base::Value> worker_fingerprint =
       base::JSONReader::Read(worker_result.GetString(), base::JSON_PARSE_RFC);

@@ -1,0 +1,26 @@
+diff --git a/net/http/http_network_transaction.h b/net/http/http_network_transaction.h
+index 831fcf140ec60237f3493cb10d8aac5eef5c9087..97309a3c48017b39d9efcf8f254fedf3cec46202 100644
+--- a/net/http/http_network_transaction.h
++++ b/net/http/http_network_transaction.h
+@@ -333,6 +333,12 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
+   // May update |pending_auth_target_| or |response_.auth_challenge|.
+   int HandleAuthChallenge();
+
++  // Retries a non-tunneled HTTP proxy challenge with credentials embedded in
++  // the configured proxy server. Returns nullopt when no configured
++  // credentials apply, OK when a retry was scheduled, or a network error when
++  // the configured credentials were rejected.
++  std::optional<int> RestartWithConfiguredProxyAuthCredentials();
++
+   // Returns true if we have auth credentials for the given target.
+   bool HaveAuth(HttpAuth::Target target) const;
+
+@@ -419,6 +425,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
+   // configured in this transaction.
+   bool configured_client_cert_for_server_ = false;
+
++  bool configured_proxy_auth_credentials_attempted_ = false;
++
+   // Previously observed bad certs when establishing a connection. If the caller
+   // chooses to retry despite the error, future connection attempts will be
+   // configured to ignore these errors.

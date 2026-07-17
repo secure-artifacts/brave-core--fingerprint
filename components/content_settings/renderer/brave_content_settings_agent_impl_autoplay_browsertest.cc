@@ -49,6 +49,7 @@ class MockContentSettingsManagerImpl : public mojom::ContentSettingsManager {
 
   void GetBraveShieldsSettings(
       const blink::LocalFrameToken& frame_token,
+      ContentSettingsType webcompat_settings_type,
       GetBraveShieldsSettingsCallback callback) override {}
 
   void OnContentBlocked(const blink::LocalFrameToken& frame_token,

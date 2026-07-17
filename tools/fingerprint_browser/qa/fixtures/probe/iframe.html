@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<script>
+  window.collectBasic = () => ({
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    language: navigator.language,
+    languages: [...navigator.languages],
+    platform: navigator.platform,
+    touch: navigator.maxTouchPoints,
+    userAgent: navigator.userAgent,
+  })
+</script>

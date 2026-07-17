@@ -12,6 +12,7 @@
   GetCookieSettings(__VA_ARGS__) override;                    \
   void GetBraveShieldsSettings(                               \
       const content::GlobalRenderFrameHostToken& frame_token, \
+      ContentSettingsType webcompat_settings_type,            \
       content_settings::mojom::ContentSettingsManager::       \
           GetBraveShieldsSettingsCallback callback)
 

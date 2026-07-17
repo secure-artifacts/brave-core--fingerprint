@@ -68,21 +68,10 @@ std::optional<blink::String> BlinkStringFromUtf8IfNotEmpty(
   return blink::String::FromUtf8(base::as_byte_span(value));
 }
 
-// Dynamic iframes without a committed navigation don't have content settings
-// rules filled, so we always look for the root frame which has required data
-// for shields/farbling to be enabled.
-blink::WebContentSettingsClient* GetContentSettingsIfNotEmpty(
+blink::WebContentSettingsClient* GetContentSettings(
     blink::LocalFrame* local_frame) {
-  if (!local_frame) {
-    return nullptr;
-  }
-
-  blink::WebContentSettingsClient* content_settings =
-      local_frame->LocalFrameRoot().GetContentSettingsClient();
-  if (!content_settings || !content_settings->HasContentSettingsRules()) {
-    return nullptr;
-  }
-  return content_settings;
+  return local_frame ? local_frame->LocalFrameRoot().GetContentSettingsClient()
+                     : nullptr;
 }
 
 // 1pes mode and anonymous frames add a StorageKey nonce, which affects the
@@ -123,7 +112,7 @@ blink::WebContentSettingsClient* GetContentSettingsClientFor(
     return nullptr;
   }
 
-  // Avoid blocking fingerprinting in WebUI and extension documents.
+  // Avoid blocking fingerprinting in WebUI and local documents.
   const blink::String protocol = context->GetSecurityOrigin()
                                      ->GetOriginOrPrecursorOriginIfOpaque()
                                      ->Protocol();
@@ -132,21 +121,19 @@ blink::WebContentSettingsClient* GetContentSettingsClientFor(
       "chrome-untrusted",
   };
   if (protocol.empty() || std::ranges::contains(kExcludedProtocols, protocol) ||
-      blink::SchemeRegistry::ShouldTreatURLSchemeAsDisplayIsolated(protocol)) {
+      (protocol != "chrome-extension" &&
+       blink::SchemeRegistry::ShouldTreatURLSchemeAsDisplayIsolated(
+           protocol))) {
     return nullptr;
   }
 
   if (auto* window = blink::DynamicTo<blink::LocalDOMWindow>(context)) {
-    if (protocol == "chrome-extension") {
-      return nullptr;
-    }
     if (auto* content_settings =
-            GetContentSettingsIfNotEmpty(window->GetDisconnectedFrame())) {
+            GetContentSettings(window->GetDisconnectedFrame())) {
       return content_settings;
     }
 
-    if (auto* content_settings =
-            GetContentSettingsIfNotEmpty(window->GetFrame())) {
+    if (auto* content_settings = GetContentSettings(window->GetFrame())) {
       return content_settings;
     }
 
@@ -498,6 +485,15 @@ BraveSessionCache::PersonaUserAgentMetadata() const {
     return std::nullopt;
   }
 
+  const char* ua_platform = nullptr;
+  if (default_shields_settings_->persona_platform == "MacIntel") {
+    ua_platform = "macOS";
+  } else if (default_shields_settings_->persona_platform.starts_with("Win")) {
+    ua_platform = "Windows";
+  } else {
+    return std::nullopt;
+  }
+
   blink::UserAgentMetadata metadata;
   for (size_t i = 0;
        i < default_shields_settings_->persona_ua_brand_names.size(); ++i) {
@@ -514,7 +510,7 @@ BraveSessionCache::PersonaUserAgentMetadata() const {
         default_shields_settings_->persona_ua_full_version_brand_versions[i]);
   }
   metadata.full_version = default_shields_settings_->persona_ua_full_version;
-  metadata.platform = default_shields_settings_->persona_platform;
+  metadata.platform = ua_platform;
   metadata.platform_version =
       default_shields_settings_->persona_ua_platform_version;
   metadata.architecture = default_shields_settings_->persona_ua_architecture;

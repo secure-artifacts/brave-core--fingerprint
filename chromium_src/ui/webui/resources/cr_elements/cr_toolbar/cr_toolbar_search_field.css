@@ -46,7 +46,7 @@ input {
   font-size: 14px;
   font-weight: 400;
   letter-spacing: -0.1px;
-  color: var(--leo-color-text-tertiary);
+  color: var(--cr-secondary-text-color);
 }
 
 /* Icon styling */

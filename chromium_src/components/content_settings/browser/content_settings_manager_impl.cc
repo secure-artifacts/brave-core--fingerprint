@@ -28,11 +28,12 @@ void ContentSettingsManagerImpl::AllowEphemeralStorageAccess(
 
 void ContentSettingsManagerImpl::GetBraveShieldsSettings(
     const blink::LocalFrameToken& frame_token,
+    ContentSettingsType webcompat_settings_type,
     GetBraveShieldsSettingsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   delegate_->GetBraveShieldsSettings(
       content::GlobalRenderFrameHostToken(render_process_id_, frame_token),
-      std::move(callback));
+      webcompat_settings_type, std::move(callback));
 }
 
 }  // namespace content_settings

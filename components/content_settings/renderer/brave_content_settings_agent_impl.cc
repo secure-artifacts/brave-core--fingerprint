@@ -37,6 +37,7 @@ namespace content_settings {
 namespace {
 
 constexpr char kJavascriptExtension[] = ".js";
+constexpr char kExtensionScheme[] = "chrome-extension";
 
 blink::WebSecurityOrigin GetFrameSecurityOrigin(blink::WebFrame* frame) {
   if (!frame) {
@@ -357,12 +358,21 @@ BraveContentSettingsAgentImpl::GetBraveShieldsSettings(
     ContentSettingsType webcompat_settings_type) {
   blink::WebLocalFrame* frame = render_frame()->GetWebFrame();
   const GURL primary_url(GetTopFrameOriginAsURL(frame));
-  if (!primary_url.SchemeIsHTTPOrHTTPS()) {
+  if (!primary_url.SchemeIsHTTPOrHTTPS() &&
+      !primary_url.SchemeIs(kExtensionScheme)) {
     return brave_shields::mojom::ShieldsSettings::New();
   }
 
   GetOrCreateBraveShieldsRemote()->OnWebcompatFeatureInvoked(
       webcompat_settings_type);
+
+  brave_shields::mojom::ShieldsSettingsPtr live_settings;
+  if (GetContentSettingsManager().GetBraveShieldsSettings(
+          frame->GetLocalFrameToken(), webcompat_settings_type,
+          &live_settings) &&
+      live_settings) {
+    return live_settings;
+  }
 
   brave_shields::mojom::FarblingLevel farbling_level =
       shields_settings_ ? shields_settings_->farbling_level

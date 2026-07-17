@@ -3,4 +3,10 @@
 
 #define MMDB_UINT128_USING_MODE 0
 
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define MMDB_LITTLE_ENDIAN 1
+#else
+#define MMDB_LITTLE_ENDIAN 0
+#endif
+
 #endif  // MAXMINDDB_CONFIG_H

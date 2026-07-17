@@ -18,6 +18,12 @@
 #include "net/base/features.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 
+namespace {
+
+constexpr char kExtensionScheme[] = "chrome-extension";
+
+}  // namespace
+
 #define WorkerContentSettingsClient WorkerContentSettingsClient_ChromiumImpl
 
 #include <chrome/renderer/worker_content_settings_client.cc>
@@ -48,8 +54,17 @@ brave_shields::mojom::ShieldsSettingsPtr
 WorkerContentSettingsClient_BraveImpl::GetBraveShieldsSettings(
     ContentSettingsType webcompat_settings_type) {
   const GURL& primary_url = top_frame_origin_.GetURL();
-  if (!primary_url.SchemeIsHTTPOrHTTPS()) {
+  if (!primary_url.SchemeIsHTTPOrHTTPS() &&
+      !primary_url.SchemeIs(kExtensionScheme)) {
     return brave_shields::mojom::ShieldsSettings::New();
+  }
+
+  EnsureContentSettingsManager();
+  brave_shields::mojom::ShieldsSettingsPtr live_settings;
+  if (content_settings_manager_->GetBraveShieldsSettings(
+          frame_token_, webcompat_settings_type, &live_settings) &&
+      live_settings) {
+    return live_settings;
   }
 
   EnsureShieldsSettings();
@@ -140,7 +155,8 @@ void WorkerContentSettingsClient_BraveImpl::EnsureShieldsSettings() {
     EnsureContentSettingsManager();
 
     if (!content_settings_manager_->GetBraveShieldsSettings(
-            frame_token_, &shields_settings_)) {
+            frame_token_, ContentSettingsType::BRAVE_WEBCOMPAT_NONE,
+            &shields_settings_)) {
       shields_settings_ = brave_shields::mojom::ShieldsSettings::New();
     }
   }

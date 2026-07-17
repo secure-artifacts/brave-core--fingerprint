@@ -4,8 +4,11 @@
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 window.onmessage = function (event) {
+  window.remoteUserAgent = event.data
   if (navigator.userAgent == event.data) {
     document.title = 'pass'
+  } else {
+    document.title = 'fail'
   }
 }
 

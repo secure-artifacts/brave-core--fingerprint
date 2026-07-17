@@ -71,7 +71,24 @@ function valueText(value: unknown): string {
 }
 
 function valuesEqual(expected: unknown, actual: unknown): boolean {
-  return JSON.stringify(expected) === JSON.stringify(actual)
+  if (Object.is(expected, actual)) {
+    return true
+  }
+  if (Array.isArray(expected) && Array.isArray(actual)) {
+    return expected.length === actual.length &&
+      expected.every((value, index) => valuesEqual(value, actual[index]))
+  }
+  if (expected && actual && typeof expected === 'object' &&
+      typeof actual === 'object') {
+    const expectedRecord = expected as Record<string, unknown>
+    const actualRecord = actual as Record<string, unknown>
+    const expectedKeys = Object.keys(expectedRecord).sort()
+    const actualKeys = Object.keys(actualRecord).sort()
+    return valuesEqual(expectedKeys, actualKeys) &&
+      expectedKeys.every(key => valuesEqual(
+        expectedRecord[key], actualRecord[key]))
+  }
+  return false
 }
 
 async function readActualFingerprint(): Promise<WebPageFingerprintResponse> {

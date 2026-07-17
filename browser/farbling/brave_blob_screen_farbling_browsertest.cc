@@ -151,7 +151,12 @@ class BraveBlobScreenFarblingBrowserTest
                         .ExtractBool())
         << "param=" << GetParam()
         << ", container=" << static_cast<std::size_t>(blob_container_type_)
-        << ", allowed=" << fingerprinting_allowed_;
+        << ", allowed=" << fingerprinting_allowed_ << ", values="
+        << content::EvalJs(
+               MainFrame(),
+               "JSON.stringify({parent: readStoredScreenValues('parent'), "
+               "blob: readStoredScreenValues('blob')})")
+               .ExtractString();
 
     // Close the popup after validation.
     if (blob_container_type_ == BlobContainerType::kPopUpWindow) {

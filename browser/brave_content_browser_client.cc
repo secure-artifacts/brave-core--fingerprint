@@ -136,12 +136,12 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_ui_browser_interface_broker_registry.h"
-#include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "content/public/browser/web_ui_controller_interface_binder.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/buildflags/buildflags.h"
+#include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/common/constants.h"
@@ -927,12 +927,13 @@ BraveContentBrowserClient::WorkerGetBraveShieldSettings(
   const bool has_persona_farbling_token = !persona_token.is_zero();
   const auto* persona =
       fingerprint_browser::GetPersonaForBrowserContext(browser_context);
-  brave_shields::mojom::FarblingLevel effective_farbling_level =
-      farbling_level;
+  brave_shields::mojom::FarblingLevel effective_farbling_level = farbling_level;
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  if (url.SchemeIs(extensions::kExtensionScheme) && persona &&
-      has_persona_farbling_token) {
-    effective_farbling_level = brave_shields::mojom::FarblingLevel::BALANCED;
+  if (url.SchemeIs(extensions::kExtensionScheme)) {
+    effective_farbling_level =
+        persona && has_persona_farbling_token
+            ? brave_shields::mojom::FarblingLevel::BALANCED
+            : brave_shields::mojom::FarblingLevel::OFF;
   }
 #endif
   const bool has_persona_l1 =
