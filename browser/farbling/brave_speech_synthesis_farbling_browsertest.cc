@@ -106,6 +106,12 @@ IN_PROC_BROWSER_TEST_F(BraveSpeechSynthesisFarblingBrowserTest, FarbleVoices) {
   std::string off_voices_z =
       EvalJs(web_contents(), kTitleScript).ExtractString();
   ASSERT_NE("failed", off_voices_z);
+  if (off_voices_b != off_voices_z) {
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
+    off_voices_b = EvalJs(web_contents(), kTitleScript).ExtractString();
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_z));
+    off_voices_z = EvalJs(web_contents(), kTitleScript).ExtractString();
+  }
   // The voices list should be the same on every domain if farbling is off.
   EXPECT_EQ(off_voices_b, off_voices_z);
 

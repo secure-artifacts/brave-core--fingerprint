@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Fingerprint QA MV3",
+  "version": "1.0.0",
+  "permissions": ["proxy", "storage"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html"
+}

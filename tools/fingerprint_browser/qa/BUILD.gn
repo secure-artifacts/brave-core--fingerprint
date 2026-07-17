@@ -1,0 +1,19 @@
+# Copyright (c) 2026 The Brave Authors. All rights reserved.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this file,
+# You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import("//testing/test.gni")
+
+test("fingerprint_browser_worker_watcher_unittests") {
+  sources = [ "//components/performance_manager/worker_watcher_unittest.cc" ]
+
+  deps = [
+    "//components/performance_manager",
+    "//components/performance_manager/test_support",
+    "//components/test:run_all_unittests",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

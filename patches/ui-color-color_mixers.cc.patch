@@ -1,17 +1,22 @@
 diff --git a/ui/color/color_mixers.cc b/ui/color/color_mixers.cc
-index 2c201cf798124..0ef4a52b74daf 100644
+index 2c201cf7981248798a8e37a7be2a5e032c88c54c..dbb4a28ede52b90b7416eb556c0a6e977b099972 100644
 --- a/ui/color/color_mixers.cc
 +++ b/ui/color/color_mixers.cc
-@@ -4,6 +4,8 @@
+@@ -4,8 +4,13 @@
 
  #include "ui/color/color_mixers.h"
 
 +#include "brave/ui/color/brave_ref_color_mixer.h"
++#include "brave/ui/color/nala/nala_color_id.h"
 +#include "brave/ui/color/nala/nala_color_mixer.h"
  #include "ui/base/ui_base_features.h"
  #include "ui/color/core_default_color_mixer.h"
++#include "ui/color/color_provider.h"
++#include "ui/color/color_recipe.h"
  #include "ui/color/css_system_color_mixer.h"
-@@ -15,6 +17,8 @@
+ #include "ui/color/fluent_ui_color_mixer.h"
+ #include "ui/color/material_ui_color_mixer.h"
+@@ -15,6 +20,8 @@
  #include "ui/color/ui_color_mixer.h"
  #include "ui/native_theme/features/native_theme_features.h"
 
@@ -20,7 +25,20 @@ index 2c201cf798124..0ef4a52b74daf 100644
  namespace ui {
 
  void AddColorMixers(ColorProvider* provider, const ColorProviderKey& key) {
-@@ -38,3 +42,5 @@ void AddColorMixers(ColorProvider* provider, const ColorProviderKey& key) {
+@@ -25,6 +32,12 @@ void AddColorMixers(ColorProvider* provider, const ColorProviderKey& key) {
+   AddNativeCoreColorMixer(provider, key);
+   AddUiColorMixer(provider, key);
+   AddMaterialUiColorMixer(provider, key);
++  ColorMixer& brave_mixer = provider->AddMixer();
++  brave_mixer[kColorComboboxContainerOutline] = {nala::kColorSchemesOutline};
++  brave_mixer[kColorSecondaryForeground] = {
++      key.color_mode == ColorProviderKey::ColorMode::kDark
++          ? SkColorSetRGB(0xaa, 0xaa, 0xad)
++          : SkColorSetRGB(0x5e, 0x5e, 0x62)};
+   if (IsFluentScrollbarEnabled()) {
+     // This must come after the UI and before the native UI mixers to ensure
+     // leaf node colors are overridden with the Fluent recipes but that high
+@@ -38,3 +51,5 @@ void AddColorMixers(ColorProvider* provider, const ColorProviderKey& key) {
  }
 
  }  // namespace ui

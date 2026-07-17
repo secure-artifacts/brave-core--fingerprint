@@ -30,7 +30,7 @@ index b68a44d4546a0b1cc1bed83222d147b7ffc5f091..29bc5f9578f445a38ffcf59c238dbcda
 
    return promise;
  }
-@@ -68,9 +70,21 @@ void FontMetadata::Trace(blink::Visitor* visitor) const {
+@@ -68,8 +70,20 @@ void FontMetadata::Trace(blink::Visitor* visitor) const {
 
  // static
  void FontMetadata::BlobImpl(ScriptPromiseResolver<Blob>* resolver,

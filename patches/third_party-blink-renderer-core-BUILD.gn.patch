@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/core/BUILD.gn b/third_party/blink/renderer/core/BUILD.gn
-index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf7f8a60a5 100644
+index a4a53a90030e5ce98eb20e5c48c94be90d4be9e2..3a82743d3d98a6758c654f19cf6ad1967186c9dc 100644
 --- a/third_party/blink/renderer/core/BUILD.gn
 +++ b/third_party/blink/renderer/core/BUILD.gn
-@@ -264,6 +264,16 @@ component("core") {
+@@ -266,6 +266,16 @@ component("core") {
    ]
 
    sources += blink_core_sources_bindings
@@ -19,7 +19,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
 
    # If you create a new subdirectory 'foo', make 'foo/build.gni' to define
    # blink_core_sources_foo, and include it here. Add any dependencies in the
-@@ -278,17 +288,47 @@ component("core") {
+@@ -280,17 +290,47 @@ component("core") {
                           "",
                           "canvas_interventions")
    sources += rebase_path(blink_core_sources_clipboard, "", "clipboard")
@@ -67,7 +67,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
    sources += rebase_path(blink_core_sources_events, "", "events")
    sources +=
        rebase_path(blink_core_sources_execution_context, "", "execution_context")
-@@ -301,6 +341,34 @@ component("core") {
+@@ -303,6 +343,34 @@ component("core") {
                           "",
                           "fragment_directive")
    sources += rebase_path(blink_core_sources_frame, "", "frame")
@@ -102,7 +102,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
    sources += rebase_path(blink_core_sources_ad_tracker, "", "ad_tracker")
    sources += get_target_outputs(":make_deprecation_info")
    sources += rebase_path(blink_core_sources_fullscreen, "", "fullscreen")
-@@ -308,11 +376,33 @@ component("core") {
+@@ -310,11 +378,33 @@ component("core") {
    sources += rebase_path(blink_core_sources_geometry, "", "geometry")
    sources += rebase_path(blink_core_sources_highlight, "", "highlight")
    sources += rebase_path(blink_core_sources_html, "", "html")
@@ -136,7 +136,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
    sources += rebase_path(blink_core_sources_intersection_observer,
                           "",
                           "intersection_observer")
-@@ -321,6 +411,38 @@ component("core") {
+@@ -323,6 +413,38 @@ component("core") {
                           "",
                           "lcp_critical_path_predictor")
    sources += rebase_path(blink_core_sources_loader, "", "loader")
@@ -175,7 +175,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
    sources += rebase_path(blink_core_sources_mathml, "", "mathml")
    sources += rebase_path(blink_core_sources_messaging, "", "messaging")
    sources +=
-@@ -333,6 +455,20 @@ component("core") {
+@@ -335,6 +457,20 @@ component("core") {
    sources += rebase_path(blink_core_sources_origin_trials, "", "origin_trials")
    sources += rebase_path(blink_core_sources_overscroll, "", "overscroll")
    sources += rebase_path(blink_core_sources_page, "", "page")
@@ -196,7 +196,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
    sources += rebase_path(blink_core_sources_paint, "", "paint")
    sources +=
        rebase_path(blink_core_sources_resize_observer, "", "resize_observer")
-@@ -342,7 +478,21 @@ component("core") {
+@@ -345,7 +481,21 @@ component("core") {
    sources +=
        rebase_path(blink_core_sources_speculation_rules, "", "speculation_rules")
    sources += rebase_path(blink_core_sources_scheduler, "", "scheduler")
@@ -218,7 +218,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
    sources += rebase_path(blink_core_sources_scroll, "", "scroll")
    sources += rebase_path(blink_core_sources_shadow_realm, "", "shadow_realm")
    sources += rebase_path(blink_core_sources_streams, "", "streams")
-@@ -350,10 +500,15 @@ component("core") {
+@@ -353,10 +503,15 @@ component("core") {
    sources += rebase_path(blink_core_sources_svg, "", "svg")
    sources += rebase_path(blink_core_sources_timezone, "", "timezone")
    sources += rebase_path(blink_core_sources_timing, "", "timing")
@@ -234,7 +234,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
    sources += rebase_path(blink_core_sources_xml, "", "xml")
    sources +=
        rebase_path(blink_core_sources_xmlhttprequest, "", "xmlhttprequest")
-@@ -475,6 +630,10 @@ component("core") {
+@@ -478,6 +633,10 @@ component("core") {
        "Carbon.framework",
      ]
    }
@@ -245,7 +245,7 @@ index e84a67cee87b9f77d894fbcc83f1f21df5973960..85b36d4b2b0c94d2a346132ee119aadf
  }
 
  # Certain sources should be compiled with heavy optimization enabled.
-@@ -483,7 +642,19 @@ component("core") {
+@@ -486,6 +645,18 @@ component("core") {
  blink_core_sources("core_hot") {
    sources = []
    sources += rebase_path(blink_core_hot_sources_dom, "", "dom")

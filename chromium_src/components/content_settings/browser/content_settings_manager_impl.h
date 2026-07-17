@@ -15,6 +15,7 @@
   GetCookieSettings(__VA_ARGS__) = 0;                         \
   virtual void GetBraveShieldsSettings(                       \
       const content::GlobalRenderFrameHostToken& frame_token, \
+      ContentSettingsType webcompat_settings_type,            \
       GetBraveShieldsSettingsCallback callback)
 
 // Extend ContentSettingsManagerImpl.
@@ -26,6 +27,7 @@
       const url::Origin& top_frame_origin,                                  \
       AllowEphemeralStorageAccessCallback callback) override;               \
   void GetBraveShieldsSettings(const blink::LocalFrameToken& frame_token,   \
+                               ContentSettingsType webcompat_settings_type, \
                                GetBraveShieldsSettingsCallback callback)    \
       override;                                                             \
   void OnContentBlocked

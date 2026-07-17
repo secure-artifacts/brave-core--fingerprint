@@ -13,11 +13,25 @@
 #include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 
+#define getVoices getVoices_ChromiumImpl
 #define OnSetVoiceList OnSetVoiceList_ChromiumImpl
 #include <third_party/blink/renderer/modules/speech/speech_synthesis.cc>
 #undef OnSetVoiceList
+#undef getVoices
 
 namespace blink {
+
+const HeapVector<Member<SpeechSynthesisVoice>>& SpeechSynthesis::getVoices() {
+  ExecutionContext* context = GetExecutionContext();
+  if (voice_list_.empty() && context &&
+      brave::GetBraveFarblingLevelFor(
+          context, ContentSettingsType::BRAVE_WEBCOMPAT_SPEECH_SYNTHESIS,
+          BraveFarblingLevel::OFF) == BraveFarblingLevel::BALANCED &&
+      brave::BraveSessionCache::From(*context).PersonaSpeechVoices()) {
+    OnSetVoiceList({});
+  }
+  return getVoices_ChromiumImpl();
+}
 
 void SpeechSynthesis::OnSetVoiceList(
     Vector<mojom::blink::SpeechSynthesisVoicePtr> mojom_voices) {

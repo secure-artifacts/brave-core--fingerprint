@@ -1,0 +1,50 @@
+diff --git a/components/performance_manager/worker_watcher_unittest.cc b/components/performance_manager/worker_watcher_unittest.cc
+index 552c0d538ffa9ee9b7e75901c4a705b1cbd978d1..f857b7f5df76497a52c09b9463ce8fc671112531 100644
+--- a/components/performance_manager/worker_watcher_unittest.cc
++++ b/components/performance_manager/worker_watcher_unittest.cc
+@@ -851,6 +851,45 @@ TEST_F(WorkerWatcherTest, SharedWorkerDiesAsServiceWorkerClient) {
+   EXPECT_FALSE(service_worker_node);
+ }
+
++TEST_F(WorkerWatcherTest, ServiceWorkerStopsAfterSharedWorkerClientDies) {
++  SetContents(CreateTestWebContents());
++  content::NavigationSimulator::NavigateAndCommitFromBrowser(
++      web_contents(), GURL("https://www.foo.com/"));
++
++  base::WeakPtr<ProcessNode> process_node = GetProcessNode(process());
++  ASSERT_TRUE(process_node);
++
++  const blink::SharedWorkerToken& shared_worker_token =
++      shared_worker_factory()->CreateSharedWorker(process_node.get());
++  base::WeakPtr<WorkerNode> shared_worker_node =
++      GetWorkerNode(shared_worker_token);
++  ASSERT_TRUE(shared_worker_node);
++
++  int64_t service_worker_version_id =
++      service_worker_factory()->CreateServiceWorker();
++  blink::ServiceWorkerToken service_worker_token =
++      service_worker_factory()->StartServiceWorker(service_worker_version_id,
++                                                    process_node.get());
++  base::WeakPtr<WorkerNode> service_worker_node =
++      GetWorkerNode(service_worker_token);
++  ASSERT_TRUE(service_worker_node);
++
++  std::string service_worker_client_uuid = service_worker_factory()->AddClient(
++      service_worker_version_id, shared_worker_node.get());
++  ASSERT_FALSE(service_worker_client_uuid.empty());
++
++  shared_worker_factory()->DestroySharedWorker(shared_worker_token);
++  ASSERT_FALSE(shared_worker_node);
++  ASSERT_TRUE(service_worker_node);
++
++  service_worker_factory()->StopServiceWorker(service_worker_version_id);
++  EXPECT_FALSE(service_worker_node);
++
++  service_worker_factory()->RemoveClient(service_worker_version_id,
++                                         service_worker_client_uuid);
++  service_worker_factory()->DestroyServiceWorker(service_worker_version_id);
++}
++
+ TEST_F(WorkerWatcherTest, OneSharedWorkerTwoClients) {
+   SetContents(CreateTestWebContents());
+   content::NavigationSimulator::NavigateAndCommitFromBrowser(

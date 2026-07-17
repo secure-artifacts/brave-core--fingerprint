@@ -1,0 +1,98 @@
+diff --git a/net/http/http_network_transaction_unittest.cc b/net/http/http_network_transaction_unittest.cc
+index 0ee6912df25909ee3701a4fb30b1312a203768cb..d4f3492536b13cf050ab80e24794cbff68619348 100644
+--- a/net/http/http_network_transaction_unittest.cc
++++ b/net/http/http_network_transaction_unittest.cc
+@@ -4850,6 +4850,93 @@ TEST_P(HttpNetworkTransactionTest, BasicAuthProxyMatchesServerAuthNoTunnel) {
+   session->CloseAllConnections(ERR_FAILED, "Very good reason");
+ }
+
++TEST_P(HttpNetworkTransactionTest,
++       ConfiguredProxyAuthCredentialsRetryNoTunnel) {
++  HttpRequestInfo request;
++  request.method = "GET";
++  request.url = GURL("http://www.example.org/");
++  request.traffic_annotation =
++      MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
++
++  session_deps_.proxy_resolution_service =
++      ConfiguredProxyResolutionService::CreateFixedForTest(
++          "http://foo:bar@myproxy:70", TRAFFIC_ANNOTATION_FOR_TESTS);
++  std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
++
++  MockWrite data_writes[] = {
++      MockWrite("GET http://www.example.org/ HTTP/1.1\r\n"
++                "Host: www.example.org\r\n"
++                "Proxy-Connection: keep-alive\r\n\r\n"),
++      MockWrite("GET http://www.example.org/ HTTP/1.1\r\n"
++                "Host: www.example.org\r\n"
++                "Proxy-Connection: keep-alive\r\n"
++                "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
++  };
++  MockRead data_reads[] = {
++      MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"
++               "Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"
++               "Content-Length: 0\r\n\r\n"),
++      MockRead("HTTP/1.1 200 OK\r\n"
++               "Content-Length: 5\r\n\r\n"
++               "hello"),
++  };
++  StaticSocketDataProvider data(data_reads, data_writes);
++  session_deps_.socket_factory->AddSocketDataProvider(&data);
++
++  TestCompletionCallback callback;
++  HttpNetworkTransaction trans(DEFAULT_PRIORITY, session.get());
++  EXPECT_THAT(callback.GetResult(
++                  trans.Start(&request, callback.callback(), NetLogWithSource())),
++              IsOk());
++  ASSERT_TRUE(trans.GetResponseInfo()->headers);
++  EXPECT_EQ(200, trans.GetResponseInfo()->headers->response_code());
++
++  std::string response_data;
++  EXPECT_THAT(ReadTransaction(&trans, &response_data), IsOk());
++  EXPECT_EQ("hello", response_data);
++}
++
++TEST_P(HttpNetworkTransactionTest,
++       RejectedConfiguredProxyAuthCredentialsFailNoTunnel) {
++  HttpRequestInfo request;
++  request.method = "GET";
++  request.url = GURL("http://www.example.org/");
++  request.traffic_annotation =
++      MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
++
++  session_deps_.proxy_resolution_service =
++      ConfiguredProxyResolutionService::CreateFixedForTest(
++          "http://wrong:credentials@myproxy:70",
++          TRAFFIC_ANNOTATION_FOR_TESTS);
++  std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
++
++  MockWrite data_writes[] = {
++      MockWrite("GET http://www.example.org/ HTTP/1.1\r\n"
++                "Host: www.example.org\r\n"
++                "Proxy-Connection: keep-alive\r\n\r\n"),
++      MockWrite("GET http://www.example.org/ HTTP/1.1\r\n"
++                "Host: www.example.org\r\n"
++                "Proxy-Connection: keep-alive\r\n"
++                "Proxy-Authorization: Basic d3Jvbmc6Y3JlZGVudGlhbHM=\r\n\r\n"),
++  };
++  MockRead data_reads[] = {
++      MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"
++               "Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"
++               "Content-Length: 0\r\n\r\n"),
++      MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"
++               "Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"
++               "Content-Length: 0\r\n\r\n"),
++  };
++  StaticSocketDataProvider data(data_reads, data_writes);
++  session_deps_.socket_factory->AddSocketDataProvider(&data);
++
++  TestCompletionCallback callback;
++  HttpNetworkTransaction trans(DEFAULT_PRIORITY, session.get());
++  EXPECT_THAT(callback.GetResult(
++                  trans.Start(&request, callback.callback(), NetLogWithSource())),
++              IsError(ERR_INVALID_AUTH_CREDENTIALS));
++}
++
+ // Test the no-tunnel HTTP auth case where proxy and server origins and realms
+ // are the same, but the user/passwords are different, and with different
+ // NetworkAnonymizationKeys. Sends one request with a NAK, response to both

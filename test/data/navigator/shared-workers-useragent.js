@@ -5,6 +5,7 @@
 
 worker = new SharedWorker('shared-workers-worker.js')
 worker.port.onmessage = function (e) {
+  window.sharedWorkerUserAgent = e.data
   if (navigator.userAgent == e.data) {
     document.title = 'pass'
   } else {

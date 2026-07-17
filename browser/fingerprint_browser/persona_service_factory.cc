@@ -5,13 +5,30 @@
 
 #include "brave/browser/fingerprint_browser/persona_service_factory.h"
 
+#include "base/command_line.h"
 #include "base/no_destructor.h"
+#include "base/token.h"
 #include "brave/components/fingerprint_browser/browser/persona_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_selections.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/common/content_switches.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
+
+namespace {
+
+constexpr char kDisableFingerprintBrowserPersonaForTesting[] =
+    "disable-fingerprint-browser-persona-for-testing";
+
+bool IsPersonaDisabledForTesting() {
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  return command_line->HasSwitch(switches::kTestType) &&
+         command_line->HasSwitch(kDisableFingerprintBrowserPersonaForTesting);
+}
+
+}  // namespace
 
 namespace fingerprint_browser {
 
@@ -40,8 +57,8 @@ std::unique_ptr<KeyedService>
 PersonaServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   auto* profile = Profile::FromBrowserContext(context);
-  return std::make_unique<PersonaService>(profile->GetPrefs(),
-                                          profile->GetPath().AsUTF8Unsafe());
+  return std::make_unique<PersonaService>(
+      profile->GetPrefs(), base::Token::CreateRandom().ToString());
 }
 
 void PersonaServiceFactory::RegisterProfilePrefs(
@@ -74,7 +91,7 @@ base::Token GetPersonaFarblingTokenForBrowserContext(
 }
 
 const Persona* GetPersonaForProfile(Profile* profile) {
-  if (!profile) {
+  if (!profile || IsPersonaDisabledForTesting()) {
     return nullptr;
   }
 

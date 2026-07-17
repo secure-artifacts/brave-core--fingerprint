@@ -1,0 +1,15 @@
+{
+  "name": "brave-fingerprint-browser-qa",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "smoke": "node run_qa.mjs --mode smoke",
+    "full": "node run_qa.mjs --mode full",
+    "soak": "node run_qa.mjs --mode soak"
+  },
+  "dependencies": {
+    "playwright-core": "1.58.2"
+  }
+}

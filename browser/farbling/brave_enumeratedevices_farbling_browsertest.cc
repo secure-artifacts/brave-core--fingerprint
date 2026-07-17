@@ -24,6 +24,8 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/content_mock_cert_verifier.h"
+#include "net/base/net_errors.h"
 #include "net/dns/mock_host_resolver.h"
 #include "url/gurl.h"
 
@@ -51,20 +53,37 @@ class BraveEnumerateDevicesFarblingBrowserTest : public InProcessBrowserTest {
 
   ~BraveEnumerateDevicesFarblingBrowserTest() override = default;
 
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+    mock_cert_verifier_.SetUpCommandLine(command_line);
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    InProcessBrowserTest::SetUpInProcessBrowserTestFixture();
+    mock_cert_verifier_.SetUpInProcessBrowserTestFixture();
+  }
+
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     base::FilePath test_data_dir;
     base::PathService::Get(brave::DIR_TEST_DATA, &test_data_dir);
     https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
     https_server_.ServeFilesFromDirectory(test_data_dir);
+    mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
     EXPECT_TRUE(https_server_.Start());
     top_level_page_url_ = https_server_.GetURL("b.test", "/");
     farbling_url_ = https_server_.GetURL("b.test", "/simple.html");
     host_resolver()->AddRule("*", "127.0.0.1");
   }
 
+  void TearDownInProcessBrowserTestFixture() override {
+    mock_cert_verifier_.TearDownInProcessBrowserTestFixture();
+    InProcessBrowserTest::TearDownInProcessBrowserTestFixture();
+  }
+
  protected:
   base::test::ScopedFeatureList feature_list_;
+  content::ContentMockCertVerifier mock_cert_verifier_;
   net::EmbeddedTestServer https_server_;
 
   const GURL& farbling_url() { return farbling_url_; }

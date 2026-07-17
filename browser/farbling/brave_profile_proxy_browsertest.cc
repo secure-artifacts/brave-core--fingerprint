@@ -22,6 +22,7 @@
 #include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 #include "brave/components/tor/buildflags/buildflags.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/delete_profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -31,7 +32,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/profile_deletion_observer.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/permissions/permission_request_manager.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/webui_config_map.h"
@@ -538,13 +540,14 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                                  51.5074, -0.1278);
 
   Browser* proxied_browser = CreateBrowser(proxied_profile);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      proxied_browser, OriginUrl("localhost", "/profile-geo")));
+  const GURL geolocation_url = OriginUrl("localhost", "/profile-geo");
+  HostContentSettingsMapFactory::GetForProfile(proxied_profile)
+      ->SetContentSettingDefaultScope(geolocation_url, geolocation_url,
+                                      ContentSettingsType::GEOLOCATION,
+                                      CONTENT_SETTING_ALLOW);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(proxied_browser, geolocation_url));
   content::WebContents* web_contents =
       proxied_browser->tab_strip_model()->GetActiveWebContents();
-  permissions::PermissionRequestManager::FromWebContents(web_contents)
-      ->set_auto_response_for_test(
-          permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
 
   constexpr char kGetPosition[] = R"js(
     new Promise(resolve => {
@@ -569,9 +572,8 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
       proxied_browser, OriginUrl("localhost", "/profile-timezone")));
   content::WebContents* web_contents =
       proxied_browser->tab_strip_model()->GetActiveWebContents();
-  EXPECT_EQ("Europe/London",
-            web_contents->GetMutableRendererPrefs()
-                ->fingerprint_browser_timezone_override);
+  EXPECT_EQ("Europe/London", web_contents->GetMutableRendererPrefs()
+                                 ->fingerprint_browser_timezone_override);
   EXPECT_EQ("Europe/London",
             content::EvalJs(web_contents,
                             "Intl.DateTimeFormat().resolvedOptions().timeZone")
@@ -602,9 +604,8 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   ConfigureProfileProxyManualGeo(proxied_profile, "AU", "Australia/Sydney",
                                  -33.8688, 151.2093);
   content::WebContents::SyncRendererPrefsForBrowserContext(proxied_profile);
-  EXPECT_EQ("Australia/Sydney",
-            web_contents->GetMutableRendererPrefs()
-                ->fingerprint_browser_timezone_override);
+  EXPECT_EQ("Australia/Sydney", web_contents->GetMutableRendererPrefs()
+                                    ->fingerprint_browser_timezone_override);
   EXPECT_TRUE(web_contents->GetMutableRendererPrefs()
                   ->fingerprint_browser_timezone_override_initialized);
   EXPECT_TRUE(base::test::RunUntil([&] {

@@ -136,6 +136,10 @@ blink::ScriptValue GetWebGLDebugInfoValue(
   if (!AllowFingerprintingForHost(Host()))        \
     return;
 
+#define BRAVE_WEBGL_RENDERING_CONTEXT_BASE_READ_PIXELS                         \
+  MaybePerturbWebGLReadPixels(Host(), IsWebGL2(), width, height, format, type, \
+                              pixels, offset);
+
 #define BRAVE_WEBGL_RENDERING_CONTEXT_BASE_NULLPTR \
   if (!AllowFingerprintingForHost(Host()))         \
     return nullptr;
@@ -181,9 +185,7 @@ blink::ScriptValue GetWebGLDebugInfoValue(
 
 #define getExtension getExtension_ChromiumImpl
 #define getSupportedExtensions getSupportedExtensions_ChromiumImpl
-#define ReadPixelsHelper ReadPixelsHelper_ChromiumImpl
 #include <third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc>
-#undef ReadPixelsHelper
 #undef getSupportedExtensions
 #undef getExtension
 
@@ -221,20 +223,6 @@ WebGLFarbledExtensionHandler* CreateOrGetValidWebGLExtensionHandler(
 }
 
 }  // namespace
-
-void WebGLRenderingContextBase::ReadPixelsHelper(GLint x,
-                                                 GLint y,
-                                                 GLsizei width,
-                                                 GLsizei height,
-                                                 GLenum format,
-                                                 GLenum type,
-                                                 DOMArrayBufferView* pixels,
-                                                 int64_t offset) {
-  ReadPixelsHelper_ChromiumImpl(x, y, width, height, format, type, pixels,
-                                offset);
-  MaybePerturbWebGLReadPixels(Host(), IsWebGL2(), width, height, format, type,
-                              pixels, offset);
-}
 
 // This method returns the supported WebGL extensions. If fingerprinting
 // protections are enabled then the list may include farbled values.
@@ -285,4 +273,5 @@ ScriptObject WebGLRenderingContextBase::getExtension(ScriptState* script_state,
 #undef BRAVE_WEBGL_RENDERING_CONTEXT_BASE_ZERO
 #undef BRAVE_WEBGL_RENDERING_CONTEXT_BASE_NULLOPT
 #undef BRAVE_WEBGL_RENDERING_CONTEXT_BASE_NULLPTR
+#undef BRAVE_WEBGL_RENDERING_CONTEXT_BASE_READ_PIXELS
 #undef BRAVE_WEBGL_RENDERING_CONTEXT_BASE_RETURN

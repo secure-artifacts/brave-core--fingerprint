@@ -1,8 +1,8 @@
 diff --git a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
-index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..2eac638f4685c7073d8ac0d057c7a3e867f9dcc9 100644
+index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..71566f26e22501837c242fbb019b11c309904a48 100644
 --- a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
 +++ b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
-@@ -18,8 +18,12 @@
+@@ -18,8 +18,13 @@
   *  MA 02110-1301 USA
   */
 
@@ -16,7 +16,7 @@ index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..2eac638f4685c7073d8ac0d057c7a3e8
  #include "third_party/blink/public/common/features.h"
  #include "third_party/blink/renderer/core/frame/local_dom_window.h"
  #include "third_party/blink/renderer/core/frame/local_frame.h"
-@@ -30,6 +34,7 @@
+@@ -30,6 +35,7 @@
  #include "third_party/blink/renderer/modules/plugins/navigator_plugins.h"
  #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
  #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
@@ -24,7 +24,7 @@ index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..2eac638f4685c7073d8ac0d057c7a3e8
  #include "third_party/blink/renderer/platform/wtf/vector.h"
 
  namespace blink {
-@@ -50,6 +55,106 @@ DOMPlugin* MakeFakePlugin(String plugin_name, LocalDOMWindow* window) {
+@@ -50,6 +56,106 @@ DOMPlugin* MakeFakePlugin(String plugin_name, LocalDOMWindow* window) {
    }
    return MakeGarbageCollected<DOMPlugin>(window, *plugin_info);
  }
@@ -131,11 +131,10 @@ index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..2eac638f4685c7073d8ac0d057c7a3e8
  }  // namespace
 
  DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
-@@ -63,6 +168,7 @@ DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
+@@ -63,5 +169,6 @@ DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
      for (auto name : plugins) {
        dom_plugins_.push_back(MakeFakePlugin(name, window));
      }
 +    ApplyBravePluginPolicy(window, dom_plugins_);
    }
  }
-

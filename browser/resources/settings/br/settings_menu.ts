@@ -198,7 +198,7 @@ RegisterStyleOverride(
         flex-direction: row;
         align-items: flex-start;
         justify-content: flex-start;
-        color: var(--leo-color-text-tertiary) !important;
+        color: var(--cr-secondary-text-color) !important;
         margin: 16px 0 0 0 !important;
         text-decoration: none !important;
       }

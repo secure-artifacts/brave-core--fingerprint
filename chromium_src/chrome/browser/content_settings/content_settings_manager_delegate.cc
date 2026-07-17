@@ -17,6 +17,7 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/web_contents.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(ENABLE_CONTAINERS)
 #include "base/feature_list.h"
@@ -41,7 +42,8 @@ bool IsJsBlockingEnforced(content::BrowserContext* browser_context,
 }
 
 brave_shields::mojom::ShieldsSettingsPtr GetBraveShieldsSettingsOnUI(
-    const content::GlobalRenderFrameHostToken& frame_token) {
+    const content::GlobalRenderFrameHostToken& frame_token,
+    ContentSettingsType webcompat_settings_type) {
   content::RenderFrameHost* rfh =
       content::RenderFrameHost::FromFrameToken(frame_token);
   if (!rfh) {
@@ -52,13 +54,25 @@ brave_shields::mojom::ShieldsSettingsPtr GetBraveShieldsSettingsOnUI(
     return brave_shields::mojom::ShieldsSettings::New();
   }
 
-  const GURL& top_frame_url = top_frame_rfh->GetLastCommittedURL();
+  GURL top_frame_url = top_frame_rfh->GetLastCommittedURL();
+  if (top_frame_url.SchemeIs(url::kBlobScheme)) {
+    const url::Origin& committed_origin =
+        top_frame_rfh->GetLastCommittedOrigin();
+    if (!committed_origin.opaque()) {
+      top_frame_url = committed_origin.GetURL();
+    }
+  }
 
   content::BrowserContext* browser_context = rfh->GetBrowserContext();
-  const brave_shields::mojom::FarblingLevel farbling_level =
-      brave_shields::GetFarblingLevel(
-          HostContentSettingsMapFactory::GetForProfile(browser_context),
-          top_frame_url);
+  auto* content_settings =
+      HostContentSettingsMapFactory::GetForProfile(browser_context);
+  brave_shields::mojom::FarblingLevel farbling_level =
+      brave_shields::GetFarblingLevel(content_settings, top_frame_url);
+  if (webcompat_settings_type != ContentSettingsType::BRAVE_WEBCOMPAT_NONE &&
+      brave_shields::IsWebcompatEnabled(
+          content_settings, webcompat_settings_type, top_frame_url)) {
+    farbling_level = brave_shields::mojom::FarblingLevel::OFF;
+  }
   std::string additional_entropy;
 #if BUILDFLAG(ENABLE_CONTAINERS)
   if (base::FeatureList::IsEnabled(containers::features::kContainers)) {
@@ -75,6 +89,11 @@ brave_shields::mojom::ShieldsSettingsPtr GetBraveShieldsSettingsOnUI(
   const bool has_persona_farbling_token = !persona_token.is_zero();
   const auto* persona =
       fingerprint_browser::GetPersonaForBrowserContext(browser_context);
+  if (top_frame_url.SchemeIs("chrome-extension")) {
+    farbling_level = persona && has_persona_farbling_token
+                         ? brave_shields::mojom::FarblingLevel::BALANCED
+                         : brave_shields::mojom::FarblingLevel::OFF;
+  }
   const bool has_persona_l1 =
       farbling_level != brave_shields::mojom::FarblingLevel::OFF && persona;
   const bool has_persona_l2 =
@@ -178,9 +197,12 @@ brave_shields::mojom::ShieldsSettingsPtr GetBraveShieldsSettingsOnUI(
 
 void ContentSettingsManagerDelegate::GetBraveShieldsSettings(
     const content::GlobalRenderFrameHostToken& frame_token,
+    ContentSettingsType webcompat_settings_type,
     content_settings::mojom::ContentSettingsManager::
         GetBraveShieldsSettingsCallback callback) {
   content::GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
-      FROM_HERE, base::BindOnce(&GetBraveShieldsSettingsOnUI, frame_token),
+      FROM_HERE,
+      base::BindOnce(&GetBraveShieldsSettingsOnUI, frame_token,
+                     webcompat_settings_type),
       std::move(callback));
 }

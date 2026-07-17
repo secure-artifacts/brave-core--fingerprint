@@ -1,0 +1,24 @@
+diff --git a/components/performance_manager/worker_watcher.cc b/components/performance_manager/worker_watcher.cc
+index 9bfdd5a709dbf0dec70cee8b12ffa399276c3454..5e10a3dcc5b82d7ac6946addaacf365c6dc586c9 100644
+--- a/components/performance_manager/worker_watcher.cc
++++ b/components/performance_manager/worker_watcher.cc
+@@ -366,15 +366,15 @@ void WorkerWatcher::OnVersionStoppedRunning(int64_t version_id) {
+   auto it = service_worker_nodes_.find(version_id);
+   CHECK(it != service_worker_nodes_.end());
+
+-  auto service_worker_node = std::move(it->second);
++  WorkerNodeImpl* service_worker_node = it->second.get();
+
+   // First, disconnect all current clients of this service worker.
+-  DisconnectAllServiceWorkerClients(service_worker_node.get(), version_id);
++  DisconnectAllServiceWorkerClients(service_worker_node, version_id);
+
+ #if DCHECK_IS_ON()
+-  DCHECK(!detached_frame_count_per_worker_.contains(service_worker_node.get()));
++  DCHECK(!detached_frame_count_per_worker_.contains(service_worker_node));
+ #endif  // DCHECK_IS_ON()
+-  PerformanceManagerImpl::DeleteNode(std::move(service_worker_node));
++  PerformanceManagerImpl::DeleteNode(std::move(it->second));
+
+   service_worker_nodes_.erase(it);
+   size_t erased = std::erase_if(

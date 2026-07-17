@@ -10,12 +10,18 @@
 // name collision with a method in the mojom class.
 #include "third_party/blink/public/mojom/speech/speech_synthesis.mojom-blink.h"
 
+#define getVoices           \
+  getVoices_ChromiumImpl(); \
+  const HeapVector<Member<SpeechSynthesisVoice>>& getVoices
+
 #define OnSetVoiceList                                       \
   OnSetVoiceList_ChromiumImpl(                               \
       Vector<mojom::blink::SpeechSynthesisVoicePtr> voices); \
   void OnSetVoiceList
 
 #include <third_party/blink/renderer/modules/speech/speech_synthesis.h>  // IWYU pragma: export
+
 #undef OnSetVoiceList
+#undef getVoices
 
 #endif  // BRAVE_CHROMIUM_SRC_THIRD_PARTY_BLINK_RENDERER_MODULES_SPEECH_SPEECH_SYNTHESIS_H_

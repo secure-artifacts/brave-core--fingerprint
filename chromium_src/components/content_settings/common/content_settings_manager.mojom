@@ -6,6 +6,7 @@
 module content_settings.mojom;
 
 import "brave/components/brave_shields/core/common/shields_settings.mojom";
+import "components/content_settings/core/common/content_settings_types.mojom";
 import "services/network/public/mojom/site_for_cookies.mojom";
 import "url/mojom/origin.mojom";
 import "third_party/blink/public/mojom/tokens/tokens.mojom";
@@ -26,5 +27,6 @@ interface ContentSettingsManager {
   // shields settings are always available.
   [Sync]
   GetBraveShieldsSettings(
-      blink.mojom.LocalFrameToken frame_token) => (brave_shields.mojom.ShieldsSettings shields_settings);
+      blink.mojom.LocalFrameToken frame_token,
+      ContentSettingsType webcompat_settings_type) => (brave_shields.mojom.ShieldsSettings shields_settings);
 };

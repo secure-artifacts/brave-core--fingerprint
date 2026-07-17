@@ -19,7 +19,8 @@ select.md-select:not(.z) {
    * specific background image is set on a page (i.e. to override the carat). */
   background-image: none !important;
 
-  border: 1px solid var(--leo-color-divider-subtle);
+  border: 1px solid var(--color-combobox-container-outline,
+      var(--leo-color-schemes-outline));
   border-radius: var(--leo-radius-m);
 
   padding: var(--leo-spacing-m);
@@ -55,7 +56,8 @@ select.md-select:not(.z) {
 
   appearance: base-select;
   background: var(--leo-color-container-background);
-  border: 1px solid var(--leo-color-divider-subtle);
+  border: 1px solid var(--color-combobox-container-outline,
+      var(--leo-color-schemes-outline));
   border-radius: var(--leo-radius-m);
 
   position-area: block-end span-inline-end;

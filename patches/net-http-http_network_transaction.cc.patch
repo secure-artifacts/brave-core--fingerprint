@@ -1,0 +1,68 @@
+diff --git a/net/http/http_network_transaction.cc b/net/http/http_network_transaction.cc
+index f36a98f4bbf55df054b8ba75558f284a534e806f..f26ada321fe7d995ef55e07d51c33ae2662893b0 100644
+--- a/net/http/http_network_transaction.cc
++++ b/net/http/http_network_transaction.cc
+@@ -25,6 +25,7 @@
+ #include "base/strings/strcat.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/strings/string_util.h"
++#include "base/strings/utf_string_conversions.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
+@@ -1682,6 +1683,11 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
+   if (rv != OK)
+     return rv;
+
++  if (std::optional<int> configured_proxy_auth_result =
++          RestartWithConfiguredProxyAuthCredentials()) {
++    return *configured_proxy_auth_result;
++  }
++
+ #if BUILDFLAG(ENABLE_REPORTING)
+   // Note: This just handles the legacy Report-To header, which is still
+   // required for NEL. The newer Reporting-Endpoints header is processed in
+@@ -2405,6 +2411,43 @@ bool HttpNetworkTransaction::HaveAuth(HttpAuth::Target target) const {
+       auth_controllers_[target]->HaveAuth();
+ }
+
++std::optional<int>
++HttpNetworkTransaction::RestartWithConfiguredProxyAuthCredentials() {
++  if (pending_auth_target_ != HttpAuth::AUTH_PROXY ||
++      !UsingHttpProxyWithoutTunnel()) {
++    return std::nullopt;
++  }
++
++  CHECK(proxy_info_.proxy_chain().is_single_proxy());
++  const HostPortPair& proxy_host_port =
++      proxy_info_.proxy_chain().First().host_port_pair();
++  if (proxy_host_port.username().empty() &&
++      proxy_host_port.password().empty()) {
++    return std::nullopt;
++  }
++
++  if (configured_proxy_auth_credentials_attempted_) {
++    pending_auth_target_ = HttpAuth::AUTH_NONE;
++    return ERR_INVALID_AUTH_CREDENTIALS;
++  }
++
++  HttpAuthController* auth_controller =
++      auth_controllers_[HttpAuth::AUTH_PROXY].get();
++  if (!auth_controller || !auth_controller->HaveAuthHandler()) {
++    return std::nullopt;
++  }
++
++  configured_proxy_auth_credentials_attempted_ = true;
++  pending_auth_target_ = HttpAuth::AUTH_NONE;
++  if (!auth_controller->HaveAuth()) {
++    auth_controller->ResetAuth(
++        AuthCredentials(base::UTF8ToUTF16(proxy_host_port.username()),
++                        base::UTF8ToUTF16(proxy_host_port.password())));
++  }
++  PrepareForAuthRestart(HttpAuth::AUTH_PROXY);
++  return OK;
++}
++
+ GURL HttpNetworkTransaction::AuthURL(HttpAuth::Target target) const {
+   switch (target) {
+     case HttpAuth::AUTH_PROXY: {
