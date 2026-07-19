@@ -19,6 +19,9 @@ const BRAVE_UNIT_FILTER = [
 const NET_FILTER = [
   '*ConfiguredProxyAuthCredentialsRetryNoTunnel*',
   '*RejectedConfiguredProxyAuthCredentialsFailNoTunnel*',
+  'SOCKS5ClientSocketTest.CompleteHandshakeWithUsernamePasswordAuth',
+  'SOCKS5ClientSocketTest.UsernamePasswordAuthRejected',
+  'SOCKS5ClientSocketTest.UsernamePasswordAuthUnexpectedlyClosed',
 ].join(':')
 
 const PERFORMANCE_MANAGER_FILTER =
@@ -79,9 +82,20 @@ const TEST_SOURCE_GROUPS = {
     '../net/http/http_network_transaction.cc',
     '../net/http/http_network_transaction.h',
     '../net/http/http_network_transaction_unittest.cc',
+    '../net/socket/socks5_client_socket.cc',
+    '../net/socket/socks5_client_socket.h',
+    '../net/socket/socks5_client_socket_unittest.cc',
+    '../net/socket/socks_connect_job.cc',
+    'chromium_src/net/socket/socks5_client_socket.cc',
+    'chromium_src/net/socket/socks5_client_socket.h',
+    'chromium_src/net/socket/socks5_client_socket_unittest.h',
     'patches/net-http-http_network_transaction.cc.patch',
     'patches/net-http-http_network_transaction.h.patch',
     'patches/net-http-http_network_transaction_unittest.cc.patch',
+    'patches/net-socket-socks5_client_socket.cc.patch',
+    'patches/net-socket-socks5_client_socket.h.patch',
+    'patches/net-socket-socks5_client_socket_unittest.cc.patch',
+    'patches/net-socket-socks_connect_job.cc.patch',
   ],
   performanceManager: [
     '../components/performance_manager/worker_watcher.cc',

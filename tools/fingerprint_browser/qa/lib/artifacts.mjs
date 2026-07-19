@@ -71,6 +71,16 @@ const SOURCE_GROUPS = {
     'third_party/blink/renderer/core/farbling/brave_session_cache.cc',
     'third_party/libmaxminddb/include/maxminddb_config.h',
   ],
+  network: [
+    '../net/socket/socks5_client_socket.cc',
+    '../net/socket/socks5_client_socket.h',
+    '../net/socket/socks_connect_job.cc',
+    'chromium_src/net/socket/socks5_client_socket.cc',
+    'chromium_src/net/socket/socks5_client_socket.h',
+    'patches/net-socket-socks_connect_job.cc.patch',
+    'patches/net-socket-socks5_client_socket.cc.patch',
+    'patches/net-socket-socks5_client_socket.h.patch',
+  ],
   braveResources: [
     'app/brave_settings_strings.grdp',
     'browser/resources/settings/fingerprint_profile_proxy_page',
@@ -362,6 +372,7 @@ async function artifactHashes(outDir) {
       digest: localeDigest.digest('hex'),
     },
     native: await sha256(path.join(outDir, 'libchrome_dll.dylib')),
+    network: await sha256(path.join(outDir, 'libnet.dylib')),
     scaled,
   }
 }
@@ -383,6 +394,7 @@ export async function writeBuildManifest({braveRoot, mode, outDir}) {
         chromiumResources: await sourceGroupIdentity(braveRoot, 'chromiumResources'),
         localeResources: await sourceGroupIdentity(braveRoot, 'localeResources'),
         native: await sourceGroupIdentity(braveRoot, 'native'),
+        network: await sourceGroupIdentity(braveRoot, 'network'),
         scaledResources: await sourceGroupIdentity(braveRoot, 'scaledResources'),
       }
     : {
@@ -390,16 +402,21 @@ export async function writeBuildManifest({braveRoot, mode, outDir}) {
         chromiumResources: await sourceGroupIdentity(braveRoot, 'chromiumResources'),
         localeResources: await sourceGroupIdentity(braveRoot, 'localeResources'),
         native: previous?.groups?.native || null,
+        network: previous?.groups?.network || null,
         scaledResources: await sourceGroupIdentity(braveRoot, 'scaledResources'),
       }
-  if (!groups.native) {
+  if (!groups.native || !groups.network) {
     throw new Error('A cpp build manifest is required before a resources-only update')
   }
 
   const currentArtifacts = await artifactHashes(outDir)
   const artifacts = mode === 'cpp'
     ? currentArtifacts
-    : {...currentArtifacts, native: previous.artifacts.native}
+    : {
+        ...currentArtifacts,
+        native: previous.artifacts.native,
+        network: previous.artifacts.network,
+      }
   const manifest = {
     artifacts,
     generatedAt: new Date().toISOString(),
@@ -586,6 +603,7 @@ export async function prepareAndVerifyArtifacts(config, log) {
 
   const buildManifest = await verifyBuildManifest(braveRoot, outDir)
   const nativeSource = await latestSource(braveRoot, SOURCE_GROUPS.native)
+  const networkSource = await latestSource(braveRoot, SOURCE_GROUPS.network)
   const resourceSource = await latestSource(braveRoot, SOURCE_GROUPS.braveResources)
   const chromiumResourceSource = await latestSource(
     braveRoot, SOURCE_GROUPS.chromiumResources)
@@ -593,7 +611,9 @@ export async function prepareAndVerifyArtifacts(config, log) {
   const scaledResourceSource = await latestSource(
     braveRoot, SOURCE_GROUPS.scaledResources)
   const sourceLibchrome = path.join(outDir, 'libchrome_dll.dylib')
+  const sourceLibnet = path.join(outDir, 'libnet.dylib')
   const nativeArtifactStat = await fs.stat(sourceLibchrome)
+  const networkArtifactStat = await fs.stat(sourceLibnet)
   const resourceArtifactStat = await fs.stat(sourceResource)
   const chromiumResourceArtifactStat = await fs.stat(sourceChromiumResource)
   const localeArtifactStats = await Promise.all(sourceLocalePacks.map(async file => ({
@@ -617,6 +637,15 @@ export async function prepareAndVerifyArtifacts(config, log) {
         ? new Date(nativeSource.mtimeMs).toISOString()
         : null,
       pass: nativeSource.mtimeMs <= nativeArtifactStat.mtimeMs,
+    },
+    network: {
+      artifact: sourceLibnet,
+      artifactMtime: networkArtifactStat.mtime.toISOString(),
+      latestSource: networkSource.file,
+      latestSourceMtime: networkSource.mtimeMs
+        ? new Date(networkSource.mtimeMs).toISOString()
+        : null,
+      pass: networkSource.mtimeMs <= networkArtifactStat.mtimeMs,
     },
     resources: {
       artifact: sourceResource,
@@ -657,7 +686,8 @@ export async function prepareAndVerifyArtifacts(config, log) {
       pass: scaledResourceSource.mtimeMs <= oldestScaledArtifact.stat.mtimeMs,
     },
   }
-  if (!freshness.native.pass || !freshness.resources.pass ||
+  if (!freshness.native.pass || !freshness.network.pass ||
+      !freshness.resources.pass ||
       !freshness.chromiumResources.pass || !freshness.locales.pass ||
       !freshness.scaledResources.pass) {
     throw Object.assign(new Error('Source artifacts are older than relevant source edits'), {
