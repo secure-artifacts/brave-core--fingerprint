@@ -36,8 +36,6 @@ RegisterPolymerPrototypeModification({
       // Add dataCollection view.
       views.splice(1, 0, 'dataCollection');
 
-      views.splice(1, 0, 'fingerprintProfileProxy');
-
       // <if expr="enable_tor">
       // Add tor view if it should be shown.
       if (pageVisibility.braveTor) {
@@ -96,6 +94,8 @@ RegisterPolymerTemplateModifications({
     viewManager.appendChild(html`<settings-fingerprint-profile-proxy-subpage
       id="fingerprintProfileProxy"
       slot="view"
+      data-parent-view-id="privacy"
+      route-path$="[[routes_.FINGERPRINT_PROFILE_PROXY.path]]"
       prefs="{{prefs}}"
       in-search-mode="[[inSearchMode_]]">
     </settings-fingerprint-profile-proxy-subpage>`)

@@ -38,7 +38,10 @@ node run_qa.mjs \
   --results-dir ../../../../out/Component_arm64/qa-results
 ```
 
-Full and Soak require the original crash extension and real proxy fixtures:
+Full and Soak require the original crash extension and real proxy fixtures.
+The browser first verifies each draft through FreeIPAPI, falls back to
+IPWHOIS.IO, and only applies the proxy after the QA flow confirms the returned
+exit IP and location:
 
 ```bash
 export FP_QA_PRIMARY_EXTENSION_URL='https://chromewebstore.google.com/detail/...'
@@ -47,8 +50,13 @@ export FP_QA_VISUAL_REVIEW_MANIFEST='/absolute/path/to/visual-review.json'
 node run_qa.mjs --mode full --proxy-fixtures /absolute/path/to/proxies.json
 ```
 
+Use `--mode proxy` for an artifact-gated Smoke plus available proxy fixtures
+without repeating the C++ suite. This diagnostic mode is not a Full delivery
+gate.
+
 Do not place proxy credentials in the repository. The fixture must be a regular
-file with mode `0600` and this shape:
+file with mode `0600`. HTTP-only or SOCKS5-only files run the available
+protocol and keep the Full gate blocked until both are present:
 
 ```json
 {
@@ -204,16 +212,19 @@ screenshots, and crash artifacts. Every screenshot receives a `PASS` or `FAIL`
 image-analysis record. Full and Soak require approved baselines for every image
 and an artifact-bound human review manifest.
 
-Before launch, the runner checks source freshness, resource SHA-256, the full
-root dylib name, Mach-O UUID, `otool -L` version/dependency set, exact libchrome
-and resource hashes, and `codesign --verify --deep --strict`. Full runs also
+Before launch, the runner checks a content-addressed source build manifest,
+source freshness, unscaled/scaled resource SHA-256, all locale pack hashes,
+the main app/Framework/Helper executable set, the full root dylib name,
+Mach-O UUID, `otool -L` version/dependency set, exact libchrome and resource
+hashes, and `codesign --verify --deep --strict`. Full runs also
 require current `brave_components_unittests`, `brave_unit_tests`,
 `net_unittests`, `fingerprint_browser_worker_watcher_unittests`, and
 `brave_browser_tests` binaries. The focused WorkerWatcher binary covers the
 service/shared-worker shutdown crash regression without building Chromium's
 entire `unit_tests` target.
-When preparation is enabled, changed current dylibs and resources are copied
-into the QA app and the app is re-signed before verification.
+When preparation is enabled, a mismatched app executable baseline is refreshed;
+changed current dylibs, resources, and locale packs are then copied into the QA
+app and the app is re-signed before verification.
 
 The runner removes only `/tmp/fingerprint-browser-<run-id>` and QA processes
 whose process tree is rooted at `/tmp/fingerprint-browser-*`. Native UI actions

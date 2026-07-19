@@ -23,7 +23,7 @@ import {
   runPerformanceManagerTests,
   runUnitTests,
 } from './scenarios/code_tests.mjs'
-import {runFull} from './scenarios/full.mjs'
+import {runFull, runProxyFixtures} from './scenarios/full.mjs'
 import {runSmoke} from './scenarios/smoke.mjs'
 import {runSoak} from './scenarios/soak.mjs'
 import {analyzeScreenshotTree, loadHumanVisualReview} from './lib/visual.mjs'
@@ -127,7 +127,7 @@ async function main() {
     crashesBefore = await snapshotCrashReports()
     report.crashesBefore = crashesBefore
 
-    if (config.mode !== 'smoke') {
+    if (config.mode === 'full' || config.mode === 'soak') {
       const codeGates = []
       if (config.skipCodeTests) {
         codeGates.push(await runScenario(report, 'code-tests-required', async () => ({
@@ -177,7 +177,13 @@ async function main() {
     }
 
     let fullPassed = true
-    if (config.mode === 'full' || config.mode === 'soak') {
+    if (config.mode === 'proxy') {
+      const proxyScenarioIndex = report.scenarios.length
+      await runProxyFixtures({config, dirs, probe, report, runId})
+      fullPassed = report.scenarios.slice(proxyScenarioIndex).every(
+        scenario => scenario.status === 'PASS')
+      await writeReports(report, runDir)
+    } else if (config.mode === 'full' || config.mode === 'soak') {
       const fullScenarioIndex = report.scenarios.length
       await runFull({config, dirs, probe, report, runId})
       fullPassed = report.scenarios.slice(fullScenarioIndex).every(
@@ -193,7 +199,7 @@ async function main() {
         diffDir: dirs.diff,
         nativeDir: dirs.native,
         pageDir: dirs.page,
-        requireNativeBaselines: config.mode !== 'smoke',
+        requireNativeBaselines: config.mode === 'full' || config.mode === 'soak',
       })
       if (result.analyses.length === 0) {
         throw new Error('No screenshots were captured')
@@ -212,7 +218,7 @@ async function main() {
           status: 'BLOCKED',
         }
       }
-      if (config.mode !== 'smoke') {
+      if (config.mode === 'full' || config.mode === 'soak') {
         const review = await loadHumanVisualReview({
           analyses: result.analyses,
           artifacts: report.artifacts,

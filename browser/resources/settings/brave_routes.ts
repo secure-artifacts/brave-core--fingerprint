@@ -77,6 +77,10 @@ export default function addBraveRoutes(r: Partial<SettingsRoutes>) {
     r.BRAVE_SURVEY_PANELIST =
       r.PRIVACY.createChild('/surveyPanelist')
   }
+  if (r.PRIVACY) {
+    r.FINGERPRINT_PROFILE_PROXY =
+      r.PRIVACY.createChild('/fingerprintProfileProxy')
+  }
   if (r.SEARCH) {
     r.DEFAULT_SEARCH = r.SEARCH.createChild('defaultSearch')
     r.DEFAULT_SEARCH.isNavigableDialog = true

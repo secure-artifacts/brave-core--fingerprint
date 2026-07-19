@@ -42,3 +42,21 @@ test('loadProxyFixtures enforces 0600', async () => {
     await fs.rm(directory, {recursive: true, force: true})
   }
 })
+
+test('loadProxyFixtures exposes available fixtures while blocking missing protocols', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-fixture-'))
+  const file = path.join(directory, 'proxies.json')
+  try {
+    await fs.writeFile(
+      file,
+      JSON.stringify({http: fixture().http}),
+      {mode: 0o600})
+    const loaded = await loadProxyFixtures(file)
+    assert.equal(loaded.status, 'BLOCKED')
+    assert.deepEqual(loaded.missing, ['socks5'])
+    assert.equal(loaded.http.scheme, 'http')
+    assert.equal(loaded.socks5, null)
+  } finally {
+    await fs.rm(directory, {recursive: true, force: true})
+  }
+})

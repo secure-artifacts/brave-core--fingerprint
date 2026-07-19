@@ -39,20 +39,6 @@ HostPortPair FromStringWithAuthentication(std::string_view str) {
   return host_port_pair;
 }
 
-std::string MaybeAddUsernameAndPassword(const HostPortPair* host_port_pair,
-                                        const std::string& str) {
-  std::string ret;
-  if (!host_port_pair->username().empty()) {
-    ret += host_port_pair->username();
-    if (!host_port_pair->password().empty()) {
-      ret += ':';
-      ret += host_port_pair->password();
-    }
-    ret += '@';
-  }
-  return ret + str;
-}
-
 }  // namespace
 }  // namespace net
 
@@ -151,8 +137,7 @@ bool HostPortPair::Equals(const HostPortPair& other) const {
 }
 
 std::string HostPortPair::ToString() const {
-  const std::string& ret = HostPortPair_ChromiumImpl::ToString();
-  return MaybeAddUsernameAndPassword(this, ret);
+  return HostPortPair_ChromiumImpl::ToString();
 }
 
 }  // namespace net

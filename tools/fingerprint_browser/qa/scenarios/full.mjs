@@ -7,17 +7,20 @@ import {
 } from '../lib/extensions.mjs'
 import {loadProxyFixtures, publicProxyRecord} from '../lib/fixtures.mjs'
 import {
-  collectProbe,
+  applyVerifiedProfileProxy,
   collectWebRtcCandidates,
   readProfileProxyState,
   renderProxyValidationError,
   runProfileLifecycle,
   setProfileProxy,
-  waitForProfileProxyError,
+  verifyProfileProxy,
 } from '../lib/profile.mjs'
 import {runScenario} from '../lib/report.mjs'
 import {
   captureNativeScreenshot,
+  clickNativeText,
+  clickNativeWindowOffset,
+  nativeScreenshotHasText,
   pngDimensions,
   run,
   setFrontWindowSize,
@@ -43,10 +46,42 @@ function observedIpFromBody(body) {
 function observedGeoFromBody(body) {
   const parsed = JSON.parse(body)
   const countryCode = parsed.countryCode || parsed.country_code
-  if (!countryCode || !parsed.timezone) {
+  const timezone = typeof parsed.timezone === 'string'
+    ? parsed.timezone
+    : parsed.timezone?.id
+  if (!countryCode || !timezone) {
     throw new Error('Geo verification response requires countryCode/country_code and timezone')
   }
-  return {countryCode: String(countryCode).toUpperCase(), timezone: parsed.timezone}
+  return {countryCode: String(countryCode).toUpperCase(), timezone}
+}
+
+async function collectProxySurfaceProbe(page) {
+  const origin = 'https://example.com'
+  await page.context().grantPermissions(['geolocation'], {origin})
+  const response = await page.goto(`${origin}/`, {
+    timeout: 60000,
+    waitUntil: 'domcontentloaded',
+  })
+  if (!response?.ok()) {
+    throw new Error(`Public proxy probe returned ${response?.status()}`)
+  }
+  return await page.evaluate(async () => {
+    const geolocation = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        position => resolve({
+          accuracy: position.coords.accuracy,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }),
+        error => reject(new Error(`Geolocation failed: ${error.message}`)),
+        {timeout: 10000})
+    })
+    return {
+      basic: {languages: [...navigator.languages]},
+      geolocation,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }
+  })
 }
 
 async function assertCurrentWebUi(page, label) {
@@ -61,15 +96,26 @@ async function assertCurrentWebUi(page, label) {
 }
 
 async function profilePrefs(page, updates = null) {
-  await page.goto('brave://settings/privacy', {waitUntil: 'domcontentloaded'})
+  await page.goto(
+    'brave://settings/fingerprintProfileProxy',
+    {waitUntil: 'domcontentloaded'})
   return await page.evaluate(async updates => {
     if (updates) {
+      if (updates['intl.accept_languages']) {
+        await chrome.settingsPrivate.setPref(
+          'intl.selected_languages',
+          updates['intl.accept_languages'])
+      }
       for (const [key, value] of Object.entries(updates)) {
         await chrome.settingsPrivate.setPref(key, value)
       }
     }
     const result = {}
-    for (const key of ['intl.accept_languages', 'webrtc.ip_handling_policy']) {
+    for (const key of [
+      'intl.accept_languages',
+      'intl.selected_languages',
+      'webrtc.ip_handling_policy',
+    ]) {
       result[key] = (await chrome.settingsPrivate.getPref(key)).value
     }
     return result
@@ -81,6 +127,7 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
   const events = []
   let session = await startQaSession({
     app: config.app,
+    language: null,
     logDir: dirs.logs,
     name: `proxy-${fixture.scheme}`,
     profilePath,
@@ -112,33 +159,38 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
     const validation = await renderProxyValidationError(page, invalidScreenshot)
     await assertCurrentWebUi(page, `${fixture.scheme} proxy validation`)
 
-    const unknownGeo = await setProfileProxy(page, {
+    const verified = await verifyProfileProxy(page, {
       ...fixture,
-      countryCode: '',
       enabled: true,
-      latitude: undefined,
-      longitude: undefined,
-      timezone: '',
     })
-    if (!unknownGeo.geoWarning) {
-      throw new Error(`${fixture.scheme} proxy did not show missing Geo warning`)
+    if (!verified.verification?.success || verified.actionError ||
+        verified.verification.egressIp !== fixture.expectedIp ||
+        verified.verification.geo?.countryCode !== fixture.countryCode ||
+        verified.verification.geo?.timezone !== fixture.timezone) {
+      throw Object.assign(
+        new Error(`Could not verify ${fixture.scheme} proxy`),
+        {details: {expected: publicProxyRecord(fixture), verified}},
+      )
     }
-    const geoWarningScreenshot = path.join(
-      dirs.page, `full-proxy-${fixture.scheme}-geo-warning.png`)
-    await page.screenshot({path: geoWarningScreenshot, fullPage: false})
-    await assertCurrentWebUi(page, `${fixture.scheme} proxy Geo warning`)
+    const verifiedScreenshot = path.join(
+      dirs.page, `full-proxy-${fixture.scheme}-verified.png`)
+    await page.screenshot({path: verifiedScreenshot, fullPage: false})
+    await assertCurrentWebUi(page, `${fixture.scheme} proxy verified state`)
 
-    const save = await setProfileProxy(page, {
-      ...fixture,
-      enabled: true,
-    })
-    if (save.hostError || save.portError || save.saveError || !save.savedStatus) {
-      throw new Error(`Could not save ${fixture.scheme} proxy: ${JSON.stringify(save)}`)
+    const applied = await applyVerifiedProfileProxy(page)
+    if (!applied.enabled || applied.state !== 'active' ||
+        applied.egressIp !== fixture.expectedIp ||
+        applied.activeGeo?.countryCode !== fixture.countryCode ||
+        applied.activeGeo?.timezone !== fixture.timezone) {
+      throw Object.assign(
+        new Error(`Could not apply ${fixture.scheme} proxy`),
+        {details: applied},
+      )
     }
-    const savedScreenshot = path.join(
-      dirs.page, `full-proxy-${fixture.scheme}-saved.png`)
-    await page.screenshot({path: savedScreenshot, fullPage: false})
-    await assertCurrentWebUi(page, `${fixture.scheme} proxy saved state`)
+    const activeScreenshot = path.join(
+      dirs.page, `full-proxy-${fixture.scheme}-active.png`)
+    await page.screenshot({path: activeScreenshot, fullPage: false})
+    await assertCurrentWebUi(page, `${fixture.scheme} proxy active state`)
 
     const response = await page.goto(fixture.verifyUrl, {
       timeout: 60000,
@@ -168,8 +220,17 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
       })
     }
 
-    await page.context().grantPermissions(['geolocation'], {origin: probe.origin})
-    const observed = await collectProbe(page, probe.origin)
+    for (const url of ['https://www.google.com/', 'https://www.facebook.com/']) {
+      const siteResponse = await page.goto(url, {
+        timeout: 60000,
+        waitUntil: 'domcontentloaded',
+      })
+      if (!siteResponse?.ok()) {
+        throw new Error(
+          `${fixture.scheme} proxy navigation returned ${siteResponse?.status()} for ${url}`)
+      }
+    }
+    const observed = await collectProxySurfaceProbe(page)
     if (observed.timezone !== fixture.timezone) {
       throw new Error(
         `${fixture.scheme} timezone mismatch: ${observed.timezone} != ${fixture.timezone}`)
@@ -202,6 +263,7 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
     await session.close()
     session = await startQaSession({
       app: config.app,
+      language: null,
       logDir: dirs.logs,
       name: `proxy-${fixture.scheme}-restart`,
       profilePath,
@@ -227,33 +289,48 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
       throw new Error(`${fixture.scheme} exit IP changed after restart`)
     }
 
-    await setProfileProxy(page, {
+    const authAttempt = await verifyProfileProxy(page, {
       ...fixture,
       enabled: true,
       password: `${fixture.password}-intentionally-wrong`,
     })
-    await page.goto(fixture.verifyUrl, {
-      timeout: 20000,
-      waitUntil: 'domcontentloaded',
-    }).catch(() => null)
-    const authState = await waitForProfileProxyError(page)
+    if (authAttempt.verification || !authAttempt.actionError) {
+      throw Object.assign(
+        new Error(`${fixture.scheme} wrong credentials were not rejected`),
+        {details: authAttempt},
+      )
+    }
+    const authState = await readProfileProxyState(page, false)
+    if (!authState.enabled ||
+        !['active', 'stale'].includes(authState.state) ||
+        authState.egressIp !== fixture.expectedIp) {
+      throw Object.assign(
+        new Error(`${fixture.scheme} failed draft replaced active proxy`),
+        {details: authState},
+      )
+    }
     const authScreenshot = path.join(
       dirs.page, `full-proxy-${fixture.scheme}-authentication-error.png`)
+    await page.evaluate(() => {
+      function find(root) {
+        const direct = root.querySelector?.(
+          'settings-fingerprint-profile-proxy-subpage')
+        if (direct) return direct
+        for (const element of root.querySelectorAll?.('*') || []) {
+          if (element.shadowRoot) {
+            const nested = find(element.shadowRoot)
+            if (nested) return nested
+          }
+        }
+        return null
+      }
+      find(document)?.shadowRoot?.querySelector('#actionError')
+        ?.scrollIntoView({block: 'center'})
+    })
     await page.screenshot({path: authScreenshot, fullPage: false})
     await assertCurrentWebUi(page, `${fixture.scheme} proxy authentication error`)
 
-    await setProfileProxy(page, {
-      ...fixture,
-      enabled: false,
-      host: '',
-      port: 0,
-      username: '',
-      password: '',
-      countryCode: '',
-      timezone: '',
-      latitude: undefined,
-      longitude: undefined,
-    })
+    await setProfileProxy(page, {enabled: false})
     const direct = await page.goto(probe.origin, {waitUntil: 'domcontentloaded'})
     if (!direct?.ok()) {
       throw new Error('Direct settings were not restored after disabling proxy')
@@ -289,8 +366,8 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
       screenshots: [
         defaultScreenshot,
         invalidScreenshot,
-        geoWarningScreenshot,
-        savedScreenshot,
+        verifiedScreenshot,
+        activeScreenshot,
         authScreenshot,
       ],
       validation,
@@ -304,6 +381,7 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
   const profilePath = `/tmp/fingerprint-browser-${runId}/proxy-switch`
   let session = await startQaSession({
     app: config.app,
+    language: null,
     logDir: dirs.logs,
     name: 'proxy-switch',
     profilePath,
@@ -313,7 +391,9 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
     const transitions = []
     for (const fixture of [fixtures.http, fixtures.socks5]) {
       const saved = await setProfileProxy(page, {...fixture, enabled: true})
-      if (!saved.savedStatus) {
+      if (!saved.enabled || saved.state !== 'active' ||
+          saved.scheme !== fixture.scheme ||
+          saved.egressIp !== fixture.expectedIp) {
         throw new Error(`Could not switch to ${fixture.scheme}`)
       }
       const response = await page.goto(fixture.verifyUrl, {
@@ -329,13 +409,16 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
       transitions.push({ip, scheme: fixture.scheme})
     }
     const screenshot = path.join(dirs.page, 'full-proxy-switch-socks5.png')
-    await page.goto('brave://settings/privacy', {waitUntil: 'domcontentloaded'})
+    await page.goto(
+      'brave://settings/fingerprintProfileProxy',
+      {waitUntil: 'domcontentloaded'})
     await page.screenshot({path: screenshot, fullPage: false})
     await assertCurrentWebUi(page, 'SOCKS5 switch state')
 
     await session.close()
     session = await startQaSession({
       app: config.app,
+      language: null,
       logDir: dirs.logs,
       name: 'proxy-switch-restart',
       profilePath,
@@ -345,29 +428,13 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
     if (!persisted.enabled || persisted.scheme !== 'socks5') {
       throw new Error('Switched SOCKS5 proxy did not persist across restart')
     }
-    await page.context().grantPermissions(['geolocation'], {origin: probe.origin})
-    const observed = await collectProbe(page, probe.origin)
-    await setProfileProxy(page, {
-      countryCode: '',
-      enabled: false,
-      host: '',
-      latitude: undefined,
-      longitude: undefined,
-      password: '',
-      port: 0,
-      scheme: 'socks5',
-      timezone: '',
-      username: '',
-    })
+    const observed = await collectProxySurfaceProbe(page)
+    await setProfileProxy(page, {enabled: false})
     return {
+      observed,
       persisted,
       screenshots: [screenshot],
       transitions,
-      workerContexts: {
-        dedicatedWorker: observed.dedicatedWorker,
-        serviceWorker: observed.serviceWorker,
-        sharedWorker: observed.sharedWorker,
-      },
     }
   } finally {
     await session.close()
@@ -435,6 +502,7 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
     ['google', 'https://www.google.com/'],
     ['facebook', 'https://www.facebook.com/'],
     ['settings', 'brave://settings/'],
+    ['proxy', 'brave://settings/fingerprintProfileProxy'],
     ['fingerprint', 'brave://fingerprint-test/'],
   ]
   const screenshots = []
@@ -471,8 +539,10 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
             page: targetPage,
             screenshot: pageScreenshot,
             url,
-            validateContrast: name === 'fingerprint' || name === 'settings',
-            validateLayout: name === 'fingerprint' || name === 'settings',
+            validateContrast:
+              name === 'fingerprint' || name === 'settings' || name === 'proxy',
+            validateLayout:
+              name === 'fingerprint' || name === 'settings' || name === 'proxy',
           })
           if (result.componentContrastFailures.length > 0 ||
               result.contrastFailures.length > 0 || result.layoutFailures.length > 0) {
@@ -485,7 +555,7 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
             })
           }
           screenshots.push(pageScreenshot)
-          if (name === 'fingerprint' || name === 'settings') {
+          if (name === 'fingerprint' || name === 'settings' || name === 'proxy') {
             await targetPage.bringToFront()
             await setFrontWindowSize(
               size.width, size.height, session.process.child.pid)
@@ -533,6 +603,17 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
               screenshots.push(stateScreenshot)
             }
           }
+          if (name === 'proxy') {
+            const validationScreenshot = path.join(
+              dirs.page,
+              `full-${theme}-proxy-validation-${size.width}x${size.height}.png`)
+            await renderProxyValidationError(
+              targetPage, validationScreenshot)
+            await assertCurrentWebUi(
+              targetPage,
+              `${theme} proxy validation ${size.width}x${size.height}`)
+            screenshots.push(validationScreenshot)
+          }
           if (targetPage !== page) {
             await targetPage.close()
           }
@@ -545,15 +626,121 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
   return {screenshots}
 }
 
-export async function runFull({config, dirs, probe, report, runId}) {
-  await runScenario(report, 'full-profile-lifecycle', async () =>
-    await runProfileLifecycle({config, dirs, probe, runId}))
+export async function runProxyToolbarFlow({config, dirs, runId}) {
+  const session = await startQaSession({
+    app: config.app,
+    logDir: dirs.logs,
+    name: 'proxy-toolbar',
+    profilePath: `/tmp/fingerprint-browser-${runId}/proxy-toolbar`,
+    profilePreferences: {
+      brave: {dark_mode_migrated: true},
+      browser: {theme: {color_scheme2: 1}},
+    },
+  })
+  try {
+    const page = session.context.pages()[0] || await session.context.newPage()
+    await page.goto('https://example.com/', {waitUntil: 'domcontentloaded'})
+    await page.bringToFront()
+    await page.waitForTimeout(500)
 
+    const toolbarScreenshot = path.join(
+      dirs.native, 'full-proxy-toolbar-button.png')
+    await captureNativeScreenshot(
+      toolbarScreenshot, session.process.child.pid)
+    await clickNativeText(
+      toolbarScreenshot, 'Profile proxy', session.process.child.pid)
+      .catch(async () => await clickNativeWindowOffset(
+        50, 60, session.process.child.pid))
+    await page.waitForTimeout(500)
+
+    const bubbleScreenshot = path.join(
+      dirs.native, 'full-proxy-toolbar-bubble.png')
+    await captureNativeScreenshot(
+      bubbleScreenshot, session.process.child.pid)
+    if (!(await nativeScreenshotHasText(bubbleScreenshot, 'Profile proxy')) ||
+        !(await nativeScreenshotHasText(bubbleScreenshot, 'Configure'))) {
+      throw new Error('Profile proxy toolbar bubble was not visible')
+    }
+    await clickNativeText(
+      bubbleScreenshot, 'Configure', session.process.child.pid)
+    await page.waitForTimeout(700)
+
+    const afterConfigureScreenshot = path.join(
+      dirs.native, 'full-proxy-toolbar-after-configure.png')
+    await captureNativeScreenshot(
+      afterConfigureScreenshot, session.process.child.pid)
+    if (await nativeScreenshotHasText(
+      afterConfigureScreenshot, 'Configure')) {
+      await clickNativeWindowOffset(
+        270, 282, session.process.child.pid)
+    }
+
+    let settingsPage
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      settingsPage = session.context.pages().find(
+        candidate =>
+          /^(?:brave|chrome):\/\/settings\/fingerprintProfileProxy/.test(
+            candidate.url()))
+      if (settingsPage) break
+      await page.waitForTimeout(100)
+    }
+    if (!settingsPage) {
+      throw Object.assign(
+        new Error('Profile proxy toolbar did not open its settings route'),
+        {details: {urls: session.context.pages().map(candidate => candidate.url())}},
+      )
+    }
+    await settingsPage.bringToFront()
+    await settingsPage.waitForFunction(() => {
+      function find(root) {
+        const direct = root.querySelector?.(
+          'settings-fingerprint-profile-proxy-subpage')
+        if (direct) return direct
+        for (const element of root.querySelectorAll?.('*') || []) {
+          if (element.shadowRoot) {
+            const nested = find(element.shadowRoot)
+            if (nested) return nested
+          }
+        }
+        return null
+      }
+      const proxyPage = find(document)
+      return Boolean(
+        proxyPage?.getClientRects().length &&
+        proxyPage.shadowRoot?.querySelector('#host'))
+    }, null, {timeout: 15000})
+    await settingsPage.waitForTimeout(1500)
+
+    const pageScreenshot = path.join(
+      dirs.page, 'full-proxy-toolbar-settings-route.png')
+    await settingsPage.screenshot({path: pageScreenshot, fullPage: false})
+    await assertCurrentWebUi(settingsPage, 'Profile proxy toolbar settings route')
+    return {
+      screenshots: [
+        toolbarScreenshot,
+        bubbleScreenshot,
+        afterConfigureScreenshot,
+        pageScreenshot,
+      ],
+      url: settingsPage.url(),
+    }
+  } finally {
+    await session.close()
+  }
+}
+
+export async function runProxyFixtures({config, dirs, probe, report, runId}) {
   let proxyFixtures
   await runScenario(report, 'full-proxy-fixtures', async () => {
     proxyFixtures = await loadProxyFixtures(config.proxyFixtures)
     if (proxyFixtures.status === 'BLOCKED') {
-      return proxyFixtures
+      return {
+        fixtures: ['http', 'socks5']
+          .filter(scheme => proxyFixtures[scheme])
+          .map(scheme => publicProxyRecord(proxyFixtures[scheme])),
+        reason: proxyFixtures.reason,
+        status: 'BLOCKED',
+      }
     }
     return {
       fixtures: [
@@ -562,8 +749,10 @@ export async function runFull({config, dirs, probe, report, runId}) {
       ],
     }
   })
-  if (proxyFixtures?.status === 'PASS') {
-    for (const scheme of ['http', 'socks5']) {
+  if (proxyFixtures) {
+    const availableSchemes = ['http', 'socks5']
+      .filter(scheme => proxyFixtures[scheme])
+    for (const scheme of availableSchemes) {
       await runScenario(report, `full-proxy-${scheme}`, async () =>
         await verifyProxy({
           config,
@@ -573,15 +762,24 @@ export async function runFull({config, dirs, probe, report, runId}) {
           runId,
         }))
     }
-    await runScenario(report, 'full-proxy-switch-persistence', async () =>
-      await verifyProxySwitchPersistence({
-        config,
-        dirs,
-        fixtures: proxyFixtures,
-        probe,
-        runId,
+    if (availableSchemes.length === 2) {
+      await runScenario(report, 'full-proxy-switch-persistence', async () =>
+        await verifyProxySwitchPersistence({
+          config,
+          dirs,
+          fixtures: proxyFixtures,
+          probe,
+          runId,
       }))
+    }
   }
+}
+
+export async function runFull({config, dirs, probe, report, runId}) {
+  await runScenario(report, 'full-profile-lifecycle', async () =>
+    await runProfileLifecycle({config, dirs, probe, runId}))
+
+  await runProxyFixtures({config, dirs, probe, report, runId})
 
   await runScenario(report, 'full-local-mv3-extension', async () =>
     await runLocalExtensionLifecycle({
@@ -622,6 +820,9 @@ export async function runFull({config, dirs, probe, report, runId}) {
 
   await runScenario(report, 'full-tls-source-regression', async () =>
     await verifyTlsSourceScope(config))
+
+  await runScenario(report, 'full-proxy-toolbar-flow', async () =>
+    await runProxyToolbarFlow({config, dirs, runId}))
 
   await runScenario(report, 'full-ui-theme-size-matrix', async () =>
     await runUiMatrix({config, dirs, probe, runId}))

@@ -5,11 +5,14 @@
 
 #include "brave/net/proxy_resolution/profile_proxy_config_service.h"
 
+#include <sstream>
+
 #include "net/base/host_port_pair.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_server.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "net/proxy_resolution/proxy_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -100,6 +103,42 @@ TEST(ProfileProxyConfigServiceTest, ReturnsSocks5ProxyWithCredentials) {
   EXPECT_EQ(1080, proxy_server.host_port_pair().port());
   EXPECT_EQ("socks-user", proxy_server.host_port_pair().username());
   EXPECT_EQ("socks-pass", proxy_server.host_port_pair().password());
+}
+
+TEST(ProfileProxyConfigServiceTest, ReturnsHttpsProxyWithCredentials) {
+  ProfileProxyConfigService service(AuthProxyServer(
+      ProxyServer::SCHEME_HTTPS, "secure-user", "secure-pass",
+      "proxy.example", 8443));
+  ProxyConfigWithAnnotation config;
+
+  ASSERT_EQ(ProxyConfigService::CONFIG_VALID,
+            service.GetLatestProxyConfig(&config));
+  const ProxyServer proxy_server = SingleProxyServer(config);
+  EXPECT_EQ(ProxyServer::SCHEME_HTTPS, proxy_server.scheme());
+  EXPECT_EQ("proxy.example", proxy_server.host_port_pair().host());
+  EXPECT_EQ(8443, proxy_server.host_port_pair().port());
+  EXPECT_EQ("secure-user", proxy_server.host_port_pair().username());
+  EXPECT_EQ("secure-pass", proxy_server.host_port_pair().password());
+}
+
+TEST(ProfileProxyConfigServiceTest, CredentialsAreRedactedFromDebugOutput) {
+  const ProxyServer proxy_server = AuthProxyServer(
+      ProxyServer::SCHEME_SOCKS5, "private-user", "private-pass",
+      "proxy.example", 1080);
+  const ProxyChain proxy_chain(proxy_server);
+  ProxyList proxy_list;
+  proxy_list.SetSingleProxyServer(proxy_server);
+  std::ostringstream stream;
+  stream << proxy_server;
+
+  for (const std::string& value :
+       {proxy_server.host_port_pair().ToString(),
+        proxy_chain.ToDebugString(), proxy_list.ToDebugString(),
+        proxy_list.ToValue().GetList()[0].GetString(), stream.str()}) {
+    EXPECT_EQ(std::string::npos, value.find("private-user"));
+    EXPECT_EQ(std::string::npos, value.find("private-pass"));
+    EXPECT_NE(std::string::npos, value.find("proxy.example"));
+  }
 }
 
 TEST(ProfileProxyConfigServiceTest, UpdateNotifiesObservers) {

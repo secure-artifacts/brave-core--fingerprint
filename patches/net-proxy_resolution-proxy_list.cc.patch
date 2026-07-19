@@ -1,0 +1,16 @@
+diff --git a/net/proxy_resolution/proxy_list.cc b/net/proxy_resolution/proxy_list.cc
+index be9893f9a587097e4add2276a5d04cd7d418aeeb..ae71db018cb26ba0436dc47ecab614238d4cbd7e 100644
+--- a/net/proxy_resolution/proxy_list.cc
++++ b/net/proxy_resolution/proxy_list.cc
+@@ -176,9 +176,8 @@ std::string ProxyList::ToDebugString() const {
+     if (proxy_chain.is_multi_proxy()) {
+       proxy_list += proxy_chain.ToDebugString();
+     } else {
+-      proxy_list += proxy_chain.is_direct()
+-                        ? "DIRECT"
+-                        : ProxyServerToPacResultElement(proxy_chain.First());
++      proxy_list += proxy_chain.is_direct() ? "DIRECT"
++                                            : proxy_chain.ToDebugString();
+     }
+   }
+   return proxy_list;

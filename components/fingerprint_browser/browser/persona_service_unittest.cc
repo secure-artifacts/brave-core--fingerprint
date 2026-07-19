@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "base/base_paths.h"
@@ -372,6 +373,64 @@ TEST(ProfileProxyConfigTest, BuildsSocks5ProxyWithCredentials) {
   EXPECT_EQ(1080, proxy_server->host_port_pair().port());
   EXPECT_EQ("socks-user", proxy_server->host_port_pair().username());
   EXPECT_EQ("socks-pass", proxy_server->host_port_pair().password());
+}
+
+TEST(ProfileProxyConfigTest, BuildsEverySupportedDraftScheme) {
+  const ProfileProxyDraft http{.scheme = prefs::kProfileProxySchemeHttp,
+                               .host = "proxy.example",
+                               .port = 8080,
+                               .username = "user",
+                               .password = "pass"};
+  const ProfileProxyDraft https{.scheme = prefs::kProfileProxySchemeHttps,
+                                .host = "proxy.example",
+                                .port = 8443,
+                                .username = "user",
+                                .password = "pass"};
+  const ProfileProxyDraft socks5{.scheme = prefs::kProfileProxySchemeSocks5,
+                                 .host = "proxy.example",
+                                 .port = 1080,
+                                 .username = "user",
+                                 .password = "pass"};
+
+  ASSERT_TRUE(BuildProfileProxyServer(http));
+  EXPECT_EQ(net::ProxyServer::SCHEME_HTTP,
+            BuildProfileProxyServer(http)->scheme());
+  ASSERT_TRUE(BuildProfileProxyServer(https));
+  EXPECT_EQ(net::ProxyServer::SCHEME_HTTPS,
+            BuildProfileProxyServer(https)->scheme());
+  ASSERT_TRUE(BuildProfileProxyServer(socks5));
+  EXPECT_EQ(net::ProxyServer::SCHEME_SOCKS5,
+            BuildProfileProxyServer(socks5)->scheme());
+  EXPECT_FALSE(BuildProfileProxyServer(
+      {.scheme = "ftp", .host = "proxy.example", .port = 21}));
+  EXPECT_FALSE(
+      BuildProfileProxyServer({.scheme = prefs::kProfileProxySchemeHttp,
+                               .host = "proxy.example",
+                               .port = 0}));
+}
+
+TEST(ProfileProxyConfigTest, BuildsEverySupportedSchemeWithoutCredentials) {
+  const ProfileProxyDraft http{.scheme = prefs::kProfileProxySchemeHttp,
+                               .host = "proxy.example",
+                               .port = 8080};
+  const ProfileProxyDraft https{.scheme = prefs::kProfileProxySchemeHttps,
+                                .host = "proxy.example",
+                                .port = 8443};
+  const ProfileProxyDraft socks5{.scheme = prefs::kProfileProxySchemeSocks5,
+                                 .host = "proxy.example",
+                                 .port = 1080};
+
+  for (const auto& [draft, expected_scheme] :
+       std::vector<std::pair<ProfileProxyDraft, net::ProxyServer::Scheme>>{
+           {http, net::ProxyServer::SCHEME_HTTP},
+           {https, net::ProxyServer::SCHEME_HTTPS},
+           {socks5, net::ProxyServer::SCHEME_SOCKS5}}) {
+    const auto proxy = BuildProfileProxyServer(draft);
+    ASSERT_TRUE(proxy);
+    EXPECT_EQ(expected_scheme, proxy->scheme());
+    EXPECT_TRUE(proxy->host_port_pair().username().empty());
+    EXPECT_TRUE(proxy->host_port_pair().password().empty());
+  }
 }
 
 TEST(ProfileProxyConfigTest, RejectsInvalidProxyServerPrefs) {

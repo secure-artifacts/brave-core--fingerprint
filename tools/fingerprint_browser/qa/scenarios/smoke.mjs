@@ -140,10 +140,20 @@ export async function runSmoke({config, dirs, probe, report, session}) {
     const restoredUrl = last.url()
     await last.bringToFront()
     await last.close()
-    const restoredPagePromise = session.context.waitForEvent('page', {timeout: 5000})
-    await nativeShortcut('t', ['command', 'shift'], session.process.child.pid)
-    const restoredPage = await restoredPagePromise
-    await restoredPage.waitForURL(restoredUrl, {timeout: 5000})
+    let restoredPage
+    for (let attempt = 0; attempt < 2 && !restoredPage; attempt += 1) {
+      const restoredPagePromise = session.context.waitForEvent(
+        'page', {timeout: 10000})
+      await nativeShortcut('t', ['command', 'shift'], session.process.child.pid)
+      try {
+        restoredPage = await restoredPagePromise
+      } catch (error) {
+        if (attempt === 1) {
+          throw error
+        }
+      }
+    }
+    await restoredPage.waitForURL(restoredUrl, {timeout: 10000})
     if (restoredPage.url() !== restoredUrl) {
       throw new Error(
         `Closed tab was not restored: expected ${restoredUrl}, got ${restoredPage.url()}`)

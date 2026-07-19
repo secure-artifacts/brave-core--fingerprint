@@ -188,6 +188,35 @@ async function captureExtensionPages(page, extensionId, manifest, pageDir, prefi
   return screenshots
 }
 
+async function openExtensionsMenu({
+  extensionName,
+  menuScreenshot,
+  pid,
+  toolbarScreenshot,
+}) {
+  const attempts = [
+    async () => await clickNativeText(toolbarScreenshot, 'Extensions', pid),
+    async () => await clickNativeWindowOffset(170, 60, pid),
+    async () => await clickNativeWindowOffset(180, 60, pid),
+  ]
+  let lastError
+  for (const open of attempts) {
+    try {
+      await open()
+      await new Promise(resolve => setTimeout(resolve, 600))
+      await captureNativeScreenshot(menuScreenshot, pid)
+      if (await nativeScreenshotHasText(menuScreenshot, extensionName)) return
+    } catch (error) {
+      lastError = error
+    }
+    await nativeKeyCode(53, pid).catch(() => {})
+    await new Promise(resolve => setTimeout(resolve, 200))
+  }
+  throw new Error(
+    `Extensions menu did not show ${extensionName}` +
+      (lastError ? `: ${lastError.message}` : ''))
+}
+
 async function captureWebStoreExtensionPages({
   page,
   extension,
@@ -206,10 +235,13 @@ async function captureWebStoreExtensionPages({
     const toolbarScreenshot = path.join(
       dirs.native, `${prefix}-extensions-menu-button.png`)
     await captureNativeScreenshot(toolbarScreenshot, pid)
-    await clickNativeWindowOffset(140, 60, pid)
-    await new Promise(resolve => setTimeout(resolve, 500))
     const menuScreenshot = path.join(dirs.native, `${prefix}-extensions-menu.png`)
-    await captureNativeScreenshot(menuScreenshot, pid)
+    await openExtensionsMenu({
+      extensionName: extension.name,
+      menuScreenshot,
+      pid,
+      toolbarScreenshot,
+    })
     await clickNativeText(menuScreenshot, extension.name, pid)
     await new Promise(resolve => setTimeout(resolve, 800))
     const popupScreenshot = path.join(dirs.native, `${prefix}-popup.png`)
@@ -308,7 +340,9 @@ export async function runLocalExtensionLifecycle({config, dirs, fixtureDir, prob
     if (conflict?.error) {
       throw new Error(`MV3 proxy conflict setup failed: ${conflict.error}`)
     }
-    await page.goto('brave://settings/privacy', {waitUntil: 'domcontentloaded'})
+    await page.goto(
+      'brave://settings/fingerprintProfileProxy',
+      {waitUntil: 'domcontentloaded'})
     await page.waitForFunction(() => {
       function find(root) {
         const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
@@ -321,7 +355,9 @@ export async function runLocalExtensionLifecycle({config, dirs, fixtureDir, prob
         }
         return null
       }
-      return Boolean(find(document)?.conflictWarning_)
+      const element = find(document)
+      return Boolean(
+        element?.state_ === 'conflict' && element?.statusMessage_)
     }, null, {timeout: 15000})
     const conflictScreenshot = path.join(
       dirs.page, 'full-local-extension-proxy-conflict.png')

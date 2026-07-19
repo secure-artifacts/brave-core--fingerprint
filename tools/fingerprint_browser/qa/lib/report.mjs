@@ -64,9 +64,16 @@ export async function writeReports(report, runDir) {
   if (safeReport.artifacts) {
     lines.push('', '## Artifacts', '')
     lines.push(`- Dylibs: ${safeReport.artifacts.dylibs.count} matched`)
+    lines.push(
+      `- App/Framework/Helper executables: ${safeReport.artifacts.baseApp.source.count} matched`)
+    lines.push(
+      `- Build source manifest: \`${safeReport.artifacts.buildManifest.file}\``)
     lines.push(`- libchrome SHA-256: \`${safeReport.artifacts.libchrome.source.sha256}\``)
     lines.push(`- resources SHA-256: \`${safeReport.artifacts.resources.source.sha256}\``)
     lines.push(`- Chromium resources SHA-256: \`${safeReport.artifacts.resources.chromiumSource.sha256}\``)
+    lines.push(`- Scaled resource packs: ${safeReport.artifacts.resources.scaled.count} matched`)
+    lines.push(`- Locale packs: ${safeReport.artifacts.resources.locales.count} matched`)
+    lines.push(`- Locale set SHA-256: \`${safeReport.artifacts.resources.locales.digest}\``)
     lines.push(`- Codesign: ${safeReport.artifacts.signature.pass ? 'PASS' : 'FAIL'}`)
   }
   const analyses = safeReport.scenarios.flatMap(scenario => scenario.analyses || [])

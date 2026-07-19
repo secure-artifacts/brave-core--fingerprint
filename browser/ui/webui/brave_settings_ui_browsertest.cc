@@ -56,6 +56,78 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest, LoadsBraveSettingsUI) {
   EXPECT_NE(background, "rgb(255, 0, 0)");
 }
 
+IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
+                       LoadsFingerprintProfileProxySettings) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("chrome://settings/privacy")));
+
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(web_contents, nullptr);
+  EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+
+  const auto visibility = content::EvalJs(web_contents, R"(
+    (async () => {
+      const findElement = (root, selector) => {
+        const direct = root.querySelector(selector);
+        if (direct) {
+          return direct;
+        }
+        for (const element of root.querySelectorAll('*')) {
+          if (element.shadowRoot) {
+            const result = findElement(element.shadowRoot, selector);
+            if (result) {
+              return result;
+            }
+          }
+        }
+        return null;
+      };
+      for (let attempt = 0; attempt < 100; ++attempt) {
+        const link = findElement(
+            document, '#fingerprintProfileProxyLinkRow');
+        if (link) {
+          link.click();
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      for (let attempt = 0; attempt < 100; ++attempt) {
+        if (location.pathname === '/fingerprintProfileProxy') {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      const findProxyPage = (root) => {
+        const direct = root.querySelector(
+            'settings-fingerprint-profile-proxy-subpage');
+        if (direct) {
+          return direct;
+        }
+        for (const element of root.querySelectorAll('*')) {
+          if (element.shadowRoot) {
+            const result = findProxyPage(element.shadowRoot);
+            if (result) {
+              return result;
+            }
+          }
+        }
+        return null;
+      };
+      for (let attempt = 0; attempt < 100; ++attempt) {
+        const proxyPage = findProxyPage(document);
+        if (proxyPage && proxyPage.getClientRects().length > 0 &&
+            proxyPage.shadowRoot?.querySelector('#host')) {
+          return 'visible';
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return 'missing';
+    })()
+  )")
+                              .ExtractString();
+  EXPECT_EQ(visibility, "visible");
+}
+
 // Test that chrome://settings loads without crashing in guest profiles.
 // This verifies that all Mojo interface bindings properly handle null services
 // for guest profiles (e.g., BraveOriginService).

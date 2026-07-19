@@ -14,6 +14,7 @@
 #include "brave/browser/brave_shields/brave_shields_settings_service_factory.h"
 #include "brave/browser/debounce/debounce_service_factory.h"
 #include "brave/browser/ephemeral_storage/ephemeral_storage_service_factory.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
 #include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/browser/misc_metrics/profile_misc_metrics_service_factory.h"
 #include "brave/browser/ntp_background/view_counter_service_factory.h"
@@ -146,6 +147,7 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
   debounce::DebounceServiceFactory::GetInstance();
   brave::URLSanitizerServiceFactory::GetInstance();
   BraveRendererUpdaterFactory::GetInstance();
+  fingerprint_browser::FingerprintProxyServiceFactory::GetInstance();
   fingerprint_browser::PersonaServiceFactory::GetInstance();
   SearchEngineProviderServiceFactory::GetInstance();
   misc_metrics::ProfileMiscMetricsServiceFactory::GetInstance();

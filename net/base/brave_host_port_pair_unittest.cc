@@ -30,9 +30,8 @@ std::vector<HostPortPair> GetTestCasesInAccedingOrder() {
 
 TEST(BraveHostPortPairTest, Parsing) {
   HostPortPair foo("user", "pass", "foo.com", 10);
-  std::string foo_str = foo.ToString();
-  EXPECT_EQ("user:pass@foo.com:10", foo_str);
-  HostPortPair bar = HostPortPair::FromString(foo_str);
+  EXPECT_EQ("foo.com:10", foo.ToString());
+  HostPortPair bar = HostPortPair::FromString("user:pass@foo.com:10");
   EXPECT_EQ(bar.host(), "foo.com");
   EXPECT_EQ(bar.port(), 10);
   EXPECT_EQ(bar.username(), "user");

@@ -8,6 +8,7 @@ const COMPONENT_UNIT_FILTER = [
   'PersonaSerializationTest.*',
   'PersonaServiceTest.*',
   'ProfileProxyConfigTest.*',
+  'ProxyGeoProviderTest.*',
 ].join(':')
 
 const BRAVE_UNIT_FILTER = [

@@ -17,6 +17,8 @@ source_set("browser") {
     "pref_names.h",
     "profile_proxy_config.cc",
     "profile_proxy_config.h",
+    "proxy_geo_provider.cc",
+    "proxy_geo_provider.h",
     "truth_pool.cc",
     "truth_pool.h",
   ]
@@ -28,6 +30,7 @@ source_set("browser") {
     "//components/prefs",
     "//components/proxy_config",
     "//net",
+    "//third_party/icu:icui18n",
     "//brave/third_party/libmaxminddb:libmaxminddb",
   ]
 }
@@ -35,7 +38,10 @@ source_set("browser") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "persona_service_unittest.cc" ]
+  sources = [
+    "persona_service_unittest.cc",
+    "proxy_geo_provider_unittest.cc",
+  ]
 
   deps = [
     ":browser",

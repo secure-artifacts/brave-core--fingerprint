@@ -21,6 +21,10 @@ test('parseArgs rejects unknown modes and invalid soak durations', () => {
     /must be greater than zero/)
 })
 
+test('parseArgs recognizes proxy diagnostics mode', () => {
+  assert.equal(parseArgs(['--mode', 'proxy']).mode, 'proxy')
+})
+
 test('parseArgs recognizes gate flags', () => {
   const parsed = parseArgs([
     '--no-prepare-app',

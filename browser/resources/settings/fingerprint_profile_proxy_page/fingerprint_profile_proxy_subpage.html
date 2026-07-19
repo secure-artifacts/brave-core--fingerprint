@@ -23,10 +23,8 @@
     padding-top: 12px;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .status-row {
-      color: var(--google-grey-300);
-    }
+  .warning-row {
+    color: var(--cr-fallback-color-warning);
   }
 
   .error-row {
@@ -37,41 +35,162 @@
     font-weight: 500;
   }
 
-  .actions-row {
-    justify-content: flex-end;
+  .result-panel {
+    border: 1px solid var(--cr-separator-color);
+    border-radius: 8px;
+    margin: 12px var(--cr-section-padding);
+    overflow: hidden;
   }
 
-  .actions-row cr-button {
-    margin-inline-start: 8px;
+  .result-header {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .flag {
+    align-items: center;
+    background-image: url('fingerprint-proxy-flags.png');
+    background-repeat: no-repeat;
+    display: flex;
+    font-size: 14px;
+    height: 48px;
+    justify-content: center;
+    min-width: 64px;
+    width: 64px;
+  }
+
+  .result-grid {
+    border-top: 1px solid var(--cr-separator-color);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .result-item {
+    min-width: 0;
+    padding: 12px 16px;
+  }
+
+  .result-label {
+    color: var(--cr-secondary-text-color);
+    font-size: 12px;
+  }
+
+  .result-value {
+    overflow-wrap: anywhere;
+    padding-top: 4px;
+  }
+
+  .actions-row {
+    gap: 8px;
+    justify-content: flex-end;
   }
 
   #scheme {
     width: 160px;
   }
 
+  @media (prefers-color-scheme: dark) {
+    .status-row {
+      color: var(--google-grey-300);
+    }
+
+    .warning-row {
+      color: var(--google-yellow-300);
+    }
+  }
+
   @media (max-width: 600px) {
-    .proxy-grid {
+    .proxy-grid,
+    .result-grid {
       grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>
 
 <settings-section page-title="$i18n{profileProxyTitle}">
-  <settings-toggle-button id="profileProxyEnabled"
-      class="cr-row"
-      pref="[[enabledPref_]]"
-      label="$i18n{profileProxyEnabledLabel}"
-      sub-label="$i18n{profileProxyEnabledDesc}"
-      on-settings-boolean-control-change="onEnabledChange_">
-  </settings-toggle-button>
-
-  <template is="dom-if" if="[[showNoProxyRisk_]]">
-    <div id="noProxyRisk" class="cr-row continuation status-row"
-        role="alert">
+  <template is="dom-if" if="[[!enabled_]]">
+    <div id="noProxyRisk" class="cr-row status-row warning-row" role="alert">
       <div>
         <div class="status-title">$i18n{profileProxyNoProxyRiskTitle}</div>
         <div>$i18n{profileProxyNoProxyRiskDesc}</div>
       </div>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[isActive_(state_, activeGeo_)]]">
+    <div class="result-panel" id="activeProxy">
+      <div class="result-header">
+        <div class="flag"
+            style$="[[countryFlagStyle_(activeGeo_.countryCode)]]">
+          [[countryFlagFallback_(activeGeo_.countryCode)]]
+        </div>
+        <div>
+          <div class="status-title">[[statusMessage_]]</div>
+          <div class="secondary">[[egressIp_]]</div>
+        </div>
+      </div>
+      <template is="dom-if" if="[[activeGeo_]]">
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-label">$i18n{profileProxyLocation}</div>
+            <div class="result-value">
+              [[activeGeo_.countryName]], [[activeGeo_.cityName]]
+            </div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">$i18n{profileProxyTimezone}</div>
+            <div class="result-value">[[activeGeo_.timezone]]</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">$i18n{profileProxyLanguage}</div>
+            <div class="result-value">[[activeGeo_.acceptLanguages]]</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">$i18n{profileProxyLastVerified}</div>
+            <div class="result-value">
+              [[formatLastVerified_(lastVerified_)]]
+            </div>
+          </div>
+        </div>
+      </template>
+      <div class="cr-row actions-row">
+        <cr-button on-click="onDisable_" disabled="[[isBusy_]]">
+          $i18n{profileProxyDisable}
+        </cr-button>
+        <cr-button class="action-button" on-click="onRevalidate_"
+            disabled="[[isBusy_]]">
+          $i18n{profileProxyRevalidate}
+        </cr-button>
+      </div>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[showWarningState_(state_)]]">
+    <div class$="cr-row status-row [[warningStateClass_(state_)]]"
+        role="alert">
+      <div>
+        <div class="status-title">[[statusMessage_]]</div>
+      </div>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[showRecoveryActions_(enabled_, state_)]]">
+    <div class="cr-row actions-row">
+      <cr-button on-click="onDisable_" disabled="[[isBusy_]]">
+        $i18n{profileProxyDisable}
+      </cr-button>
+      <cr-button class="action-button" on-click="onRevalidate_"
+          disabled="[[isBusy_]]">
+        $i18n{profileProxyRevalidate}
+      </cr-button>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[isNonEmpty_(changeWarning_)]]">
+    <div class="cr-row status-row warning-row" role="alert">
+      <div>[[changeWarning_]]</div>
     </div>
   </template>
 
@@ -81,12 +200,13 @@
       <div class="secondary">$i18n{profileProxySchemeDesc}</div>
     </div>
     <select id="scheme" class="md-select" on-change="onSchemeChanged_">
-      <option value="http"
-          selected="[[schemeEqual_('http', scheme_)]]">
+      <option value="http" selected="[[schemeEqual_('http', scheme_)]]">
         $i18n{profileProxyHttp}
       </option>
-      <option value="socks5"
-          selected="[[schemeEqual_('socks5', scheme_)]]">
+      <option value="https" selected="[[schemeEqual_('https', scheme_)]]">
+        $i18n{profileProxyHttps}
+      </option>
+      <option value="socks5" selected="[[schemeEqual_('socks5', scheme_)]]">
         $i18n{profileProxySocks5}
       </option>
     </select>
@@ -124,99 +244,73 @@
           label="$i18n{profileProxyPasswordLabel}"
           value="{{password_::input}}"
           type="password"
+          placeholder="[[passwordHint_(hasSavedPassword_)]]"
           on-input="onInputChanged_">
       </cr-input>
     </div>
   </div>
 
-  <div class="cr-row first">
-    <div class="flex">
-      <div class="label">$i18n{profileProxyManualGeoTitle}</div>
-      <div class="secondary">$i18n{profileProxyManualGeoDesc}</div>
+  <template is="dom-if" if="[[isNonEmpty_(actionError_)]]">
+    <div id="actionError" class="cr-row status-row error-row" role="alert">
+      <div>[[actionError_]]</div>
     </div>
-  </div>
+  </template>
 
-  <div class="proxy-field">
-    <div class="proxy-grid">
-      <cr-input id="manualCountryCode"
-          label="$i18n{profileProxyManualCountryCodeLabel}"
-          value="{{manualCountryCode_::input}}"
-          maxlength="2"
-          spellcheck="false"
-          on-input="onInputChanged_">
-      </cr-input>
-      <cr-input id="manualTimezone"
-          label="$i18n{profileProxyManualTimezoneLabel}"
-          value="{{manualTimezone_::input}}"
-          spellcheck="false"
-          on-input="onInputChanged_">
-      </cr-input>
-      <cr-input id="manualLatitude"
-          label="$i18n{profileProxyManualLatitudeLabel}"
-          value="{{manualLatitude_::input}}"
-          type="number"
-          min="-90"
-          max="90"
-          on-input="onInputChanged_">
-      </cr-input>
-      <cr-input id="manualLongitude"
-          label="$i18n{profileProxyManualLongitudeLabel}"
-          value="{{manualLongitude_::input}}"
-          type="number"
-          min="-180"
-          max="180"
-          on-input="onInputChanged_">
-      </cr-input>
-    </div>
-  </div>
-
-  <template is="dom-if" if="[[isNonEmpty_(conflictWarning_)]]">
-    <div id="conflictWarning" class="cr-row continuation status-row"
-        role="alert">
-      <div>
-        <div class="status-title">$i18n{profileProxyConflictWarningTitle}</div>
-        <div>[[conflictWarning_]]</div>
+  <template is="dom-if" if="[[verification_]]">
+    <div class="result-panel" id="verificationResult">
+      <div class="result-header">
+        <div class="flag"
+            style$="[[countryFlagStyle_(verification_.geo.countryCode)]]">
+          [[countryFlagFallback_(verification_.geo.countryCode)]]
+        </div>
+        <div>
+          <div class="status-title">
+            [[verification_.geo.countryName]],
+            [[verification_.geo.cityName]]
+          </div>
+          <div class="secondary">[[verification_.egressIp]]</div>
+        </div>
+      </div>
+      <div class="result-grid">
+        <div class="result-item">
+          <div class="result-label">$i18n{profileProxyTimezone}</div>
+          <div class="result-value">[[verification_.geo.timezone]]</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">$i18n{profileProxyCoordinates}</div>
+          <div class="result-value">
+            [[formatCoordinates_(verification_.geo)]]
+          </div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">$i18n{profileProxyLanguage}</div>
+          <div class="result-value">
+            [[verification_.geo.acceptLanguages]]
+          </div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">$i18n{profileProxyWebRtc}</div>
+          <div class="result-value">$i18n{profileProxyWebRtcProxyOnly}</div>
+        </div>
+      </div>
+      <div class="cr-row actions-row">
+        <cr-button on-click="onInputChanged_" disabled="[[isBusy_]]">
+          $i18n{profileProxyModify}
+        </cr-button>
+        <cr-button class="action-button" on-click="onApply_"
+            disabled="[[isBusy_]]">
+          $i18n{profileProxyConfirmApply}
+        </cr-button>
       </div>
     </div>
   </template>
 
-  <template is="dom-if" if="[[isNonEmpty_(geoWarning_)]]">
-    <div id="geoWarning" class="cr-row continuation status-row error-row"
-        role="alert">
-      <div>
-        <div class="status-title">$i18n{profileProxyGeoWarningTitle}</div>
-        <div>[[geoWarning_]]</div>
-      </div>
+  <template is="dom-if" if="[[!verification_]]">
+    <div class="cr-row actions-row">
+      <cr-button id="verify" class="action-button" on-click="onVerify_"
+          disabled="[[isBusy_]]">
+        $i18n{profileProxyVerify}
+      </cr-button>
     </div>
   </template>
-
-  <template is="dom-if" if="[[isNonEmpty_(lastError_)]]">
-    <div id="runtimeError" class="cr-row continuation status-row error-row"
-        role="alert">
-      <div>
-        <div class="status-title">$i18n{profileProxyRuntimeErrorTitle}</div>
-        <div>[[lastError_]]</div>
-      </div>
-    </div>
-  </template>
-
-  <template is="dom-if" if="[[isNonEmpty_(saveError_)]]">
-    <div id="saveError" class="cr-row continuation status-row error-row"
-        role="alert">
-      <div>[[saveError_]]</div>
-    </div>
-  </template>
-
-  <template is="dom-if" if="[[isNonEmpty_(savedStatus_)]]">
-    <div id="savedStatus" class="cr-row continuation status-row">
-      <div>[[savedStatus_]]</div>
-    </div>
-  </template>
-
-  <div class="cr-row continuation actions-row">
-    <cr-button id="save" class="action-button" on-click="onSave_"
-        disabled="[[isSaving_]]">
-      $i18n{profileProxySave}
-    </cr-button>
-  </div>
 </settings-section>

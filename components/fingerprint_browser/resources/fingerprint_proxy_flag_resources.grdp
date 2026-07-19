@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<grit-part>
+  <include name="IDR_FINGERPRINT_PROXY_FLAG_ATLAS"
+           file="../fingerprint_browser/resources/flag_icons/flags_4x3_atlas.png"
+           type="BINDATA" />
+</grit-part>

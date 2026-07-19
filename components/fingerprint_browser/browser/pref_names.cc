@@ -19,6 +19,17 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(kProfileProxyPort, 0);
   registry->RegisterStringPref(kProfileProxyUsername, std::string());
   registry->RegisterStringPref(kProfileProxyPassword, std::string());
+  registry->RegisterStringPref(kProfileProxyEncryptedPassword, std::string());
+  registry->RegisterIntegerPref(kProfileProxyCredentialGeneration, 0);
+  registry->RegisterStringPref(kProfileProxyState, "unconfigured");
+  registry->RegisterStringPref(kProfileProxyStatusMessage, std::string());
+  registry->RegisterStringPref(kProfileProxyChangeWarning, std::string());
+  registry->RegisterStringPref(kProfileProxyEgressIp, std::string());
+  registry->RegisterStringPref(kProfileProxyCountryName, std::string());
+  registry->RegisterStringPref(kProfileProxyRegionName, std::string());
+  registry->RegisterStringPref(kProfileProxyCityName, std::string());
+  registry->RegisterStringPref(kProfileProxyGeoProvider, std::string());
+  registry->RegisterInt64Pref(kProfileProxyLastVerifiedTime, 0);
   registry->RegisterStringPref(kProfileProxyLastError, std::string());
   registry->RegisterIntegerPref(kProfileProxyLastErrorCode, 0);
   registry->RegisterBooleanPref(kProfileProxyHasSavedWebRTCIPHandlingPolicy,

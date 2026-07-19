@@ -7,10 +7,14 @@ import {pathExists, run, sha256} from './system.mjs'
 
 const SOURCE_GROUPS = {
   native: [
+    '../chrome/browser/net/proxy_config_monitor.cc',
     '../chrome/browser/net/profile_network_context_service.cc',
     '../components/performance_manager/worker_watcher.cc',
     '../net/http/http_network_transaction.cc',
     '../net/http/http_network_transaction.h',
+    '../net/base/proxy_chain.cc',
+    '../net/base/proxy_server.cc',
+    '../net/proxy_resolution/proxy_list.cc',
     '../third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc',
     '../third_party/blink/renderer/core/workers/shared_worker_content_settings_proxy.cc',
     '../third_party/blink/renderer/modules/service_worker/service_worker_content_settings_proxy.cc',
@@ -21,14 +25,20 @@ const SOURCE_GROUPS = {
     'browser/brave_content_browser_client.h',
     'browser/farbling',
     'browser/fingerprint_browser',
-    'browser/net/proxy_resolution/profile_proxy_config_service.cc',
-    'browser/net/proxy_resolution/profile_proxy_config_service.h',
+    'browser/ui/views/toolbar/brave_toolbar_view.cc',
+    'browser/ui/views/toolbar/brave_toolbar_view.h',
+    'browser/ui/views/toolbar/fingerprint_proxy_button.cc',
+    'browser/ui/views/toolbar/fingerprint_proxy_button.h',
     'browser/ui/webui/brave_settings_ui.cc',
     'browser/ui/webui/fingerprint_test',
     'browser/ui/webui/settings/fingerprint_profile_proxy_handler.cc',
     'browser/ui/webui/settings/fingerprint_profile_proxy_handler.h',
     'chromium_src/chrome/browser/content_settings',
     'chromium_src/chrome/renderer/worker_content_settings_client.cc',
+    'chromium_src/net/base/host_port_pair.cc',
+    'chromium_src/net/base/host_port_pair.h',
+    'chromium_src/net/base/proxy_string_util.cc',
+    'chromium_src/net/base/proxy_string_util.h',
     'chromium_src/components/content_settings',
     'chromium_src/content/browser/service_worker',
     'chromium_src/content/browser/worker_host',
@@ -42,10 +52,16 @@ const SOURCE_GROUPS = {
     'chromium_src/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc',
     'components/content_settings/renderer/brave_content_settings_agent_impl.cc',
     'components/fingerprint_browser/browser',
+    'net/proxy_resolution/profile_proxy_config_service.cc',
+    'net/proxy_resolution/profile_proxy_config_service.h',
+    'patches/chrome-browser-net-proxy_config_monitor.cc.patch',
     'patches/chrome-browser-net-profile_network_context_service.cc.patch',
     'patches/components-performance_manager-worker_watcher.cc.patch',
     'patches/net-http-http_network_transaction.cc.patch',
     'patches/net-http-http_network_transaction.h.patch',
+    'patches/net-base-proxy_chain.cc.patch',
+    'patches/net-base-proxy_server.cc.patch',
+    'patches/net-proxy_resolution-proxy_list.cc.patch',
     'patches/third_party-blink-renderer-core-BUILD.gn.patch',
     'patches/third_party-blink-renderer-core-execution_context-navigator_base.cc.patch',
     'patches/third_party-blink-renderer-core-frame-navigator_device_memory.cc.patch',
@@ -56,14 +72,32 @@ const SOURCE_GROUPS = {
     'third_party/libmaxminddb/include/maxminddb_config.h',
   ],
   braveResources: [
+    'app/brave_settings_strings.grdp',
     'browser/resources/settings/fingerprint_profile_proxy_page',
     'browser/resources/settings/br/privacy_page_index.ts',
     'components/fingerprint_browser/resources',
+  ],
+  localeResources: [
+    'app/brave_settings_strings.grdp',
+  ],
+  scaledResources: [
+    'app/brave_settings_strings.grdp',
+    'components/fingerprint_browser/resources/fingerprint_proxy_flag_resources.grdp',
+    'components/resources/brave_components_resources.grd',
   ],
   chromiumResources: [
     'chromium_src/ui/webui/resources/cr_elements/md_select_lit.css',
   ],
 }
+
+const SCALED_RESOURCE_PACKS = [
+  'brave_100_percent.pak',
+  'brave_200_percent.pak',
+  'chrome_100_percent.pak',
+  'chrome_200_percent.pak',
+]
+
+const BUILD_MANIFEST_NAME = 'fingerprint-browser-build-manifest.json'
 
 async function filesUnder(target) {
   const stat = await fs.stat(target)
@@ -87,6 +121,18 @@ async function namedFilesUnder(target, name) {
 }
 
 async function latestSource(braveRoot, paths) {
+  const relevant = await sourceFiles(braveRoot, paths)
+  let latest = {file: null, mtimeMs: 0}
+  for (const file of relevant) {
+    const stat = await fs.stat(file)
+    if (stat.mtimeMs > latest.mtimeMs) {
+      latest = {file, mtimeMs: stat.mtimeMs}
+    }
+  }
+  return latest
+}
+
+async function sourceFiles(braveRoot, paths) {
   const files = []
   for (const relative of paths) {
     const target = path.join(braveRoot, relative)
@@ -98,14 +144,24 @@ async function latestSource(braveRoot, paths) {
     !file.includes(`${path.sep}test${path.sep}`) &&
     !file.endsWith('_browsertest.cc') &&
     !file.endsWith('_unittest.cc'))
-  let latest = {file: null, mtimeMs: 0}
-  for (const file of relevant) {
-    const stat = await fs.stat(file)
-    if (stat.mtimeMs > latest.mtimeMs) {
-      latest = {file, mtimeMs: stat.mtimeMs}
-    }
+  return [...new Set(relevant)].sort()
+}
+
+async function sourceGroupIdentity(braveRoot, groupName) {
+  const files = await sourceFiles(braveRoot, SOURCE_GROUPS[groupName])
+  const digest = createHash('sha256')
+  const records = []
+  for (const file of files) {
+    const relative = path.relative(braveRoot, file)
+    const contentSha256 = await sha256(file)
+    records.push({file: relative, sha256: contentSha256})
+    digest.update(`${relative}\0${contentSha256}\n`)
   }
-  return latest
+  return {
+    count: records.length,
+    digest: digest.digest('hex'),
+    files: records,
+  }
 }
 
 async function findFramework(outDir) {
@@ -135,6 +191,13 @@ async function frameworkVersionDirectory(framework) {
 async function dylibsIn(directory) {
   return (await fs.readdir(directory, {withFileTypes: true}))
     .filter(entry => entry.isFile() && entry.name.endsWith('.dylib'))
+    .map(entry => path.join(directory, entry.name))
+    .sort()
+}
+
+async function localePacksIn(directory) {
+  return (await fs.readdir(directory, {withFileTypes: true}))
+    .filter(entry => entry.isFile() && entry.name.endsWith('.pak'))
     .map(entry => path.join(directory, entry.name))
     .sort()
 }
@@ -243,6 +306,144 @@ export async function unsignedMachOSha256(file) {
   }
 }
 
+async function isMachO(file) {
+  const handle = await fs.open(file, 'r')
+  try {
+    const header = Buffer.alloc(4)
+    const {bytesRead} = await handle.read(header, 0, header.length, 0)
+    if (bytesRead !== header.length) return false
+    const littleEndian = header.readUInt32LE(0)
+    const bigEndian = header.readUInt32BE(0)
+    return littleEndian === 0xfeedfacf || bigEndian === 0xfeedfacf
+  } finally {
+    await handle.close()
+  }
+}
+
+async function appExecutableManifest(app) {
+  const records = []
+  for (const file of await filesUnder(app)) {
+    if (file.endsWith('.dylib') || !(await isMachO(file))) continue
+    records.push({
+      file: path.relative(app, file),
+      sha256: await unsignedMachOSha256(file),
+    })
+  }
+  records.sort((left, right) => left.file.localeCompare(right.file))
+  const digest = createHash('sha256')
+  for (const record of records) {
+    digest.update(`${record.file}\0${record.sha256}\n`)
+  }
+  return {
+    count: records.length,
+    digest: digest.digest('hex'),
+    files: records,
+  }
+}
+
+async function artifactHashes(outDir) {
+  const localeDirectory = path.join(outDir, 'gen', 'repack', 'locales')
+  const localeFiles = await localePacksIn(localeDirectory)
+  const localeDigest = createHash('sha256')
+  for (const file of localeFiles) {
+    localeDigest.update(`${path.basename(file)}\0${await sha256(file)}\n`)
+  }
+  const scaled = {}
+  for (const name of SCALED_RESOURCE_PACKS) {
+    scaled[name] = await sha256(path.join(outDir, 'gen', 'repack', name))
+  }
+  return {
+    braveResources: await sha256(
+      path.join(outDir, 'gen', 'repack', 'brave_resources.pak')),
+    chromiumResources: await sha256(
+      path.join(outDir, 'gen', 'repack', 'resources.pak')),
+    locales: {
+      count: localeFiles.length,
+      digest: localeDigest.digest('hex'),
+    },
+    native: await sha256(path.join(outDir, 'libchrome_dll.dylib')),
+    scaled,
+  }
+}
+
+async function readBuildManifest(outDir) {
+  const file = path.join(outDir, BUILD_MANIFEST_NAME)
+  if (!(await pathExists(file))) return null
+  return JSON.parse(await fs.readFile(file, 'utf8'))
+}
+
+export async function writeBuildManifest({braveRoot, mode, outDir}) {
+  if (mode !== 'cpp' && mode !== 'resources') {
+    throw new Error(`Unsupported build manifest mode: ${mode}`)
+  }
+  const previous = await readBuildManifest(outDir)
+  const groups = mode === 'cpp'
+    ? {
+        braveResources: await sourceGroupIdentity(braveRoot, 'braveResources'),
+        chromiumResources: await sourceGroupIdentity(braveRoot, 'chromiumResources'),
+        localeResources: await sourceGroupIdentity(braveRoot, 'localeResources'),
+        native: await sourceGroupIdentity(braveRoot, 'native'),
+        scaledResources: await sourceGroupIdentity(braveRoot, 'scaledResources'),
+      }
+    : {
+        braveResources: await sourceGroupIdentity(braveRoot, 'braveResources'),
+        chromiumResources: await sourceGroupIdentity(braveRoot, 'chromiumResources'),
+        localeResources: await sourceGroupIdentity(braveRoot, 'localeResources'),
+        native: previous?.groups?.native || null,
+        scaledResources: await sourceGroupIdentity(braveRoot, 'scaledResources'),
+      }
+  if (!groups.native) {
+    throw new Error('A cpp build manifest is required before a resources-only update')
+  }
+
+  const currentArtifacts = await artifactHashes(outDir)
+  const artifacts = mode === 'cpp'
+    ? currentArtifacts
+    : {...currentArtifacts, native: previous.artifacts.native}
+  const manifest = {
+    artifacts,
+    generatedAt: new Date().toISOString(),
+    groups,
+    mode,
+    version: 1,
+  }
+  const file = path.join(outDir, BUILD_MANIFEST_NAME)
+  await fs.writeFile(file, `${JSON.stringify(manifest, null, 2)}\n`)
+  return {file, manifest}
+}
+
+async function verifyBuildManifest(braveRoot, outDir) {
+  const manifest = await readBuildManifest(outDir)
+  if (!manifest || manifest.version !== 1) {
+    throw new Error('Current build source manifest is missing or unsupported')
+  }
+  const groups = {}
+  for (const groupName of Object.keys(SOURCE_GROUPS)) {
+    groups[groupName] = await sourceGroupIdentity(braveRoot, groupName)
+    if (groups[groupName].digest !== manifest.groups?.[groupName]?.digest) {
+      throw Object.assign(
+        new Error(`Build source manifest mismatch for ${groupName}`),
+        {details: {
+          actual: groups[groupName],
+          expected: manifest.groups?.[groupName] || null,
+        }})
+    }
+  }
+
+  const artifacts = await artifactHashes(outDir)
+  if (JSON.stringify(artifacts) !== JSON.stringify(manifest.artifacts)) {
+    throw Object.assign(new Error('Build artifact hashes do not match source manifest'), {
+      details: {actual: artifacts, expected: manifest.artifacts},
+    })
+  }
+  return {
+    file: path.join(outDir, BUILD_MANIFEST_NAME),
+    generatedAt: manifest.generatedAt,
+    groups,
+    pass: true,
+  }
+}
+
 async function unsignedMachOHashMap(files) {
   const hashes = new Map()
   for (const file of files) {
@@ -318,34 +519,95 @@ export async function prepareAndVerifyArtifacts(config, log) {
   }
 
   const sourceFramework = await findFramework(outDir)
-  const appFramework = path.join(app, 'Contents', 'Frameworks', path.basename(sourceFramework))
+  const sourceAppExecutables = await appExecutableManifest(developmentApp)
+  let appExecutables = await appExecutableManifest(app)
+  let baseAppRefreshed = false
+  if (sourceAppExecutables.digest !== appExecutables.digest) {
+    if (!prepareApp) {
+      throw Object.assign(
+        new Error('QA app executable set does not match current development app'),
+        {details: {app: appExecutables, source: sourceAppExecutables}})
+    }
+    await fs.rm(app, {recursive: true, force: true})
+    await run('ditto', [developmentApp, app], {check: true})
+    baseAppRefreshed = true
+    appExecutables = await appExecutableManifest(app)
+    await log('Refreshed QA app executable, Framework, and Helper baseline')
+  }
+  if (sourceAppExecutables.digest !== appExecutables.digest) {
+    throw Object.assign(
+      new Error('QA app executable refresh did not match development output'),
+      {details: {app: appExecutables, source: sourceAppExecutables}})
+  }
+
+  const appFramework = path.join(
+    app, 'Contents', 'Frameworks', path.basename(sourceFramework))
   const appVersion = await frameworkVersionDirectory(appFramework)
   const sourceResource = path.join(outDir, 'gen', 'repack', 'brave_resources.pak')
   const appResource = path.join(appVersion, 'Resources', 'brave_resources.pak')
   const sourceChromiumResource = path.join(outDir, 'gen', 'repack', 'resources.pak')
   const appChromiumResource = path.join(appVersion, 'Resources', 'resources.pak')
+  const sourceLocaleDirectory = path.join(outDir, 'gen', 'repack', 'locales')
   const initialAppResources = await namedFilesUnder(app, 'brave_resources.pak')
   const initialAppChromiumResources = await namedFilesUnder(app, 'resources.pak')
   const appResourceTargets = [...new Set([...initialAppResources, appResource])]
   const appChromiumResourceTargets = [
     ...new Set([...initialAppChromiumResources, appChromiumResource]),
   ]
+  const scaledPackSources = SCALED_RESOURCE_PACKS.map(name => ({
+    name,
+    source: path.join(outDir, 'gen', 'repack', name),
+  }))
+  const scaledPackTargets = (await Promise.all(scaledPackSources.map(async item => {
+    const existing = await namedFilesUnder(app, item.name)
+    const destinations = existing.length > 0
+      ? existing
+      : [path.join(appVersion, 'Resources', item.name)]
+    return destinations.map(destination => ({...item, destination}))
+  }))).flat()
   const sourceDylibs = await dylibsIn(outDir)
+  const sourceLocalePacks = await localePacksIn(sourceLocaleDirectory)
+  const localeTargets = sourceLocalePacks.map(source => {
+    const locale = path.basename(source, '.pak')
+    return {
+      destination: path.join(appVersion, 'Resources', `${locale}.lproj`, 'locale.pak'),
+      locale,
+      source,
+    }
+  })
   const appDylibDir = path.join(app, 'Contents', 'Frameworks')
 
   if (sourceDylibs.length === 0 || !(await pathExists(sourceResource)) ||
-      !(await pathExists(sourceChromiumResource))) {
+      !(await pathExists(sourceChromiumResource)) || sourceLocalePacks.length === 0 ||
+      !(await Promise.all(scaledPackSources.map(item =>
+        pathExists(item.source)))).every(Boolean)) {
     throw new Error('Current source artifacts are incomplete')
   }
 
+  const buildManifest = await verifyBuildManifest(braveRoot, outDir)
   const nativeSource = await latestSource(braveRoot, SOURCE_GROUPS.native)
   const resourceSource = await latestSource(braveRoot, SOURCE_GROUPS.braveResources)
   const chromiumResourceSource = await latestSource(
     braveRoot, SOURCE_GROUPS.chromiumResources)
+  const localeSource = await latestSource(braveRoot, SOURCE_GROUPS.localeResources)
+  const scaledResourceSource = await latestSource(
+    braveRoot, SOURCE_GROUPS.scaledResources)
   const sourceLibchrome = path.join(outDir, 'libchrome_dll.dylib')
   const nativeArtifactStat = await fs.stat(sourceLibchrome)
   const resourceArtifactStat = await fs.stat(sourceResource)
   const chromiumResourceArtifactStat = await fs.stat(sourceChromiumResource)
+  const localeArtifactStats = await Promise.all(sourceLocalePacks.map(async file => ({
+    file,
+    stat: await fs.stat(file),
+  })))
+  const scaledArtifactStats = await Promise.all(scaledPackSources.map(async item => ({
+    file: item.source,
+    stat: await fs.stat(item.source),
+  })))
+  const oldestLocaleArtifact = localeArtifactStats.reduce((oldest, current) =>
+    current.stat.mtimeMs < oldest.stat.mtimeMs ? current : oldest)
+  const oldestScaledArtifact = scaledArtifactStats.reduce((oldest, current) =>
+    current.stat.mtimeMs < oldest.stat.mtimeMs ? current : oldest)
   const freshness = {
     native: {
       artifact: sourceLibchrome,
@@ -374,9 +636,30 @@ export async function prepareAndVerifyArtifacts(config, log) {
         : null,
       pass: chromiumResourceSource.mtimeMs <= chromiumResourceArtifactStat.mtimeMs,
     },
+    locales: {
+      artifact: oldestLocaleArtifact.file,
+      artifactCount: sourceLocalePacks.length,
+      artifactMtime: oldestLocaleArtifact.stat.mtime.toISOString(),
+      latestSource: localeSource.file,
+      latestSourceMtime: localeSource.mtimeMs
+        ? new Date(localeSource.mtimeMs).toISOString()
+        : null,
+      pass: localeSource.mtimeMs <= oldestLocaleArtifact.stat.mtimeMs,
+    },
+    scaledResources: {
+      artifact: oldestScaledArtifact.file,
+      artifactCount: scaledPackSources.length,
+      artifactMtime: oldestScaledArtifact.stat.mtime.toISOString(),
+      latestSource: scaledResourceSource.file,
+      latestSourceMtime: scaledResourceSource.mtimeMs
+        ? new Date(scaledResourceSource.mtimeMs).toISOString()
+        : null,
+      pass: scaledResourceSource.mtimeMs <= oldestScaledArtifact.stat.mtimeMs,
+    },
   }
   if (!freshness.native.pass || !freshness.resources.pass ||
-      !freshness.chromiumResources.pass) {
+      !freshness.chromiumResources.pass || !freshness.locales.pass ||
+      !freshness.scaledResources.pass) {
     throw Object.assign(new Error('Source artifacts are older than relevant source edits'), {
       details: freshness,
     })
@@ -425,6 +708,18 @@ export async function prepareAndVerifyArtifacts(config, log) {
     }
     for (const destination of appChromiumResourceTargets) {
       if (await copyIfDifferent(sourceChromiumResource, destination)) {
+        copied.push(destination)
+      }
+    }
+    for (const {destination, source} of scaledPackTargets) {
+      await fs.mkdir(path.dirname(destination), {recursive: true})
+      if (await copyIfDifferent(source, destination)) {
+        copied.push(destination)
+      }
+    }
+    for (const {destination, source} of localeTargets) {
+      await fs.mkdir(path.dirname(destination), {recursive: true})
+      if (await copyIfDifferent(source, destination)) {
         copied.push(destination)
       }
     }
@@ -499,6 +794,54 @@ export async function prepareAndVerifyArtifacts(config, log) {
   if (appChromiumResources.length === 0) {
     throw new Error('QA app has no resources.pak files')
   }
+  const scaledPackComparisons = await Promise.all(scaledPackTargets.map(async item => {
+    if (!(await pathExists(item.destination))) {
+      return {...item, match: false, reason: 'missing'}
+    }
+    const [source, app] = await Promise.all([
+      fileRecord(item.source),
+      fileRecord(item.destination),
+    ])
+    return {
+      app,
+      match: source.sha256 === app.sha256,
+      name: item.name,
+      source,
+    }
+  }))
+  const mismatchedScaledPacks = scaledPackComparisons.filter(
+    comparison => !comparison.match)
+  if (mismatchedScaledPacks.length > 0) {
+    throw Object.assign(
+      new Error(
+        `${mismatchedScaledPacks.length} QA app scaled resource packs do not match current output`),
+      {details: mismatchedScaledPacks})
+  }
+  const localeComparisons = await Promise.all(localeTargets.map(async item => {
+    if (!(await pathExists(item.destination))) {
+      return {...item, match: false, reason: 'missing'}
+    }
+    const [source, app] = await Promise.all([
+      fileRecord(item.source),
+      fileRecord(item.destination),
+    ])
+    return {
+      app,
+      locale: item.locale,
+      match: source.sha256 === app.sha256,
+      source,
+    }
+  }))
+  const mismatchedLocales = localeComparisons.filter(comparison => !comparison.match)
+  if (mismatchedLocales.length > 0) {
+    throw Object.assign(
+      new Error(`${mismatchedLocales.length} QA app locale packs do not match current output`),
+      {details: mismatchedLocales})
+  }
+  const localeDigest = createHash('sha256')
+  for (const comparison of localeComparisons) {
+    localeDigest.update(`${comparison.locale}\0${comparison.source.sha256}\n`)
+  }
   const [sourceResourceRecord, appResourceRecord, appResourceRecords,
     sourceChromiumResourceRecord, appChromiumResourceRecord,
     appChromiumResourceRecords, sourceLibRecord, appLibRecord] =
@@ -541,6 +884,12 @@ export async function prepareAndVerifyArtifacts(config, log) {
 
   return {
     app,
+    baseApp: {
+      app: appExecutables,
+      refreshed: baseAppRefreshed,
+      source: sourceAppExecutables,
+    },
+    buildManifest,
     copied,
     dylibs: {
       count: comparisons.length,
@@ -563,6 +912,15 @@ export async function prepareAndVerifyArtifacts(config, log) {
       chromiumAllApp: appChromiumResourceRecords,
       chromiumApp: appChromiumResourceRecord,
       chromiumSource: sourceChromiumResourceRecord,
+      locales: {
+        count: localeComparisons.length,
+        digest: localeDigest.digest('hex'),
+        packs: localeComparisons,
+      },
+      scaled: {
+        count: scaledPackComparisons.length,
+        packs: scaledPackComparisons,
+      },
       source: sourceResourceRecord,
     },
     signature: {pass: true, output: signature.stderr.trim()},

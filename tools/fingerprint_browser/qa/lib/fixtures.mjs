@@ -82,11 +82,21 @@ export async function loadProxyFixtures(file) {
       `Proxy fixture permissions must be 0600, got ${permissions.toString(8).padStart(4, '0')}`)
   }
   const parsed = JSON.parse(await fs.readFile(file, 'utf8'))
+  const http = parsed.http ? validateProxy('http', parsed.http) : null
+  const socks5 = parsed.socks5 ? validateProxy('socks5', parsed.socks5) : null
+  const missing = [
+    !http && 'http',
+    !socks5 && 'socks5',
+  ].filter(Boolean)
   return {
     file,
-    http: validateProxy('http', parsed.http),
-    socks5: validateProxy('socks5', parsed.socks5),
-    status: 'PASS',
+    http,
+    missing,
+    reason: missing.length > 0
+      ? `Proxy fixture is missing: ${missing.join(', ')}`
+      : undefined,
+    socks5,
+    status: missing.length > 0 ? 'BLOCKED' : 'PASS',
   }
 }
 

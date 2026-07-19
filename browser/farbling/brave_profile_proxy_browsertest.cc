@@ -14,7 +14,10 @@
 #include "base/run_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/test/run_until.h"
+#include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_service.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
 #include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/browser/ui/webui/brave_settings_ui.h"
 #include "brave/components/fingerprint_browser/browser/persona.h"
@@ -59,6 +62,40 @@ namespace {
 constexpr char kOriginBody[] = "origin";
 constexpr char kProxyBody[] = "proxy";
 constexpr char kExpectedProxyAuthorization[] = "Basic Zm9vOmJhcg==";
+constexpr char kPrimaryGeoUrl[] = "http://freeipapi.test/geo-primary";
+constexpr char kFallbackGeoUrl[] = "http://ipwhois.test/geo-fallback";
+constexpr char kFreeIpApiAustralia[] = R"({
+  "ipAddress":"1.1.1.1",
+  "latitude":-33.8688,
+  "longitude":151.2093,
+  "countryName":"Australia",
+  "countryCode":"AU",
+  "timeZones":["Australia/Sydney"],
+  "cityName":"Sydney",
+  "regionName":"New South Wales"
+})";
+constexpr char kIpWhoIsUnitedStates[] = R"({
+  "ip":"8.8.4.4",
+  "success":true,
+  "country":"United States",
+  "country_code":"US",
+  "region":"California",
+  "city":"Mountain View",
+  "latitude":37.3860517,
+  "longitude":-122.0838511,
+  "timezone":{"id":"America/Los_Angeles"}
+})";
+constexpr char kIpWhoIsAustralia[] = R"({
+  "ip":"1.0.0.1",
+  "success":true,
+  "country":"Australia",
+  "country_code":"AU",
+  "region":"New South Wales",
+  "city":"Sydney",
+  "latitude":-33.8688,
+  "longitude":151.2093,
+  "timezone":{"id":"Australia/Sydney"}
+})";
 
 std::unique_ptr<net::test_server::BasicHttpResponse> TextResponse(
     std::string_view body) {
@@ -74,11 +111,12 @@ bool SettingsRuntimeErrorIsVisible(content::WebContents* web_contents,
     (async () => {
       for (let i = 0; i < 200; ++i) {
         const root = window.testing?.fingerprintProfileProxySubpage;
-        const errorRow = root?.getElementById('runtimeError');
-        const text = errorRow?.innerText || '';
-        if (errorRow &&
-            errorRow.getAttribute('role') === 'alert' &&
-            text.includes($1)) {
+        const alerts = [...(root?.querySelectorAll('[role="alert"]') || [])];
+        const errorRow = root?.getElementById('actionError');
+        const text = [errorRow, ...alerts]
+          .map(element => element?.innerText || '')
+          .join(' ');
+        if (text.includes($1)) {
           return true;
         }
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -97,57 +135,20 @@ bool SettingsNoProxyRiskMatches(content::WebContents* web_contents,
     (async () => {
       for (let i = 0; i < 200; ++i) {
         const root = window.testing?.fingerprintProfileProxySubpage;
-        const toggle = root?.getElementById('profileProxyEnabled');
         const risk = root?.getElementById('noProxyRisk');
         const text = risk?.innerText || '';
-        if (!root || !toggle) {
-          await new Promise(resolve => setTimeout(resolve, 25));
-          continue;
-        }
-
-        if ($1) {
-          if (!toggle.checked &&
-              risk &&
-              risk.getAttribute('role') === 'alert' &&
-              text.includes('real network')) {
-            return true;
-          }
-        } else if (toggle.checked) {
-          if (!risk || getComputedStyle(risk).display === 'none') {
-            return true;
-          }
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 25));
-      }
-      return false;
-    })();
-  )js";
-  return content::EvalJs(web_contents,
-                         content::JsReplace(kScript, expected_visible))
-      .ExtractBool();
-}
-
-bool SettingsGeoWarningMatches(content::WebContents* web_contents,
-                               bool expected_visible) {
-  constexpr char kScript[] = R"js(
-    (async () => {
-      for (let i = 0; i < 200; ++i) {
-        const root = window.testing?.fingerprintProfileProxySubpage;
-        const warning = root?.getElementById('geoWarning');
-        const text = warning?.innerText || '';
         if (!root) {
           await new Promise(resolve => setTimeout(resolve, 25));
           continue;
         }
 
         if ($1) {
-          if (warning &&
-              warning.getAttribute('role') === 'alert' &&
-              text.includes('manual country')) {
+          if (risk &&
+              risk.getAttribute('role') === 'alert' &&
+              text.includes('real network')) {
             return true;
           }
-        } else if (!warning) {
+        } else if (!risk || getComputedStyle(risk).display === 'none') {
           return true;
         }
 
@@ -188,6 +189,8 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
         base::Unretained(this)));
     ASSERT_TRUE(origin_server_.Start());
     ASSERT_TRUE(proxy_server_.Start());
+    fingerprint_browser::FingerprintProxyService::SetGeoProviderUrlsForTesting(
+        GURL(kPrimaryGeoUrl), GURL(kFallbackGeoUrl));
 
 #if BUILDFLAG(ENABLE_TOR)
     net::ProxyConfigServiceTor::SetBypassTorProxyConfigForTesting(true);
@@ -196,6 +199,8 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
   }
 
   void TearDownOnMainThread() override {
+    fingerprint_browser::FingerprintProxyService::
+        ResetGeoProviderUrlsForTesting();
 #if BUILDFLAG(ENABLE_TOR)
     tor::TorNavigationThrottle::SetSkipWaitForTorConnectedForTesting(false);
     net::ProxyConfigServiceTor::SetBypassTorProxyConfigForTesting(false);
@@ -213,21 +218,19 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
     return profile;
   }
 
-  void ConfigureProfileProxy(Profile* profile,
-                             std::string_view username = "foo",
-                             std::string_view password = "bar") {
-    PrefService* prefs = profile->GetPrefs();
-    prefs->SetBoolean(fingerprint_browser::prefs::kProfileProxyEnabled, true);
-    prefs->SetString(fingerprint_browser::prefs::kProfileProxyScheme,
-                     fingerprint_browser::prefs::kProfileProxySchemeHttp);
-    prefs->SetString(fingerprint_browser::prefs::kProfileProxyHost,
-                     "127.0.0.1");
-    prefs->SetInteger(fingerprint_browser::prefs::kProfileProxyPort,
-                      proxy_server_.port());
-    prefs->SetString(fingerprint_browser::prefs::kProfileProxyUsername,
-                     std::string(username));
-    prefs->SetString(fingerprint_browser::prefs::kProfileProxyPassword,
-                     std::string(password));
+  void ConfigureProfileProxy(Profile* profile) {
+    auto* service = GetProxyService(profile);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&] { return service->IsCredentialStoreReadyForTesting(); }));
+    const auto verification = VerifyDraft(
+        profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                  .host = "127.0.0.1",
+                  .port = ProxyPort(),
+                  .username = "foo",
+                  .password = "bar"});
+    ASSERT_TRUE(verification.success) << verification.error;
+    const auto apply = ApplyVerified(profile, verification.verification_id);
+    ASSERT_TRUE(apply.success) << apply.error;
   }
 
   void ConfigureProfileProxyManualGeo(Profile* profile,
@@ -248,6 +251,52 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
     prefs->SetDouble(
         fingerprint_browser::prefs::kProfileProxyManualGeoLongitude, longitude);
     fingerprint_browser::SyncProfileProxyDerivedPrefs(*prefs);
+  }
+
+  fingerprint_browser::FingerprintProxyService* GetProxyService(
+      Profile* profile) {
+    return fingerprint_browser::FingerprintProxyServiceFactory::GetForProfile(
+        profile);
+  }
+
+  fingerprint_browser::ProxyVerificationResult VerifyDraft(
+      Profile* profile,
+      fingerprint_browser::ProfileProxyDraft draft) {
+    base::test::TestFuture<fingerprint_browser::ProxyVerificationResult> future;
+    GetProxyService(profile)->VerifyDraft(std::move(draft),
+                                          future.GetCallback());
+    return future.Take();
+  }
+
+  fingerprint_browser::ProxyApplyResult ApplyVerified(
+      Profile* profile,
+      std::string verification_id) {
+    base::test::TestFuture<fingerprint_browser::ProxyApplyResult> future;
+    GetProxyService(profile)->ApplyVerified(std::move(verification_id),
+                                            future.GetCallback());
+    return future.Take();
+  }
+
+  fingerprint_browser::ProxyVerificationResult Revalidate(Profile* profile) {
+    base::test::TestFuture<fingerprint_browser::ProxyVerificationResult> future;
+    GetProxyService(profile)->Revalidate(future.GetCallback());
+    return future.Take();
+  }
+
+  void SetGeoResponses(int primary_status,
+                       std::string primary_body,
+                       int fallback_status,
+                       std::string fallback_body) {
+    base::AutoLock lock(lock_);
+    primary_geo_status_ = primary_status;
+    primary_geo_body_ = std::move(primary_body);
+    fallback_geo_status_ = fallback_status;
+    fallback_geo_body_ = std::move(fallback_body);
+  }
+
+  void RequireProxyAuthorization(std::string authorization) {
+    base::AutoLock lock(lock_);
+    required_proxy_authorization_ = std::move(authorization);
   }
 
   GURL OriginUrl(std::string_view host, std::string_view path) const {
@@ -287,6 +336,13 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
     return false;
   }
 
+  size_t ProxyRequestCount() const {
+    base::AutoLock lock(lock_);
+    return proxy_request_targets_.size();
+  }
+
+  int ProxyPort() const { return proxy_server_.port(); }
+
  private:
   std::unique_ptr<net::test_server::HttpResponse> HandleOriginRequest(
       const net::test_server::HttpRequest& request) {
@@ -306,12 +362,10 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
 
     auto auth =
         request.headers.find(net::HttpRequestHeaders::kProxyAuthorization);
+    base::AutoLock lock(lock_);
     if (auth == request.headers.end() ||
-        auth->second != kExpectedProxyAuthorization) {
-      {
-        base::AutoLock lock(lock_);
-        ++proxy_challenge_count_;
-      }
+        auth->second != required_proxy_authorization_) {
+      ++proxy_challenge_count_;
       auto response = TextResponse("proxy auth required");
       response->set_code(net::HTTP_PROXY_AUTHENTICATION_REQUIRED);
       response->AddCustomHeader("Proxy-Authenticate",
@@ -319,8 +373,18 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
       return response;
     }
 
-    base::AutoLock lock(lock_);
     saw_expected_proxy_authorization_ = true;
+    if (request.relative_url.find("/geo-primary") != std::string::npos) {
+      auto response = TextResponse(primary_geo_body_);
+      response->set_code(static_cast<net::HttpStatusCode>(primary_geo_status_));
+      return response;
+    }
+    if (request.relative_url.find("/geo-fallback") != std::string::npos) {
+      auto response = TextResponse(fallback_geo_body_);
+      response->set_code(
+          static_cast<net::HttpStatusCode>(fallback_geo_status_));
+      return response;
+    }
     return TextResponse(kProxyBody);
   }
 
@@ -332,6 +396,12 @@ class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
   std::vector<std::string> proxy_request_targets_;
   int proxy_challenge_count_ GUARDED_BY(lock_) = 0;
   bool saw_expected_proxy_authorization_ GUARDED_BY(lock_) = false;
+  std::string required_proxy_authorization_ GUARDED_BY(lock_) =
+      kExpectedProxyAuthorization;
+  int primary_geo_status_ GUARDED_BY(lock_) = net::HTTP_OK;
+  std::string primary_geo_body_ GUARDED_BY(lock_) = kFreeIpApiAustralia;
+  int fallback_geo_status_ GUARDED_BY(lock_) = net::HTTP_OK;
+  std::string fallback_geo_body_ GUARDED_BY(lock_) = kIpWhoIsUnitedStates;
 };
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
@@ -371,7 +441,9 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                        ProfileProxyAuthFailureWritesVisibleErrorState) {
   Profile* proxied_profile = CreateTestProfile();
-  ConfigureProfileProxy(proxied_profile, "wrong", "credentials");
+  ConfigureProfileProxy(proxied_profile);
+  const int challenge_count_before_failure = ProxyChallengeCount();
+  RequireProxyAuthorization("Basic bmV3OnNlY3JldA==");
 
   Browser* proxied_browser = CreateBrowser(proxied_profile);
   EXPECT_TRUE(ui_test_utils::NavigateToURL(
@@ -385,7 +457,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   EXPECT_EQ(
       "Proxy authentication failed. Check username/password.",
       prefs->GetString(fingerprint_browser::prefs::kProfileProxyLastError));
-  EXPECT_GE(ProxyChallengeCount(), 2);
+  EXPECT_GT(ProxyChallengeCount(), challenge_count_before_failure);
   EXPECT_EQ(0, OriginRequestsForPath("/bad-auth"));
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(proxied_browser,
@@ -416,37 +488,246 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
-                       UnknownProxyGeoShowsManualFallbackWarning) {
-  Profile* proxied_profile = CreateTestProfile();
-  ConfigureProfileProxy(proxied_profile);
-  fingerprint_browser::SyncProfileProxyDerivedPrefs(
-      *proxied_profile->GetPrefs());
+                       VerificationFallsBackAppliesAndRevalidates) {
+  Profile* profile = CreateTestProfile();
+  auto* service = GetProxyService(profile);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return service->IsCredentialStoreReadyForTesting(); }));
+  SetGeoResponses(net::HTTP_TOO_MANY_REQUESTS, "rate limited", net::HTTP_OK,
+                  kIpWhoIsUnitedStates);
 
-  Browser* proxied_browser = CreateBrowser(proxied_profile);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(proxied_browser,
-                                           GURL("brave://settings/privacy")));
-  EXPECT_TRUE(SettingsGeoWarningMatches(
-      proxied_browser->tab_strip_model()->GetActiveWebContents(),
-      /*expected_visible=*/true));
+  fingerprint_browser::ProfileProxyDraft draft{
+      .scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+      .host = "127.0.0.1",
+      .port = ProxyPort(),
+      .username = "foo",
+      .password = "bar"};
+  const auto verification = VerifyDraft(profile, draft);
+  ASSERT_TRUE(verification.success) << verification.error;
+  EXPECT_EQ("ipwhois", verification.geo_provider);
+  EXPECT_EQ("8.8.4.4", verification.egress_ip);
+  ASSERT_TRUE(verification.geo);
+  EXPECT_EQ("US", verification.geo->country_code);
+  EXPECT_EQ(fingerprint_browser::kProxyStateAwaitingConfirmation,
+            service->GetState().state);
+  EXPECT_FALSE(profile->GetPrefs()->GetBoolean(
+      fingerprint_browser::prefs::kProfileProxyEnabled));
+  EXPECT_TRUE(ProxySawTargetContaining("/geo-primary"));
+  EXPECT_TRUE(ProxySawTargetContaining("/geo-fallback"));
 
-  PrefService* prefs = proxied_profile->GetPrefs();
-  prefs->SetBoolean(fingerprint_browser::prefs::kProfileProxyManualGeoEnabled,
-                    true);
-  prefs->SetString(
-      fingerprint_browser::prefs::kProfileProxyManualGeoCountryCode, "GB");
-  prefs->SetString(fingerprint_browser::prefs::kProfileProxyManualGeoTimezone,
-                   "Europe/London");
-  prefs->SetDouble(fingerprint_browser::prefs::kProfileProxyManualGeoLatitude,
-                   51.5074);
-  prefs->SetDouble(fingerprint_browser::prefs::kProfileProxyManualGeoLongitude,
-                   -0.1278);
-  fingerprint_browser::SyncProfileProxyDerivedPrefs(*prefs);
+  const auto apply = ApplyVerified(profile, verification.verification_id);
+  ASSERT_TRUE(apply.success) << apply.error;
+  EXPECT_EQ(fingerprint_browser::kProxyStateActive, service->GetState().state);
+  EXPECT_TRUE(profile->GetPrefs()->GetBoolean(
+      fingerprint_browser::prefs::kProfileProxyEnabled));
+  EXPECT_TRUE(profile->GetPrefs()
+                  ->GetString(fingerprint_browser::prefs::kProfileProxyPassword)
+                  .empty());
+  EXPECT_FALSE(
+      profile->GetPrefs()
+          ->GetString(
+              fingerprint_browser::prefs::kProfileProxyEncryptedPassword)
+          .empty());
 
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(proxied_browser,
-                                           GURL("brave://settings/privacy")));
-  EXPECT_TRUE(SettingsGeoWarningMatches(
-      proxied_browser->tab_strip_model()->GetActiveWebContents(),
-      /*expected_visible=*/false));
+  const auto duplicate = ApplyVerified(profile, verification.verification_id);
+  EXPECT_FALSE(duplicate.success);
+
+  Browser* proxied_browser = CreateBrowser(profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      proxied_browser, OriginUrl("profile-verified.test", "/verified")));
+  EXPECT_EQ(kProxyBody, BodyText(proxied_browser));
+  EXPECT_EQ(0, OriginRequestsForPath("/verified"));
+
+  SetGeoResponses(net::HTTP_TOO_MANY_REQUESTS, "rate limited", net::HTTP_OK,
+                  kIpWhoIsAustralia);
+  const auto revalidation = Revalidate(profile);
+  ASSERT_TRUE(revalidation.success) << revalidation.error;
+  const auto state = service->GetState();
+  ASSERT_TRUE(state.geo);
+  EXPECT_EQ("AU", state.geo->country_code);
+  EXPECT_EQ("1.0.0.1", state.egress_ip);
+  EXPECT_FALSE(state.change_warning.empty());
+
+  const auto stable_revalidation = Revalidate(profile);
+  ASSERT_TRUE(stable_revalidation.success) << stable_revalidation.error;
+  EXPECT_EQ(state.change_warning, service->GetState().change_warning);
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       VerificationFailureNeverEnablesProxy) {
+  Profile* profile = CreateTestProfile();
+  SetGeoResponses(net::HTTP_INTERNAL_SERVER_ERROR, "primary failed",
+                  net::HTTP_SERVICE_UNAVAILABLE, "fallback failed");
+
+  const auto verification = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                .host = "127.0.0.1",
+                .port = ProxyPort(),
+                .username = "foo",
+                .password = "bar"});
+  EXPECT_FALSE(verification.success);
+  EXPECT_FALSE(profile->GetPrefs()->GetBoolean(
+      fingerprint_browser::prefs::kProfileProxyEnabled));
+  EXPECT_EQ(fingerprint_browser::kProxyStateError,
+            GetProxyService(profile)->GetState().state);
+  EXPECT_TRUE(ProxySawTargetContaining("/geo-primary"));
+  EXPECT_TRUE(ProxySawTargetContaining("/geo-fallback"));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       BadAuthenticationAndExpiredTokenAreRejected) {
+  Profile* bad_auth_profile = CreateTestProfile();
+  const auto bad_auth = VerifyDraft(
+      bad_auth_profile,
+      {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+       .host = "127.0.0.1",
+       .port = ProxyPort(),
+       .username = "wrong",
+       .password = "credentials"});
+  EXPECT_FALSE(bad_auth.success);
+  EXPECT_FALSE(bad_auth_profile->GetPrefs()->GetBoolean(
+      fingerprint_browser::prefs::kProfileProxyEnabled));
+
+  Profile* expired_profile = CreateTestProfile();
+  const auto verification = VerifyDraft(
+      expired_profile,
+      {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+       .host = "127.0.0.1",
+       .port = ProxyPort(),
+       .username = "foo",
+       .password = "bar"});
+  ASSERT_TRUE(verification.success) << verification.error;
+  GetProxyService(expired_profile)->ExpirePendingVerificationForTesting();
+  const auto apply =
+      ApplyVerified(expired_profile, verification.verification_id);
+  EXPECT_FALSE(apply.success);
+  EXPECT_FALSE(expired_profile->GetPrefs()->GetBoolean(
+      fingerprint_browser::prefs::kProfileProxyEnabled));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       ChangedDraftInvalidatesOldVerificationToken) {
+  Profile* profile = CreateTestProfile();
+  const auto first = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                .host = "127.0.0.1",
+                .port = ProxyPort(),
+                .username = "foo",
+                .password = "bar"});
+  ASSERT_TRUE(first.success) << first.error;
+
+  const auto second = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                .host = "localhost",
+                .port = ProxyPort(),
+                .username = "foo",
+                .password = "bar"});
+  ASSERT_TRUE(second.success) << second.error;
+  EXPECT_FALSE(ApplyVerified(profile, first.verification_id).success);
+  EXPECT_TRUE(ApplyVerified(profile, second.verification_id).success);
+  EXPECT_EQ("localhost", GetProxyService(profile)->GetState().host);
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       SavedPasswordIsReusedOnlyForSameProxyIdentity) {
+  Profile* profile = CreateTestProfile();
+  ConfigureProfileProxy(profile);
+  const size_t requests_before_changed_draft = ProxyRequestCount();
+
+  const auto changed_proxy = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                .host = "localhost",
+                .port = ProxyPort(),
+                .username = "foo"});
+  EXPECT_FALSE(changed_proxy.success);
+  EXPECT_EQ("Enter the proxy password again after changing proxy details.",
+            changed_proxy.error);
+  EXPECT_EQ(requests_before_changed_draft, ProxyRequestCount());
+
+  const auto same_proxy = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                .host = "127.0.0.1",
+                .port = ProxyPort(),
+                .username = "foo"});
+  EXPECT_TRUE(same_proxy.success) << same_proxy.error;
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       FailedDraftVerificationPreservesActiveProxy) {
+  Profile* profile = CreateTestProfile();
+  ConfigureProfileProxy(profile);
+  const auto before = GetProxyService(profile)->GetState();
+  ASSERT_EQ(fingerprint_browser::kProxyStateActive, before.state);
+
+  SetGeoResponses(net::HTTP_INTERNAL_SERVER_ERROR, "primary failed",
+                  net::HTTP_SERVICE_UNAVAILABLE, "fallback failed");
+  const auto failed = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                .host = "localhost",
+                .port = ProxyPort(),
+                .username = "foo",
+                .password = "bar"});
+  EXPECT_FALSE(failed.success);
+
+  const auto after = GetProxyService(profile)->GetState();
+  EXPECT_EQ(before.state, after.state);
+  EXPECT_EQ(before.status_message, after.status_message);
+  EXPECT_EQ(before.change_warning, after.change_warning);
+  EXPECT_EQ(before.egress_ip, after.egress_ip);
+  EXPECT_EQ(before.host, after.host);
+  EXPECT_TRUE(after.enabled);
+
+  Browser* browser = CreateBrowser(profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser, OriginUrl("preserved.test", "/preserved")));
+  EXPECT_EQ(kProxyBody, BodyText(browser));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       PasswordMigrationAndDecryptionFailureFailClosed) {
+  Profile* migration_profile = CreateTestProfile();
+  auto* migration_service = GetProxyService(migration_profile);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return migration_service->IsCredentialStoreReadyForTesting(); }));
+  PrefService* migration_prefs = migration_profile->GetPrefs();
+  migration_prefs->ClearPref(
+      fingerprint_browser::prefs::kProfileProxyEncryptedPassword);
+  migration_prefs->SetString(fingerprint_browser::prefs::kProfileProxyPassword,
+                             "legacy-secret");
+  ASSERT_TRUE(migration_service->MigratePlaintextPasswordForTesting());
+  EXPECT_TRUE(migration_prefs
+                  ->GetString(fingerprint_browser::prefs::kProfileProxyPassword)
+                  .empty());
+  EXPECT_FALSE(
+      migration_prefs
+          ->GetString(
+              fingerprint_browser::prefs::kProfileProxyEncryptedPassword)
+          .empty());
+
+  Profile* blocked_profile = CreateTestProfile();
+  ConfigureProfileProxy(blocked_profile);
+  auto* blocked_service = GetProxyService(blocked_profile);
+  PrefService* blocked_prefs = blocked_profile->GetPrefs();
+  blocked_prefs->SetString(
+      fingerprint_browser::prefs::kProfileProxyEncryptedPassword,
+      "not-valid-encrypted-data");
+  blocked_prefs->SetInteger(
+      fingerprint_browser::prefs::kProfileProxyCredentialGeneration,
+      blocked_prefs->GetInteger(
+          fingerprint_browser::prefs::kProfileProxyCredentialGeneration) +
+          1);
+
+  const auto blocking_proxy = blocked_service->GetProxyServer();
+  ASSERT_TRUE(blocking_proxy);
+  EXPECT_EQ(9, blocking_proxy->host_port_pair().port());
+  const size_t proxy_requests_before = ProxyRequestCount();
+
+  Browser* blocked_browser = CreateBrowser(blocked_profile);
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      blocked_browser, OriginUrl("blocked.test", "/blocked")));
+  EXPECT_NE(std::string::npos,
+            BodyText(blocked_browser).find("ERR_PROXY_CONNECTION_FAILED"));
+  EXPECT_EQ(proxy_requests_before, ProxyRequestCount());
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
@@ -530,6 +811,49 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   EXPECT_EQ(nullptr, g_browser_process->profile_manager()
                          ->GetProfileAttributesStorage()
                          .GetProfileAttributesWithPath(proxied_profile_path));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       IncognitoInheritsProfileProxyServiceAndRouting) {
+  Profile* profile = CreateTestProfile();
+  ConfigureProfileProxy(profile);
+  auto* regular_service = GetProxyService(profile);
+
+  Browser* incognito_browser = CreateIncognitoBrowser(profile);
+  ASSERT_TRUE(incognito_browser);
+  EXPECT_EQ(regular_service, GetProxyService(incognito_browser->profile()));
+  EXPECT_EQ(
+      regular_service->GetState().egress_ip,
+      GetProxyService(incognito_browser->profile())->GetState().egress_ip);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      incognito_browser, OriginUrl("incognito.test", "/incognito")));
+  EXPECT_EQ(kProxyBody, BodyText(incognito_browser));
+  EXPECT_TRUE(ProxySawTargetContaining("/incognito"));
+  EXPECT_EQ(0, OriginRequestsForPath("/incognito"));
+
+  const auto changed = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
+                .host = "localhost",
+                .port = ProxyPort(),
+                .username = "foo",
+                .password = "bar"});
+  ASSERT_TRUE(changed.success) << changed.error;
+  ASSERT_TRUE(ApplyVerified(profile, changed.verification_id).success);
+  EXPECT_EQ("localhost",
+            GetProxyService(incognito_browser->profile())->GetState().host);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      incognito_browser, OriginUrl("incognito.test", "/incognito-switched")));
+  EXPECT_EQ(kProxyBody, BodyText(incognito_browser));
+  EXPECT_EQ(0, OriginRequestsForPath("/incognito-switched"));
+
+  base::RunLoop disabled;
+  regular_service->Disable(disabled.QuitClosure());
+  disabled.Run();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      incognito_browser, OriginUrl("incognito.test", "/incognito-disabled")));
+  EXPECT_EQ(kOriginBody, BodyText(incognito_browser));
+  EXPECT_GE(OriginRequestsForPath("/incognito-disabled"), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
