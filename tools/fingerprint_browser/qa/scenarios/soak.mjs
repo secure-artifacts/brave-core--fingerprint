@@ -139,21 +139,14 @@ export async function runSoak({config, dirs, probe, report, runId}) {
           const state = await setProfileProxy(proxyPage, enabled ? {
             ...fixture,
             enabled: true,
-          } : {
-            countryCode: '',
-            enabled: false,
-            host: '',
-            latitude: undefined,
-            longitude: undefined,
-            password: '',
-            port: 0,
-            scheme: fixture.scheme,
-            timezone: '',
-            username: '',
-          })
+          } : {enabled: false})
           if (enabled) {
-            if (!state.savedStatus) {
-              throw new Error(`Soak proxy ${fixture.scheme} did not save`)
+            if (!state.enabled || state.state !== 'active' ||
+                state.egressIp !== fixture.expectedIp) {
+              throw Object.assign(
+                new Error(`Soak proxy ${fixture.scheme} did not activate`),
+                {details: state},
+              )
             }
             const response = await proxyPage.goto(fixture.verifyUrl, {
               timeout: 60000,

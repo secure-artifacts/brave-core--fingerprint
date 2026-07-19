@@ -16,6 +16,7 @@
 #include "base/i18n/rtl.h"
 #include "brave/app/brave_command_ids.h"
 #include "brave/app/vector_icons/vector_icons.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
 #include "brave/browser/ui/tabs/brave_tab_prefs.h"
 #include "brave/browser/ui/views/frame/brave_browser_view.h"
 #include "brave/browser/ui/views/frame/brave_non_client_hit_test_helper.h"
@@ -25,6 +26,7 @@
 #include "brave/browser/ui/views/location_bar/brave_location_bar_view.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/browser/ui/views/toolbar/bookmark_button.h"
+#include "brave/browser/ui/views/toolbar/fingerprint_proxy_button.h"
 #include "brave/browser/ui/views/toolbar/side_panel_button.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_vpn/common/buildflags/buildflags.h"
@@ -414,6 +416,14 @@ void BraveToolbarView::Init() {
     brave_vpn_->SetVisible(IsBraveVPNButtonVisible());
   }
 #endif
+
+  if (fingerprint_browser::FingerprintProxyServiceFactory::GetForProfile(
+          profile)) {
+    fingerprint_proxy_button_ =
+        AddChildViewAt(std::make_unique<FingerprintProxyButton>(browser()),
+                       *GetIndexOf(app_menu_button_) - 1);
+    SetBraveButtonFlexBehavior(fingerprint_proxy_button_);
+  }
 
   // Make sure that avatar button is located right before the app menu.
   if (auto* avatar_button = static_cast<AvatarToolbarButton*>(

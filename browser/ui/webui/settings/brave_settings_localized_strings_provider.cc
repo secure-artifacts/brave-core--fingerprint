@@ -881,6 +881,7 @@ void BraveAddCommonStrings(content::WebUIDataSource* html_source,
       {"profileProxySchemeDesc",
        IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SCHEME_DESC},
       {"profileProxyHttp", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTP},
+      {"profileProxyHttps", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTPS},
       {"profileProxySocks5", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SOCKS5},
       {"profileProxyHostLabel",
        IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HOST_LABEL},
@@ -900,6 +901,27 @@ void BraveAddCommonStrings(content::WebUIDataSource* html_source,
       {"profileProxyConflictWarningTitle",
        IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_CONFLICT_WARNING_TITLE},
       {"profileProxySaved", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SAVED},
+      {"profileProxyVerify", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_VERIFY},
+      {"profileProxyConfirmApply",
+       IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_CONFIRM_APPLY},
+      {"profileProxyModify", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_MODIFY},
+      {"profileProxyRevalidate",
+       IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_REVALIDATE},
+      {"profileProxyDisable", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_DISABLE},
+      {"profileProxyLocation", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LOCATION},
+      {"profileProxyTimezone", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_TIMEZONE},
+      {"profileProxyCoordinates",
+       IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_COORDINATES},
+      {"profileProxyLanguage", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LANGUAGE},
+      {"profileProxyWebRtc", IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_WEBRTC},
+      {"profileProxyWebRtcProxyOnly",
+       IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_WEBRTC_PROXY_ONLY},
+      {"profileProxyLastVerified",
+       IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LAST_VERIFIED},
+      {"profileProxyPasswordSavedHint",
+       IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_SAVED_HINT},
+      {"profileProxyPasswordOptionalHint",
+       IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_OPTIONAL_HINT},
       {"resolveUnstoppableDomainsDesc",
        IDS_SETTINGS_RESOLVE_UNSTOPPABLE_DOMAINS_DESC},
       {"resolveENSDesc", IDS_SETTINGS_RESOLVE_ENS_DESC},
@@ -1143,27 +1165,6 @@ void BraveAddCommonStrings(content::WebUIDataSource* html_source,
   };
 
   html_source->AddLocalizedStrings(localized_strings);
-  html_source->AddString("profileProxyManualGeoTitle", "Manual geo fallback");
-  html_source->AddString(
-      "profileProxyManualGeoDesc",
-      "Used when proxy IP lookup cannot infer country, time zone, and "
-      "coordinates.");
-  html_source->AddString("profileProxyManualCountryCodeLabel", "Country code");
-  html_source->AddString("profileProxyManualTimezoneLabel", "Time zone");
-  html_source->AddString("profileProxyManualLatitudeLabel", "Latitude");
-  html_source->AddString("profileProxyManualLongitudeLabel", "Longitude");
-  html_source->AddString("profileProxyGeoWarningTitle",
-                         "Geo fallback required");
-  html_source->AddString(
-      "profileProxyManualGeoIncomplete",
-      "Manual geo fallback requires country, time zone, latitude, and "
-      "longitude.");
-  html_source->AddString("profileProxyManualGeoCountryInvalid",
-                         "Country code must be two letters.");
-  html_source->AddString("profileProxyManualGeoLatitudeInvalid",
-                         "Latitude must be between -90 and 90.");
-  html_source->AddString("profileProxyManualGeoLongitudeInvalid",
-                         "Longitude must be between -180 and 180.");
   html_source->AddString("braveShieldsExampleTemplate", "example.com");
   html_source->AddString("webRTCLearnMoreURL", kWebRTCLearnMoreURL);
   html_source->AddString("googleLoginLearnMoreURL", kGoogleLoginLearnMoreURL);

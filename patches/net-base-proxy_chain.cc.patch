@@ -1,0 +1,13 @@
+diff --git a/net/base/proxy_chain.cc b/net/base/proxy_chain.cc
+index c98789c4d59925f3c4d6ddddd8873419e3c9539f..fa9b654a9642fc70d6e82faa94599a939c8fc514 100644
+--- a/net/base/proxy_chain.cc
++++ b/net/base/proxy_chain.cc
+@@ -149,7 +149,7 @@ std::string ProxyChain::ToDebugString() const {
+     if (!debug_string.empty()) {
+       debug_string += ", ";
+     }
+-    debug_string += ProxyServerToProxyUri(proxy_server);
++    debug_string += ProxyServerToProxyUri_ChromiumImpl(proxy_server);
+   }
+   debug_string = base::StrCat({"[", debug_string, "]"});
+   if (ip_protection_chain_id_ == 0) {

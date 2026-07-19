@@ -1286,7 +1286,7 @@
     Enable profile proxy
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_ENABLED_DESC" desc="The description for enabling the per-profile proxy feature">
-    Route this profile through a separate HTTP or SOCKS5 proxy.
+    Route this profile through a separate HTTP, HTTPS, or SOCKS5 proxy.
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_NO_PROXY_RISK_TITLE" desc="The title shown when a fingerprint persona is active but the per-profile proxy is disabled">
     Profile proxy is off
@@ -1298,10 +1298,13 @@
     Proxy type
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SCHEME_DESC" desc="The description for the per-profile proxy protocol selector">
-    HTTP and SOCKS5 proxies are supported.
+    HTTP, HTTPS, and SOCKS5 proxies are supported.
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTP" desc="The HTTP proxy type option">
     HTTP
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTPS" desc="The HTTPS proxy type option">
+    HTTPS
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SOCKS5" desc="The SOCKS5 proxy type option">
     SOCKS5
@@ -1335,6 +1338,63 @@
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SAVED" desc="Confirmation text shown after saving per-profile proxy settings">
     Profile proxy settings saved.
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_VERIFY" desc="Button that verifies a profile proxy without applying it">
+    Verify proxy
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_CONFIRM_APPLY" desc="Button that confirms a verified profile proxy and applies it">
+    Confirm and apply
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_MODIFY" desc="Button that returns to editing a verified profile proxy">
+    Modify
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_REVALIDATE" desc="Button that immediately revalidates the active profile proxy">
+    Check now
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_DISABLE" desc="Button that disables the active profile proxy">
+    Disable proxy
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LOCATION" desc="Label for the verified proxy location">
+    Location
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_TIMEZONE" desc="Label for the verified proxy time zone">
+    Time zone
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_COORDINATES" desc="Label for the verified proxy coordinates">
+    Coordinates
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LANGUAGE" desc="Label for the language derived from the verified proxy country">
+    Language
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_WEBRTC" desc="Label for the WebRTC proxy protection status">
+    WebRTC
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_WEBRTC_PROXY_ONLY" desc="Status shown when WebRTC non-proxied UDP is disabled">
+    Non-proxied UDP disabled
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LAST_VERIFIED" desc="Label for the last successful profile proxy verification time">
+    Last verified
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_SAVED_HINT" desc="Hint shown when an encrypted profile proxy password is already saved">
+    Leave blank to keep the saved password
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_OPTIONAL_HINT" desc="Hint shown when a profile proxy password is optional">
+    Optional
+  </message>
+  <message name="IDS_FINGERPRINT_PROFILE_PROXY_TOOLBAR_NAME" desc="Accessible name for the profile proxy toolbar button">
+    Profile proxy
+  </message>
+  <message name="IDS_FINGERPRINT_PROFILE_PROXY_BUBBLE_TITLE" desc="Title of the profile proxy toolbar bubble">
+    Profile proxy
+  </message>
+  <message name="IDS_FINGERPRINT_PROFILE_PROXY_CONFIGURE" desc="Button that opens profile proxy settings">
+    Configure
+  </message>
+  <message name="IDS_FINGERPRINT_PROFILE_PROXY_REVALIDATE" desc="Button that immediately revalidates the active profile proxy">
+    Check now
+  </message>
+  <message name="IDS_FINGERPRINT_PROFILE_PROXY_DISABLE" desc="Button that disables the active profile proxy">
+    Disable
   </message>
   <message name="IDS_SETTINGS_RESOLVE_UNSTOPPABLE_DOMAINS_DESC" desc="The description for how to handle Unstoppable Domains">
     Resolve Unstoppable Domains domain names

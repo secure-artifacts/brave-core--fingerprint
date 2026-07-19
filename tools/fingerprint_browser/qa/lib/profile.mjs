@@ -3,6 +3,8 @@ import path from 'node:path'
 
 import {startQaSession} from './browser.mjs'
 
+const PROFILE_PROXY_URL = 'brave://settings/fingerprintProfileProxy'
+
 async function findProxyElement(page) {
   await page.waitForFunction(() => {
     function find(root) {
@@ -22,7 +24,7 @@ async function findProxyElement(page) {
 
 export async function readProfileProxyState(page, navigate = true) {
   if (navigate) {
-    await page.goto('brave://settings/privacy', {waitUntil: 'domcontentloaded'})
+    await page.goto(PROFILE_PROXY_URL, {waitUntil: 'domcontentloaded'})
     await findProxyElement(page)
     await page.waitForTimeout(500)
   }
@@ -40,20 +42,33 @@ export async function readProfileProxyState(page, navigate = true) {
     }
     const element = find(document)
     return {
-      conflictWarning: element.conflictWarning_,
-      enabled: element.enabledPref_.value,
-      geoWarning: element.geoWarning_,
+      actionError: element.actionError_ || '',
+      activeGeo: element.activeGeo_ || null,
+      changeWarning: element.changeWarning_ || '',
+      egressIp: element.egressIp_ || '',
+      enabled: element.enabled_,
+      geoProvider: element.geoProvider_ || '',
+      hasSavedPassword: element.hasSavedPassword_,
       host: element.host_,
-      lastError: element.lastError_,
+      lastVerified: element.lastVerified_ || 0,
       port: Number(element.port_),
-      savedStatus: element.savedStatus_,
       scheme: element.scheme_,
+      state: element.state_,
+      statusMessage: element.statusMessage_ || '',
+      verification: element.verification_ ? {
+        egressIp: element.verification_.egressIp,
+        error: element.verification_.error,
+        geo: element.verification_.geo || null,
+        geoProvider: element.verification_.geoProvider,
+        success: element.verification_.success,
+        verificationId: element.verification_.verificationId,
+      } : null,
     }
   })
 }
 
 export async function waitForProfileProxyError(page, timeoutMs = 15000) {
-  await page.goto('brave://settings/privacy', {waitUntil: 'domcontentloaded'})
+  await page.goto(PROFILE_PROXY_URL, {waitUntil: 'domcontentloaded'})
   await findProxyElement(page)
   await page.waitForFunction(() => {
     function find(root) {
@@ -67,13 +82,15 @@ export async function waitForProfileProxyError(page, timeoutMs = 15000) {
       }
       return null
     }
-    return Boolean(find(document)?.lastError_)
+    const element = find(document)
+    return Boolean(
+      element?.state_ === 'error' || element?.actionError_)
   }, null, {timeout: timeoutMs})
   return await readProfileProxyState(page, false)
 }
 
-export async function setProfileProxy(page, config) {
-  await page.goto('brave://settings/privacy', {
+export async function verifyProfileProxy(page, config) {
+  await page.goto(PROFILE_PROXY_URL, {
     timeout: 30000,
     waitUntil: 'domcontentloaded',
   })
@@ -91,31 +108,91 @@ export async function setProfileProxy(page, config) {
       return null
     }
     const element = find(document)
-    element.setEnabledPref_(config.enabled)
     element.scheme_ = config.scheme
     element.host_ = config.host
     element.port_ = String(config.port || '')
     element.username_ = config.username || ''
     element.password_ = config.password || ''
-    element.manualCountryCode_ = config.countryCode || ''
-    element.manualTimezone_ = config.timezone || ''
-    element.manualLatitude_ = config.latitude === undefined ? '' : String(config.latitude)
-    element.manualLongitude_ = config.longitude === undefined ? '' : String(config.longitude)
-    await element.onSave_(new Event('click'))
+    element.onInputChanged_()
+    await element.onVerify_()
     return {
-      conflictWarning: element.conflictWarning_,
-      geoWarning: element.geoWarning_,
+      actionError: element.actionError_ || '',
+      activeGeo: element.activeGeo_ || null,
+      changeWarning: element.changeWarning_ || '',
+      egressIp: element.egressIp_ || '',
+      enabled: element.enabled_,
+      geoProvider: element.geoProvider_ || '',
+      hasSavedPassword: element.hasSavedPassword_,
       hostError: element.hostError_,
-      lastError: element.lastError_,
+      lastVerified: element.lastVerified_ || 0,
       portError: element.portError_,
-      saveError: element.saveError_,
-      savedStatus: element.savedStatus_,
+      state: element.state_,
+      statusMessage: element.statusMessage_ || '',
+      verification: element.verification_ ? {
+        egressIp: element.verification_.egressIp,
+        error: element.verification_.error,
+        geo: element.verification_.geo || null,
+        geoProvider: element.verification_.geoProvider,
+        success: element.verification_.success,
+        verificationId: element.verification_.verificationId,
+      } : null,
     }
   }, config)
 }
 
+export async function applyVerifiedProfileProxy(page) {
+  await findProxyElement(page)
+  await page.evaluate(async () => {
+    function find(root) {
+      const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
+      if (direct) return direct
+      for (const element of root.querySelectorAll?.('*') || []) {
+        if (element.shadowRoot) {
+          const nested = find(element.shadowRoot)
+          if (nested) return nested
+        }
+      }
+      return null
+    }
+    await find(document).onApply_()
+  })
+  return await readProfileProxyState(page, false)
+}
+
+export async function setProfileProxy(page, config) {
+  if (config.enabled === false) {
+    await page.goto(PROFILE_PROXY_URL, {
+      timeout: 30000,
+      waitUntil: 'domcontentloaded',
+    })
+    await findProxyElement(page)
+    await page.evaluate(async () => {
+      function find(root) {
+        const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
+        if (direct) return direct
+        for (const element of root.querySelectorAll?.('*') || []) {
+          if (element.shadowRoot) {
+            const nested = find(element.shadowRoot)
+            if (nested) return nested
+          }
+        }
+        return null
+      }
+      await find(document).onDisable_()
+    })
+    return await readProfileProxyState(page, false)
+  }
+
+  const verified = await verifyProfileProxy(page, config)
+  if (!verified.verification?.success) {
+    return verified
+  }
+  const applied = await applyVerifiedProfileProxy(page)
+  return {...applied, verified: verified.verification}
+}
+
 export async function renderProxyValidationError(page, screenshot) {
-  await page.goto('brave://settings/privacy', {waitUntil: 'domcontentloaded'})
+  await page.goto(PROFILE_PROXY_URL, {waitUntil: 'domcontentloaded'})
   await findProxyElement(page)
   const result = await page.evaluate(() => {
     function find(root) {
@@ -130,9 +207,9 @@ export async function renderProxyValidationError(page, screenshot) {
       return null
     }
     const element = find(document)
-    element.setEnabledPref_(true)
     element.host_ = ''
     element.port_ = '70000'
+    element.onInputChanged_()
     const valid = element.validate_()
     return {
       hostError: element.hostError_,

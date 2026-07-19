@@ -3,9 +3,31 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import {html, RegisterPolymerTemplateModifications} from 'chrome://resources/brave/polymer_overriding.js'
-import {getTrustedHTML} from 'chrome://resources/js/static_types.js'
+import {
+  html,
+  RegisterPolymerPrototypeModification,
+  RegisterPolymerTemplateModifications
+} from 'chrome://resources/brave/polymer_overriding.js'
 import {loadTimeData} from '../i18n_setup.js'
+import {Router} from '../router.js'
+
+RegisterPolymerPrototypeModification({
+  'settings-privacy-page': (prototype) => {
+    const oldGetAssociatedControlFor = prototype.getAssociatedControlFor
+    prototype.getAssociatedControlFor = function(childViewId: string) {
+      if (childViewId === 'fingerprintProfileProxy') {
+        return this.shadowRoot.querySelector(
+          '#fingerprintProfileProxyLinkRow')!
+      }
+      return oldGetAssociatedControlFor.call(this, childViewId)
+    }
+
+    prototype.onFingerprintProfileProxyClick_ = () => {
+      const router = Router.getInstance()
+      router.navigateTo(router.getRoutes().FINGERPRINT_PROFILE_PROXY)
+    }
+  }
+})
 
 RegisterPolymerTemplateModifications({
   'settings-privacy-page': (templateContent) => {
@@ -22,12 +44,22 @@ RegisterPolymerTemplateModifications({
       console.error(
         '[Brave Settings Overrides] Couldn\'t find siteSettingsLinkRow')
     } else {
-      siteSettingsLinkRow.insertAdjacentHTML(
-        'afterend',
-        getTrustedHTML`
-          <settings-brave-personalization-options prefs="{{prefs}}">
-          </settings-brave-personalization-options>
-        `)
+      const parent = siteSettingsLinkRow.parentNode!
+      const insertionPoint = siteSettingsLinkRow.nextSibling
+      parent.insertBefore(html`
+        <cr-link-row
+          id="fingerprintProfileProxyLinkRow"
+          class="hr"
+          label="${loadTimeData.getString('profileProxyTitle')}"
+          sub-label="${loadTimeData.getString('profileProxyEnabledDesc')}"
+          on-click="onFingerprintProfileProxyClick_"
+          role="link">
+        </cr-link-row>
+      `, insertionPoint)
+      parent.insertBefore(html`
+        <settings-brave-personalization-options prefs="{{prefs}}">
+        </settings-brave-personalization-options>
+      `, insertionPoint)
     }
     const thirdPartyCookiesLinkRow =
       templateContent.getElementById('thirdPartyCookiesLinkRow')

@@ -25,6 +25,7 @@ class BraveVPNButton;
 #endif
 
 class BraveBookmarkButton;
+class FingerprintProxyButton;
 class ScreenshotButton;
 class SidePanelButton;
 class TabStripComboButton;
@@ -42,6 +43,9 @@ class BraveToolbarView : public ToolbarView,
 
   BraveBookmarkButton* bookmark_button() const { return bookmark_; }
   WalletButton* wallet_button() const { return wallet_; }
+  FingerprintProxyButton* fingerprint_proxy_button() const {
+    return fingerprint_proxy_button_;
+  }
   SidePanelButton* side_panel_button() const { return side_panel_; }
   ToolbarButton* vertical_tab_toggle_button() const {
     return vertical_tab_toggle_;
@@ -106,6 +110,7 @@ class BraveToolbarView : public ToolbarView,
   BooleanPrefMember edit_bookmarks_enabled_;
 
   raw_ptr<WalletButton> wallet_ = nullptr;
+  raw_ptr<FingerprintProxyButton> fingerprint_proxy_button_ = nullptr;
   raw_ptr<SidePanelButton> side_panel_ = nullptr;
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)

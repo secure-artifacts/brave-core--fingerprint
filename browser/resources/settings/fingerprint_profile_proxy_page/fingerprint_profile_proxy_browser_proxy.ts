@@ -5,41 +5,62 @@
 
 import {sendWithPromise} from 'chrome://resources/js/cr.js'
 
-export interface ProfileProxyConfig {
+export interface ProfileProxyGeo {
+  countryCode: string
+  countryName: string
+  regionName: string
+  cityName: string
+  timezone: string
+  latitude: number
+  longitude: number
+  acceptLanguages: string
+}
+
+export interface ProfileProxyState {
+  state: string
+  statusMessage: string
+  changeWarning: string
   enabled: boolean
   scheme: string
   host: string
   port: number
   username: string
-  password: string
-  conflictWarning: string
-  manualCountryCode: string
-  manualTimezone: string
-  manualLatitude: string
-  manualLongitude: string
-  geoWarning: string
-  derivedCountryCode: string
-  derivedTimezone: string
-  derivedLatitude: string
-  derivedLongitude: string
+  hasSavedPassword: boolean
+  egressIp: string
+  geoProvider: string
+  lastVerified: number
+  geo?: ProfileProxyGeo
 }
 
-export interface ProfileProxySaveResult {
+export interface ProfileProxyDraft {
+  scheme: string
+  host: string
+  port: number
+  username: string
+  password: string
+}
+
+export interface ProxyVerificationResult {
+  success: boolean
+  verificationId: string
+  error: string
+  egressIp: string
+  geoProvider: string
+  geo?: ProfileProxyGeo
+}
+
+export interface ProxyApplyResult {
   success: boolean
   error: string
-  conflictWarning: string
-  geoWarning: string
-}
-
-export interface ProfileProxyLastError {
-  message: string
-  code: number
 }
 
 export interface FingerprintProfileProxyBrowserProxy {
-  getConfig: () => Promise<ProfileProxyConfig>
-  setConfig: (config: ProfileProxyConfig) => Promise<ProfileProxySaveResult>
-  getLastError: () => Promise<ProfileProxyLastError>
+  getState: () => Promise<ProfileProxyState>
+  verifyDraft: (config: ProfileProxyDraft) =>
+    Promise<ProxyVerificationResult>
+  applyVerified: (verificationId: string) => Promise<ProxyApplyResult>
+  revalidate: () => Promise<ProxyVerificationResult>
+  disable: () => Promise<ProxyApplyResult>
 }
 
 export class FingerprintProfileProxyBrowserProxyImpl
@@ -52,19 +73,29 @@ implements FingerprintProfileProxyBrowserProxy {
     instance = obj
   }
 
-  getConfig() {
-    return sendWithPromise<ProfileProxyConfig>(
-      'fingerprint_profile_proxy.getConfig')
+  getState() {
+    return sendWithPromise<ProfileProxyState>(
+      'fingerprint_profile_proxy.getState')
   }
 
-  setConfig(config: ProfileProxyConfig) {
-    return sendWithPromise<ProfileProxySaveResult>(
-      'fingerprint_profile_proxy.setConfig', config)
+  verifyDraft(config: ProfileProxyDraft) {
+    return sendWithPromise<ProxyVerificationResult>(
+      'fingerprint_profile_proxy.verifyDraft', config)
   }
 
-  getLastError() {
-    return sendWithPromise<ProfileProxyLastError>(
-      'fingerprint_profile_proxy.getLastError')
+  applyVerified(verificationId: string) {
+    return sendWithPromise<ProxyApplyResult>(
+      'fingerprint_profile_proxy.applyVerified', verificationId)
+  }
+
+  revalidate() {
+    return sendWithPromise<ProxyVerificationResult>(
+      'fingerprint_profile_proxy.revalidate')
+  }
+
+  disable() {
+    return sendWithPromise<ProxyApplyResult>(
+      'fingerprint_profile_proxy.disable')
   }
 }
 

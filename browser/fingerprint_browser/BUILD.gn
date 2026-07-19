@@ -5,19 +5,33 @@
 
 source_set("fingerprint_browser") {
   sources = [
+    "fingerprint_proxy_service.cc",
+    "fingerprint_proxy_service.h",
+    "fingerprint_proxy_service_factory.cc",
+    "fingerprint_proxy_service_factory.h",
     "persona_service_factory.cc",
     "persona_service_factory.h",
   ]
 
-  public_deps = [ "//brave/components/fingerprint_browser/browser" ]
+  public_deps = [
+    "//brave/components/fingerprint_browser/browser",
+    "//services/network/public/cpp",
+  ]
 
   deps = [
     "//base",
+    "//chrome/browser:browser_process",
     "//chrome/browser/profiles",
     "//components/keyed_service/content",
     "//components/keyed_service/core",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
     "//components/pref_registry",
     "//components/prefs",
     "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//net",
+    "//services/cert_verifier/public/mojom",
+    "//services/network/public/mojom",
   ]
 }

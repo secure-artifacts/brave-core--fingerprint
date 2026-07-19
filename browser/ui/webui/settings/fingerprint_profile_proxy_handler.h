@@ -6,16 +6,17 @@
 #ifndef BRAVE_BROWSER_UI_WEBUI_SETTINGS_FINGERPRINT_PROFILE_PROXY_HANDLER_H_
 #define BRAVE_BROWSER_UI_WEBUI_SETTINGS_FINGERPRINT_PROFILE_PROXY_HANDLER_H_
 
-#include <string>
-
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/values.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_service.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
-#include "components/prefs/pref_change_registrar.h"
 
 class Profile;
 
-class FingerprintProfileProxyHandler : public settings::SettingsPageUIHandler {
+class FingerprintProfileProxyHandler
+    : public settings::SettingsPageUIHandler,
+      public fingerprint_browser::FingerprintProxyService::Observer {
  public:
   FingerprintProfileProxyHandler();
   FingerprintProfileProxyHandler(const FingerprintProfileProxyHandler&) =
@@ -26,20 +27,34 @@ class FingerprintProfileProxyHandler : public settings::SettingsPageUIHandler {
 
  private:
   void RegisterMessages() override;
-  void OnJavascriptAllowed() override {}
-  void OnJavascriptDisallowed() override {}
+  void OnJavascriptAllowed() override;
+  void OnJavascriptDisallowed() override;
 
-  void GetConfig(const base::ListValue& args);
-  void SetConfig(const base::ListValue& args);
-  void GetLastError(const base::ListValue& args);
-  void OnLastErrorChanged();
+  void GetState(const base::ListValue& args);
+  void VerifyDraft(const base::ListValue& args);
+  void ApplyVerified(const base::ListValue& args);
+  void Revalidate(const base::ListValue& args);
+  void Disable(const base::ListValue& args);
 
-  base::DictValue BuildConfig() const;
-  base::DictValue BuildLastError() const;
-  std::string ValidateConfig(const base::DictValue& config) const;
+  void OnVerificationComplete(
+      base::Value callback_id,
+      fingerprint_browser::ProxyVerificationResult result);
+  void OnApplyComplete(base::Value callback_id,
+                       fingerprint_browser::ProxyApplyResult result);
+  void OnDisableComplete(base::Value callback_id);
+
+  void OnFingerprintProxyStateChanged() override;
+
+  base::DictValue BuildState() const;
+  base::DictValue BuildVerificationResult(
+      const fingerprint_browser::ProxyVerificationResult& result) const;
+  base::DictValue BuildGeo(
+      const fingerprint_browser::ProfileProxyGeo& geo) const;
 
   raw_ptr<Profile> profile_ = nullptr;
-  PrefChangeRegistrar pref_change_registrar_;
+  raw_ptr<fingerprint_browser::FingerprintProxyService> service_ = nullptr;
+  bool observing_service_ = false;
+  base::WeakPtrFactory<FingerprintProfileProxyHandler> weak_factory_{this};
 };
 
 #endif  // BRAVE_BROWSER_UI_WEBUI_SETTINGS_FINGERPRINT_PROFILE_PROXY_HANDLER_H_

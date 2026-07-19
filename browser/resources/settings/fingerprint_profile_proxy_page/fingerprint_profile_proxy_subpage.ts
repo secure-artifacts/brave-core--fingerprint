@@ -10,19 +10,37 @@ import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js'
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js'
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js'
 
-import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js'
 import {loadTimeData} from '../i18n_setup.js'
 
 import {FingerprintProfileProxyBrowserProxyImpl} from './fingerprint_profile_proxy_browser_proxy.js'
 import type {
   FingerprintProfileProxyBrowserProxy,
-  ProfileProxyConfig,
-  ProfileProxyLastError,
+  ProfileProxyDraft,
+  ProfileProxyGeo,
+  ProfileProxyState,
+  ProxyVerificationResult,
 } from './fingerprint_profile_proxy_browser_proxy.js'
 import {getTemplate} from './fingerprint_profile_proxy_subpage.html.js'
 
 const SettingsFingerprintProfileProxySubpageElementBase =
   WebUiListenerMixin(I18nMixin(PolymerElement))
+
+const ISO_COUNTRY_CODES =
+  'ad ae af ag ai al am ao aq ar as at au aw ax az ba bb bd be bf bg bh bi ' +
+  'bj bl bm bn bo bq br bs bt bv bw by bz ca cc cd cf cg ch ci ck cl cm cn ' +
+  'co cr cu cv cw cx cy cz de dj dk dm do dz ec ee eg eh er es et fi fj fk ' +
+  'fm fo fr ga gb gd ge gf gg gh gi gl gm gn gp gq gr gs gt gu gw gy hk hm ' +
+  'hn hr ht hu id ie il im in io iq ir is it je jm jo jp ke kg kh ki km kn ' +
+  'kp kr kw ky kz la lb lc li lk lr ls lt lu lv ly ma mc md me mf mg mh mk ' +
+  'ml mm mn mo mp mq mr ms mt mu mv mw mx my mz na nc ne nf ng ni nl no np ' +
+  'nr nu nz om pa pe pf pg ph pk pl pm pn pr ps pt pw py qa re ro rs ru rw ' +
+  'sa sb sc sd se sg sh si sj sk sl sm sn so sr ss st sv sx sy sz tc td tf ' +
+  'tg th tj tk tl tm tn to tr tt tv tw tz ua ug um us uy uz va vc ve vg vi ' +
+  'vn vu wf ws ye yt za zm zw'
+const COUNTRY_CODE_LIST = ISO_COUNTRY_CODES.split(' ')
+const FLAG_ATLAS_COLUMNS = 16
+const FLAG_CELL_WIDTH = 64
+const FLAG_CELL_HEIGHT = 48
 
 class SettingsFingerprintProfileProxySubpageElement extends
   SettingsFingerprintProfileProxySubpageElementBase {
@@ -36,110 +54,49 @@ class SettingsFingerprintProfileProxySubpageElement extends
 
   static get properties() {
     return {
-      enabledPref_: {
-        type: Object,
-        value() {
-          return {
-            key: '',
-            type: chrome.settingsPrivate.PrefType.BOOLEAN,
-            value: false,
-          }
-        },
-      },
-      scheme_: {
-        type: String,
-        value: 'http',
-      },
-      host_: {
-        type: String,
-        value: '',
-      },
-      port_: {
-        type: String,
-        value: '',
-      },
-      username_: {
-        type: String,
-        value: '',
-      },
-      password_: {
-        type: String,
-        value: '',
-      },
-      manualCountryCode_: {
-        type: String,
-        value: '',
-      },
-      manualTimezone_: {
-        type: String,
-        value: '',
-      },
-      manualLatitude_: {
-        type: String,
-        value: '',
-      },
-      manualLongitude_: {
-        type: String,
-        value: '',
-      },
-      geoWarning_: {
-        type: String,
-        value: '',
-      },
-      conflictWarning_: {
-        type: String,
-        value: '',
-      },
-      lastError_: {
-        type: String,
-        value: '',
-      },
-      hostError_: {
-        type: String,
-        value: '',
-      },
-      portError_: {
-        type: String,
-        value: '',
-      },
-      saveError_: {
-        type: String,
-        value: '',
-      },
-      savedStatus_: {
-        type: String,
-        value: '',
-      },
-      isSaving_: {
-        type: Boolean,
-        value: false,
-      },
-      showNoProxyRisk_: {
-        type: Boolean,
-        computed: 'computeShowNoProxyRisk_(enabledPref_.value)',
-      },
+      state_: {type: String, value: 'unconfigured'},
+      statusMessage_: {type: String, value: ''},
+      changeWarning_: {type: String, value: ''},
+      enabled_: {type: Boolean, value: false},
+      hasSavedPassword_: {type: Boolean, value: false},
+      egressIp_: {type: String, value: ''},
+      geoProvider_: {type: String, value: ''},
+      lastVerified_: {type: Number, value: 0},
+      activeGeo_: {type: Object, value: null},
+      verification_: {type: Object, value: null},
+      scheme_: {type: String, value: 'http'},
+      host_: {type: String, value: ''},
+      port_: {type: String, value: ''},
+      username_: {type: String, value: ''},
+      password_: {type: String, value: ''},
+      hostError_: {type: String, value: ''},
+      portError_: {type: String, value: ''},
+      actionError_: {type: String, value: ''},
+      isBusy_: {type: Boolean, value: false},
+      initialized_: {type: Boolean, value: false},
     }
   }
 
-  private declare enabledPref_: chrome.settingsPrivate.PrefObject<boolean>
+  private declare state_: string
+  private declare statusMessage_: string
+  private declare changeWarning_: string
+  private declare enabled_: boolean
+  private declare hasSavedPassword_: boolean
+  private declare egressIp_: string
+  private declare geoProvider_: string
+  private declare lastVerified_: number
+  private declare activeGeo_: ProfileProxyGeo|null
+  private declare verification_: ProxyVerificationResult|null
   private declare scheme_: string
   private declare host_: string
   private declare port_: string
   private declare username_: string
   private declare password_: string
-  private declare manualCountryCode_: string
-  private declare manualTimezone_: string
-  private declare manualLatitude_: string
-  private declare manualLongitude_: string
-  private declare geoWarning_: string
-  private declare conflictWarning_: string
-  private declare lastError_: string
   private declare hostError_: string
   private declare portError_: string
-  private declare saveError_: string
-  private declare savedStatus_: string
-  private declare isSaving_: boolean
-  private declare showNoProxyRisk_: boolean
+  private declare actionError_: string
+  private declare isBusy_: boolean
+  private declare initialized_: boolean
 
   private browserProxy_: FingerprintProfileProxyBrowserProxy =
     FingerprintProfileProxyBrowserProxyImpl.getInstance()
@@ -153,150 +110,138 @@ class SettingsFingerprintProfileProxySubpageElement extends
     }
 
     this.addWebUiListener(
-      'fingerprint-profile-proxy-error-changed',
-      (error: ProfileProxyLastError) => this.setLastError_(error))
-
-    this.browserProxy_.getConfig().then((config: ProfileProxyConfig) => {
-      this.setEnabledPref_(config.enabled)
-      this.scheme_ = config.scheme || 'http'
-      this.host_ = config.host || ''
-      this.port_ = config.port ? String(config.port) : ''
-      this.username_ = config.username || ''
-      this.password_ = config.password || ''
-      this.manualCountryCode_ = config.manualCountryCode || ''
-      this.manualTimezone_ = config.manualTimezone || ''
-      this.manualLatitude_ = config.manualLatitude || ''
-      this.manualLongitude_ = config.manualLongitude || ''
-      this.geoWarning_ = config.geoWarning || ''
-      this.conflictWarning_ = config.conflictWarning || ''
-    })
-
-    this.browserProxy_.getLastError().then(
-      (error: ProfileProxyLastError) => this.setLastError_(error))
+      'fingerprint-profile-proxy-state-changed',
+      (state: ProfileProxyState) => this.setState_(state))
+    this.refreshState_()
   }
 
-  private setEnabledPref_(enabled: boolean) {
-    this.enabledPref_ = {
-      key: '',
-      type: chrome.settingsPrivate.PrefType.BOOLEAN,
-      value: enabled,
+  private async refreshState_() {
+    this.setState_(await this.browserProxy_.getState())
+  }
+
+  private setState_(state: ProfileProxyState) {
+    this.state_ = state.state || 'unconfigured'
+    this.statusMessage_ = state.statusMessage || ''
+    this.changeWarning_ = state.changeWarning || ''
+    this.enabled_ = state.enabled
+    this.hasSavedPassword_ = state.hasSavedPassword
+    this.egressIp_ = state.egressIp || ''
+    this.geoProvider_ = state.geoProvider || ''
+    this.lastVerified_ = state.lastVerified || 0
+    this.activeGeo_ = state.geo || null
+
+    if (!this.initialized_) {
+      this.scheme_ = state.scheme || 'http'
+      this.host_ = state.host || ''
+      this.port_ = state.port ? String(state.port) : ''
+      this.username_ = state.username || ''
+      this.initialized_ = true
     }
-  }
-
-  private setLastError_(error: ProfileProxyLastError) {
-    this.lastError_ = error.message || ''
-  }
-
-  private onEnabledChange_(event: Event) {
-    event.stopPropagation()
-    this.setEnabledPref_((event.target as SettingsToggleButtonElement).checked)
-    this.clearTransientMessages_()
   }
 
   private onSchemeChanged_(event: Event) {
     this.scheme_ = (event.target as HTMLSelectElement).value
-    this.clearTransientMessages_()
+    this.onInputChanged_()
   }
 
   private onInputChanged_() {
-    this.clearTransientMessages_()
-  }
-
-  private clearTransientMessages_() {
+    this.verification_ = null
     this.hostError_ = ''
     this.portError_ = ''
-    this.saveError_ = ''
-    this.savedStatus_ = ''
-  }
-
-  private manualGeoValuePresent_() {
-    return this.manualCountryCode_.trim().length > 0 ||
-      this.manualTimezone_.trim().length > 0 ||
-      this.manualLatitude_.trim().length > 0 ||
-      this.manualLongitude_.trim().length > 0
+    this.actionError_ = ''
   }
 
   private validate_() {
-    this.clearTransientMessages_()
-    const enabled = this.enabledPref_.value
-    const host = this.host_.trim()
-    const portText = this.port_.trim()
-    const hasProxyValue = host.length > 0 || portText.length > 0
+    this.hostError_ = ''
+    this.portError_ = ''
+    this.actionError_ = ''
 
-    if ((enabled || hasProxyValue) && host.length === 0) {
+    if (!this.host_.trim()) {
       this.hostError_ = this.i18n('profileProxyHostRequired')
     }
-
-    const port = Number(portText)
-    if ((enabled || hasProxyValue) &&
-        (!/^\d+$/.test(portText) || port < 1 || port > 65535)) {
+    const port = Number(this.port_.trim())
+    if (!/^\d+$/.test(this.port_.trim()) || port < 1 || port > 65535) {
       this.portError_ = this.i18n('profileProxyPortInvalid')
     }
-
-    if (this.manualGeoValuePresent_()) {
-      const country = this.manualCountryCode_.trim()
-      const timezone = this.manualTimezone_.trim()
-      const latitudeText = this.manualLatitude_.trim()
-      const longitudeText = this.manualLongitude_.trim()
-      const latitude = Number(latitudeText)
-      const longitude = Number(longitudeText)
-      if (!country || !timezone || !latitudeText || !longitudeText) {
-        this.saveError_ = this.i18n('profileProxyManualGeoIncomplete')
-      } else if (!/^[a-zA-Z]{2}$/.test(country)) {
-        this.saveError_ = this.i18n('profileProxyManualGeoCountryInvalid')
-      } else if (!Number.isFinite(latitude) || latitude < -90 ||
-          latitude > 90) {
-        this.saveError_ = this.i18n('profileProxyManualGeoLatitudeInvalid')
-      } else if (!Number.isFinite(longitude) || longitude < -180 ||
-          longitude > 180) {
-        this.saveError_ = this.i18n('profileProxyManualGeoLongitudeInvalid')
-      }
-    }
-
-    return this.hostError_.length === 0 && this.portError_.length === 0 &&
-      this.saveError_.length === 0
+    return !this.hostError_ && !this.portError_
   }
 
-  private async onSave_(event: Event) {
-    event.stopPropagation()
+  private buildDraft_(): ProfileProxyDraft {
+    return {
+      scheme: this.scheme_,
+      host: this.host_.trim(),
+      port: Number(this.port_.trim()),
+      username: this.username_,
+      password: this.password_,
+    }
+  }
+
+  private async onVerify_() {
     if (!this.validate_()) {
       return
     }
-
-    this.isSaving_ = true
+    this.isBusy_ = true
+    this.verification_ = null
     try {
-      const result = await this.browserProxy_.setConfig(this.buildConfig_())
+      const result = await this.browserProxy_.verifyDraft(this.buildDraft_())
       if (!result.success) {
-        this.saveError_ = result.error
+        this.actionError_ = result.error
         return
       }
-      this.conflictWarning_ = result.conflictWarning || ''
-      this.geoWarning_ = result.geoWarning || ''
-      this.setLastError_({message: '', code: 0})
-      this.savedStatus_ = this.i18n('profileProxySaved')
+      this.verification_ = result
     } finally {
-      this.isSaving_ = false
+      this.isBusy_ = false
     }
   }
 
-  private buildConfig_(): ProfileProxyConfig {
-    return {
-      enabled: this.enabledPref_.value,
-      scheme: this.scheme_,
-      host: this.host_.trim(),
-      port: this.port_.trim() ? Number(this.port_.trim()) : 0,
-      username: this.username_,
-      password: this.password_,
-      conflictWarning: this.conflictWarning_,
-      manualCountryCode: this.manualCountryCode_.trim(),
-      manualTimezone: this.manualTimezone_.trim(),
-      manualLatitude: this.manualLatitude_.trim(),
-      manualLongitude: this.manualLongitude_.trim(),
-      geoWarning: this.geoWarning_,
-      derivedCountryCode: '',
-      derivedTimezone: '',
-      derivedLatitude: '',
-      derivedLongitude: '',
+  private async onApply_() {
+    if (!this.verification_) {
+      return
+    }
+    this.isBusy_ = true
+    try {
+      const result = await this.browserProxy_.applyVerified(
+        this.verification_.verificationId)
+      if (!result.success) {
+        this.actionError_ = result.error
+        this.verification_ = null
+        return
+      }
+      this.password_ = ''
+      this.verification_ = null
+      await this.refreshState_()
+    } finally {
+      this.isBusy_ = false
+    }
+  }
+
+  private async onRevalidate_() {
+    this.isBusy_ = true
+    this.actionError_ = ''
+    try {
+      const result = await this.browserProxy_.revalidate()
+      if (!result.success) {
+        this.actionError_ = result.error
+      }
+      await this.refreshState_()
+    } finally {
+      this.isBusy_ = false
+    }
+  }
+
+  private async onDisable_() {
+    this.isBusy_ = true
+    this.actionError_ = ''
+    try {
+      const result = await this.browserProxy_.disable()
+      if (!result.success) {
+        this.actionError_ = result.error
+        return
+      }
+      this.verification_ = null
+      await this.refreshState_()
+    } finally {
+      this.isBusy_ = false
     }
   }
 
@@ -308,10 +253,50 @@ class SettingsFingerprintProfileProxySubpageElement extends
     return value.length > 0
   }
 
-  private computeShowNoProxyRisk_(enabled: boolean) {
-    return !enabled
+  private isActive_(state: string, geo: ProfileProxyGeo|null) {
+    return !!geo && (state === 'active' || state === 'stale')
   }
 
+  private showWarningState_(state: string) {
+    return state === 'stale' || state === 'error' || state === 'conflict'
+  }
+
+  private showRecoveryActions_(enabled: boolean, state: string) {
+    return enabled && (state === 'error' || state === 'conflict')
+  }
+
+  private warningStateClass_(state: string) {
+    return state === 'error' ? 'error-row' : 'warning-row'
+  }
+
+  private passwordHint_(hasSavedPassword: boolean) {
+    return hasSavedPassword ?
+      this.i18n('profileProxyPasswordSavedHint') :
+      this.i18n('profileProxyPasswordOptionalHint')
+  }
+
+  private countryFlagStyle_(countryCode: string) {
+    const index = COUNTRY_CODE_LIST.indexOf((countryCode || '').toLowerCase())
+    if (index < 0) {
+      return 'background-image: none'
+    }
+    const x = index % FLAG_ATLAS_COLUMNS * FLAG_CELL_WIDTH
+    const y = Math.floor(index / FLAG_ATLAS_COLUMNS) * FLAG_CELL_HEIGHT
+    return `background-position: -${x}px -${y}px`
+  }
+
+  private countryFlagFallback_(countryCode: string) {
+    const code = (countryCode || '').toUpperCase()
+    return COUNTRY_CODE_LIST.includes(code.toLowerCase()) ? '' : code || '--'
+  }
+
+  private formatCoordinates_(geo: ProfileProxyGeo) {
+    return `${geo.latitude.toFixed(4)}, ${geo.longitude.toFixed(4)}`
+  }
+
+  private formatLastVerified_(milliseconds: number) {
+    return milliseconds ? new Date(milliseconds).toLocaleString() : '-'
+  }
 }
 
 customElements.define(

@@ -1,12 +1,12 @@
 import path from 'node:path'
 import {fileURLToPath} from 'node:url'
 
-const MODES = new Set(['smoke', 'full', 'soak'])
+const MODES = new Set(['smoke', 'proxy', 'full', 'soak'])
 const DEFAULT_BRAVE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 
 export function usage() {
-  return `Usage: run_qa.mjs --mode smoke|full|soak [options]
+  return `Usage: run_qa.mjs --mode smoke|proxy|full|soak [options]
 
 Options:
   --app <path>              QA .app path

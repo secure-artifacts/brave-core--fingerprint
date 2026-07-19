@@ -23,6 +23,28 @@ inline constexpr char kProfileProxyUsername[] =
     "brave.fingerprint_browser.proxy.username";
 inline constexpr char kProfileProxyPassword[] =
     "brave.fingerprint_browser.proxy.password";
+inline constexpr char kProfileProxyEncryptedPassword[] =
+    "brave.fingerprint_browser.proxy.encrypted_password";
+inline constexpr char kProfileProxyCredentialGeneration[] =
+    "brave.fingerprint_browser.proxy.credential_generation";
+inline constexpr char kProfileProxyState[] =
+    "brave.fingerprint_browser.proxy.state";
+inline constexpr char kProfileProxyStatusMessage[] =
+    "brave.fingerprint_browser.proxy.status_message";
+inline constexpr char kProfileProxyChangeWarning[] =
+    "brave.fingerprint_browser.proxy.change_warning";
+inline constexpr char kProfileProxyEgressIp[] =
+    "brave.fingerprint_browser.proxy.egress_ip";
+inline constexpr char kProfileProxyCountryName[] =
+    "brave.fingerprint_browser.proxy.country_name";
+inline constexpr char kProfileProxyRegionName[] =
+    "brave.fingerprint_browser.proxy.region_name";
+inline constexpr char kProfileProxyCityName[] =
+    "brave.fingerprint_browser.proxy.city_name";
+inline constexpr char kProfileProxyGeoProvider[] =
+    "brave.fingerprint_browser.proxy.geo.provider";
+inline constexpr char kProfileProxyLastVerifiedTime[] =
+    "brave.fingerprint_browser.proxy.last_verified_time";
 inline constexpr char kProfileProxyLastError[] =
     "brave.fingerprint_browser.proxy.last_error";
 inline constexpr char kProfileProxyLastErrorCode[] =
@@ -59,6 +81,7 @@ inline constexpr char kProfileProxyGeoLookupFailed[] =
     "brave.fingerprint_browser.proxy.geo.lookup_failed";
 
 inline constexpr char kProfileProxySchemeHttp[] = "http";
+inline constexpr char kProfileProxySchemeHttps[] = "https";
 inline constexpr char kProfileProxySchemeSocks5[] = "socks5";
 
 void RegisterProfilePrefs(PrefRegistrySimple* registry);

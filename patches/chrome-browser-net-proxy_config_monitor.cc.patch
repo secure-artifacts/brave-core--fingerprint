@@ -1,15 +1,16 @@
 diff --git a/chrome/browser/net/proxy_config_monitor.cc b/chrome/browser/net/proxy_config_monitor.cc
-index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e07b68169 100644
+index 50e7a07af841ff55cd24c0a79eef5dcc68807933..0b939386bd704ed0bdc3f31ff246388aa9e4b80b 100644
 --- a/chrome/browser/net/proxy_config_monitor.cc
 +++ b/chrome/browser/net/proxy_config_monitor.cc
-@@ -6,13 +6,20 @@
+@@ -6,13 +6,21 @@
 
  #include <utility>
 
 +#include "base/functional/bind.h"
  #include "base/strings/utf_string_conversions.h"
++#include "brave/browser/fingerprint_browser/fingerprint_proxy_service.h"
++#include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
 +#include "brave/components/fingerprint_browser/browser/pref_names.h"
-+#include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 +#include "brave/components/tor/buildflags/buildflags.h"
 +#include "brave/net/proxy_resolution/profile_proxy_config_service.h"
  #include "build/build_config.h"
@@ -17,13 +18,13 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
  #include "chrome/browser/browser_process.h"
  #include "chrome/browser/net/proxy_service_factory.h"
  #include "chrome/browser/profiles/profile.h"
++#include "components/prefs/pref_change_registrar.h"
  #include "components/proxy_config/pref_proxy_config_tracker_impl.h"
 +#include "components/proxy_config/proxy_config_pref_names.h"
-+#include "components/prefs/pref_change_registrar.h"
  #include "content/public/browser/browser_thread.h"
  #include "mojo/public/cpp/bindings/pending_remote.h"
  #include "services/network/public/mojom/network_context.mojom.h"
-@@ -23,13 +30,63 @@
+@@ -23,13 +31,68 @@
 
  #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
  #include "chrome/browser/extensions/api/proxy/proxy_api.h"
@@ -39,17 +40,19 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
 +namespace {
 +
 +bool IsFingerprintBrowserProfileProxyEnabled(Profile* profile) {
-+  if (!profile) {
-+    return false;
-+  }
-+  fingerprint_browser::SyncProfileProxyDerivedPrefs(*profile->GetPrefs());
-+  return fingerprint_browser::ShouldUseProfileProxy(*profile->GetPrefs());
++  auto* service =
++      fingerprint_browser::FingerprintProxyServiceFactory::GetForProfile(
++          profile);
++  return service && service->GetProxyServer().has_value();
 +}
 +
 +std::unique_ptr<net::ProxyConfigService>
 +CreateFingerprintBrowserProfileProxyConfigService(Profile* profile) {
-+  auto proxy_server =
-+      fingerprint_browser::GetProfileProxyServerFromPrefs(*profile->GetPrefs());
++  auto* service =
++      fingerprint_browser::FingerprintProxyServiceFactory::GetForProfile(
++          profile);
++  DCHECK(service);
++  auto proxy_server = service->GetProxyServer();
 +  DCHECK(proxy_server);
 +  return std::make_unique<net::ProfileProxyConfigService>(*proxy_server);
 +}
@@ -59,8 +62,11 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
 +  if (!IsFingerprintBrowserProfileProxyEnabled(profile)) {
 +    return;
 +  }
-+  fingerprint_browser::SetProfileProxyLastError(*profile->GetPrefs(),
-+                                                net_error);
++  auto* service =
++      fingerprint_browser::FingerprintProxyServiceFactory::GetForProfile(
++          profile);
++  DCHECK(service);
++  service->ReportProxyError(net_error);
 +}
 +
 +#if BUILDFLAG(ENABLE_TOR)
@@ -88,7 +94,7 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
 
  #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
    profile_ = profile;
-@@ -52,10 +109,33 @@ ProxyConfigMonitor::ProxyConfigMonitor(Profile* profile) {
+@@ -52,10 +115,29 @@ ProxyConfigMonitor::ProxyConfigMonitor(Profile* profile) {
              profile->GetPrefs(), g_browser_process->local_state());
    }
 
@@ -111,11 +117,7 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
 +      base::Unretained(this));
 +  for (const char* pref_name :
 +       {fingerprint_browser::prefs::kProfileProxyEnabled,
-+        fingerprint_browser::prefs::kProfileProxyScheme,
-+        fingerprint_browser::prefs::kProfileProxyHost,
-+        fingerprint_browser::prefs::kProfileProxyPort,
-+        fingerprint_browser::prefs::kProfileProxyUsername,
-+        fingerprint_browser::prefs::kProfileProxyPassword,
++        fingerprint_browser::prefs::kProfileProxyCredentialGeneration,
 +        proxy_config::prefs::kProxy,
 +        proxy_config::prefs::kProxyOverrideRules}) {
 +    fingerprint_browser_profile_proxy_pref_change_registrar_->Add(
@@ -125,19 +127,18 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
  }
 
  ProxyConfigMonitor::ProxyConfigMonitor(PrefService* local_state) {
-@@ -78,6 +158,57 @@ ProxyConfigMonitor::~ProxyConfigMonitor() {
+@@ -78,6 +160,56 @@ ProxyConfigMonitor::~ProxyConfigMonitor() {
    pref_proxy_config_tracker_->DetachFromPrefService();
  }
 
 +void ProxyConfigMonitor::UpdateFingerprintBrowserProfileProxyConfig() {
 +  DCHECK(fingerprint_browser_profile_);
 +
-+  const auto proxy_server =
-+      fingerprint_browser::GetProfileProxyServerFromPrefs(
-+          *fingerprint_browser_profile_->GetPrefs());
-+  const bool should_use_profile_proxy =
-+      fingerprint_browser::ShouldUseProfileProxy(
-+          *fingerprint_browser_profile_->GetPrefs());
++  auto* service =
++      fingerprint_browser::FingerprintProxyServiceFactory::GetForProfile(
++          fingerprint_browser_profile_);
++  const auto proxy_server = service ? service->GetProxyServer() : std::nullopt;
++  const bool should_use_profile_proxy = proxy_server.has_value();
 +
 +  if (should_use_profile_proxy) {
 +    DCHECK(proxy_server);
@@ -146,10 +147,9 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
 +          ->UpdateProxyServer(*proxy_server);
 +      return;
 +    }
-+    ReplaceProxyConfigService(
-+        CreateFingerprintBrowserProfileProxyConfigService(
-+            fingerprint_browser_profile_),
-+        true);
++    ReplaceProxyConfigService(CreateFingerprintBrowserProfileProxyConfigService(
++                                  fingerprint_browser_profile_),
++                              true);
 +    return;
 +  }
 +
@@ -174,7 +174,8 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
 +  proxy_config_service_->AddObserver(this);
 +
 +  net::ProxyConfigWithAnnotation config;
-+  const auto availability = proxy_config_service_->GetLatestProxyConfig(&config);
++  const auto availability =
++      proxy_config_service_->GetLatestProxyConfig(&config);
 +  if (availability != net::ProxyConfigService::CONFIG_PENDING) {
 +    OnProxyConfigChanged(config, availability);
 +  }
@@ -183,7 +184,7 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
  void ProxyConfigMonitor::AddToNetworkContextParams(
      network::mojom::NetworkContextParams* network_context_params) {
    mojo::PendingRemote<network::mojom::ProxyConfigClient> proxy_config_client;
-@@ -99,8 +230,9 @@ void ProxyConfigMonitor::AddToNetworkContextParams(
+@@ -99,8 +231,9 @@ void ProxyConfigMonitor::AddToNetworkContextParams(
    net::ProxyConfigWithAnnotation proxy_config;
    net::ProxyConfigService::ConfigAvailability availability =
        proxy_config_service_->GetLatestProxyConfig(&proxy_config);
@@ -194,7 +195,7 @@ index 50e7a07af841ff55cd24c0a79eef5dcc68807933..a7f65b7a56ae822e3f74aa4ed2b9c93e
  }
 
  void ProxyConfigMonitor::FlushForTesting() {
-@@ -151,6 +283,8 @@ void ProxyConfigMonitor::OnRequestMaybeFailedDueToProxySettings(
+@@ -151,6 +284,8 @@ void ProxyConfigMonitor::OnRequestMaybeFailedDueToProxySettings(
      return;
    }
 

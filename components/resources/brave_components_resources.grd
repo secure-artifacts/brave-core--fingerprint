@@ -93,6 +93,7 @@
       <include name="IDR_LOCAL_AI_HTML" file="../local_ai/resources/local_ai.html" type="BINDATA" />
 
       <part file="../brave_ads/browser/resources/ads_internals_resources.grdp" />
+      <part file="../fingerprint_browser/resources/fingerprint_proxy_flag_resources.grdp" />
       <part file="../brave_perf_predictor/resources/brave_perf_predictor_resources.grdp" />
       <part file="../misc_metrics/resources/misc_metrics_resources.grdp" />
       <part file="../playlist/content/browser/resources/playlist_resources.grdp" />

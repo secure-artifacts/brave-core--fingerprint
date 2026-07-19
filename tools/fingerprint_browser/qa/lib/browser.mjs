@@ -97,6 +97,7 @@ export async function seedProfilePreferences(
 
 export function qaBrowserArgs({
   extraArgs = [],
+  language = 'en-US',
   platform = process.platform,
   port,
   profileDirectory,
@@ -112,6 +113,7 @@ export function qaBrowserArgs({
     '--no-default-browser-check',
     '--disable-default-apps',
     '--disable-component-update',
+    ...(language ? [`--lang=${language}`] : []),
     ...(testType ? ['--test-type'] : []),
     '--window-size=1280,800',
     ...(platform === 'darwin' ? ['--use-mock-keychain'] : []),
@@ -124,6 +126,7 @@ export async function startQaSession({
   app,
   env = {},
   extraArgs = [],
+  language = 'en-US',
   logDir,
   name,
   profilePath,
@@ -144,6 +147,7 @@ export async function startQaSession({
   const port = await findFreePort()
   const args = qaBrowserArgs({
     extraArgs,
+    language,
     port,
     profileDirectory,
     profilePath,

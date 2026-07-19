@@ -25,13 +25,26 @@ enum class ProfileProxyConfigConflict {
 
 struct ProfileProxyGeo {
   std::string country_code;
+  std::string country_name;
+  std::string region_name;
+  std::string city_name;
   std::string timezone;
   double latitude = 0.0;
   double longitude = 0.0;
   std::string accept_languages;
 };
 
+struct ProfileProxyDraft {
+  std::string scheme;
+  std::string host;
+  int port = 0;
+  std::string username;
+  std::string password;
+};
+
 bool IsProfileProxyEnabled(const PrefService& prefs);
+std::optional<net::ProxyServer> BuildProfileProxyServer(
+    const ProfileProxyDraft& draft);
 std::optional<net::ProxyServer> GetProfileProxyServerFromPrefs(
     const PrefService& prefs);
 ProfileProxyConfigConflict GetProfileProxyConfigConflict(
@@ -42,6 +55,11 @@ std::string_view ProfileProxyConfigConflictWarning(
 void SyncProfileProxyWebRTCPolicy(PrefService& prefs);
 void SyncProfileProxyLanguage(PrefService& prefs);
 void SyncProfileProxyDerivedPrefs(PrefService& prefs);
+void ApplyVerifiedProfileProxyGeo(PrefService& prefs,
+                                  const ProfileProxyGeo& geo);
+void ClearVerifiedProfileProxyGeo(PrefService& prefs);
+std::optional<std::string> AcceptLanguagesForCountryCode(
+    std::string_view country_code);
 std::optional<std::string> GetProfileProxyAcceptLanguagesForPrefs(
     const PrefService& prefs);
 std::optional<ProfileProxyGeo> GetProfileProxyGeoForPrefs(

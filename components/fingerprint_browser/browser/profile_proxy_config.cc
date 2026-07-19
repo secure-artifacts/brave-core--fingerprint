@@ -6,6 +6,7 @@
 #include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 
 #include <cstdint>
+#include <iterator>
 #include <string>
 
 #include "base/strings/string_split.h"
@@ -17,6 +18,7 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_address.h"
 #include "net/base/net_errors.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
 
 namespace fingerprint_browser {
 
@@ -34,6 +36,9 @@ std::optional<net::ProxyServer::Scheme> SchemeFromPref(
     std::string_view scheme) {
   if (scheme == prefs::kProfileProxySchemeHttp) {
     return net::ProxyServer::SCHEME_HTTP;
+  }
+  if (scheme == prefs::kProfileProxySchemeHttps) {
+    return net::ProxyServer::SCHEME_HTTPS;
   }
   if (scheme == prefs::kProfileProxySchemeSocks5) {
     return net::ProxyServer::SCHEME_SOCKS5;
@@ -64,33 +69,6 @@ void RestoreProfileProxyWebRTCPolicy(PrefService& prefs) {
       prefs.GetString(prefs::kProfileProxySavedWebRTCIPHandlingPolicy));
   prefs.ClearPref(prefs::kProfileProxySavedWebRTCIPHandlingPolicy);
   prefs.ClearPref(prefs::kProfileProxyHasSavedWebRTCIPHandlingPolicy);
-}
-
-std::optional<std::string> AcceptLanguagesForCountryCode(
-    std::string_view country_code) {
-  const std::string normalized = base::ToUpperASCII(country_code);
-  if (normalized == "AU") {
-    return "en-AU,en";
-  }
-  if (normalized == "CA") {
-    return "en-CA,en";
-  }
-  if (normalized == "DE") {
-    return "de-DE,de";
-  }
-  if (normalized == "FR") {
-    return "fr-FR,fr";
-  }
-  if (normalized == "GB") {
-    return "en-GB,en";
-  }
-  if (normalized == "JP") {
-    return "ja-JP,ja";
-  }
-  if (normalized == "US") {
-    return "en-US,en";
-  }
-  return std::nullopt;
 }
 
 std::optional<net::IPAddress> ParseIpLiteralHost(std::string_view host) {
@@ -151,6 +129,9 @@ std::optional<ProfileProxyGeo> GetManualProfileProxyGeo(
 
 void ApplyProfileProxyGeo(PrefService& prefs, const ProfileProxyGeo& geo) {
   prefs.SetString(prefs::kProfileProxyDerivedGeoCountryCode, geo.country_code);
+  prefs.SetString(prefs::kProfileProxyCountryName, geo.country_name);
+  prefs.SetString(prefs::kProfileProxyRegionName, geo.region_name);
+  prefs.SetString(prefs::kProfileProxyCityName, geo.city_name);
   prefs.SetString(prefs::kProfileProxyDerivedGeoTimezone, geo.timezone);
   prefs.SetDouble(prefs::kProfileProxyDerivedGeoLatitude, geo.latitude);
   prefs.SetDouble(prefs::kProfileProxyDerivedGeoLongitude, geo.longitude);
@@ -159,6 +140,9 @@ void ApplyProfileProxyGeo(PrefService& prefs, const ProfileProxyGeo& geo) {
 
 void ClearProfileProxyDerivedGeo(PrefService& prefs) {
   prefs.ClearPref(prefs::kProfileProxyDerivedGeoCountryCode);
+  prefs.ClearPref(prefs::kProfileProxyCountryName);
+  prefs.ClearPref(prefs::kProfileProxyRegionName);
+  prefs.ClearPref(prefs::kProfileProxyCityName);
   prefs.ClearPref(prefs::kProfileProxyDerivedGeoTimezone);
   prefs.ClearPref(prefs::kProfileProxyDerivedGeoLatitude);
   prefs.ClearPref(prefs::kProfileProxyDerivedGeoLongitude);
@@ -210,37 +194,40 @@ bool IsProfileProxyEnabled(const PrefService& prefs) {
   return prefs.GetBoolean(prefs::kProfileProxyEnabled);
 }
 
-std::optional<net::ProxyServer> GetProfileProxyServerFromPrefs(
-    const PrefService& prefs) {
+std::optional<net::ProxyServer> BuildProfileProxyServer(
+    const ProfileProxyDraft& draft) {
   const std::optional<net::ProxyServer::Scheme> scheme =
-      SchemeFromPref(prefs.GetString(prefs::kProfileProxyScheme));
-  if (!scheme) {
+      SchemeFromPref(draft.scheme);
+  if (!scheme || draft.host.empty() || draft.port <= 0 || draft.port > 65535) {
     return std::nullopt;
   }
 
-  const std::string& host = prefs.GetString(prefs::kProfileProxyHost);
-  const int port = prefs.GetInteger(prefs::kProfileProxyPort);
-  if (host.empty() || port <= 0 || port > 65535) {
-    return std::nullopt;
-  }
-
-  std::string proxy_host(host);
-  const auto ip = ParseIpLiteralHost(host);
+  std::string proxy_host(draft.host);
+  const auto ip = ParseIpLiteralHost(draft.host);
   if (ip && ip->IsIPv6()) {
     proxy_host = "[" + ip->ToString() + "]";
   }
   const net::ProxyServer parsed_server =
-      net::ProxyServer::FromSchemeHostAndPort(*scheme, proxy_host,
-                                              static_cast<uint16_t>(port));
+      net::ProxyServer::FromSchemeHostAndPort(
+          *scheme, proxy_host, static_cast<uint16_t>(draft.port));
   if (!parsed_server.is_valid()) {
     return std::nullopt;
   }
 
   return net::ProxyServer(
-      *scheme, net::HostPortPair(prefs.GetString(prefs::kProfileProxyUsername),
-                                 prefs.GetString(prefs::kProfileProxyPassword),
+      *scheme, net::HostPortPair(draft.username, draft.password,
                                  parsed_server.host_port_pair().host(),
                                  parsed_server.host_port_pair().port()));
+}
+
+std::optional<net::ProxyServer> GetProfileProxyServerFromPrefs(
+    const PrefService& prefs) {
+  return BuildProfileProxyServer(
+      {.scheme = prefs.GetString(prefs::kProfileProxyScheme),
+       .host = prefs.GetString(prefs::kProfileProxyHost),
+       .port = prefs.GetInteger(prefs::kProfileProxyPort),
+       .username = prefs.GetString(prefs::kProfileProxyUsername),
+       .password = prefs.GetString(prefs::kProfileProxyPassword)});
 }
 
 ProfileProxyConfigConflict GetProfileProxyConfigConflict(
@@ -307,6 +294,48 @@ void SyncProfileProxyDerivedPrefs(PrefService& prefs) {
   SyncProfileProxyLanguage(prefs);
 }
 
+void ApplyVerifiedProfileProxyGeo(PrefService& prefs,
+                                  const ProfileProxyGeo& geo) {
+  ApplyProfileProxyGeo(prefs, geo);
+  ApplyProfileProxyAcceptLanguages(prefs, geo.accept_languages);
+}
+
+void ClearVerifiedProfileProxyGeo(PrefService& prefs) {
+  ClearProfileProxyDerivedGeo(prefs);
+  RestoreProfileProxyAcceptLanguages(prefs);
+  prefs.ClearPref(prefs::kProfileProxyEgressIp);
+  prefs.ClearPref(prefs::kProfileProxyGeoProvider);
+  prefs.ClearPref(prefs::kProfileProxyLastVerifiedTime);
+  prefs.SetBoolean(prefs::kProfileProxyGeoLookupFailed, false);
+}
+
+std::optional<std::string> AcceptLanguagesForCountryCode(
+    std::string_view country_code) {
+  if (country_code.size() != 2 || !base::IsAsciiAlpha(country_code[0]) ||
+      !base::IsAsciiAlpha(country_code[1])) {
+    return std::nullopt;
+  }
+
+  const std::string normalized = base::ToUpperASCII(country_code);
+  const std::string likely_locale = "und_" + normalized;
+  char maximized[ULOC_FULLNAME_CAPACITY] = {};
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_addLikelySubtags(likely_locale.c_str(), maximized, std::size(maximized),
+                        &status);
+  if (U_FAILURE(status)) {
+    return std::nullopt;
+  }
+
+  char language[ULOC_LANG_CAPACITY] = {};
+  status = U_ZERO_ERROR;
+  uloc_getLanguage(maximized, language, std::size(language), &status);
+  if (U_FAILURE(status) || language[0] == '\0' ||
+      std::string_view(language) == "und") {
+    return std::nullopt;
+  }
+  return std::string(language) + "-" + normalized + "," + language;
+}
+
 std::optional<std::string> GetProfileProxyAcceptLanguagesForPrefs(
     const PrefService& prefs) {
   if (!ShouldUseProfileProxy(prefs)) {
@@ -336,6 +365,9 @@ std::optional<ProfileProxyGeo> GetProfileProxyGeoForPrefs(
 
   ProfileProxyGeo geo;
   geo.country_code = country_code;
+  geo.country_name = prefs.GetString(prefs::kProfileProxyCountryName);
+  geo.region_name = prefs.GetString(prefs::kProfileProxyRegionName);
+  geo.city_name = prefs.GetString(prefs::kProfileProxyCityName);
   geo.timezone = timezone;
   geo.latitude = prefs.GetDouble(prefs::kProfileProxyDerivedGeoLatitude);
   geo.longitude = prefs.GetDouble(prefs::kProfileProxyDerivedGeoLongitude);

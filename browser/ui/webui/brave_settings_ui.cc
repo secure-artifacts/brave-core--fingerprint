@@ -59,6 +59,7 @@
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/webui/settings/metrics_reporting_handler.h"
+#include "components/grit/brave_components_resources.h"
 #include "components/regional_capabilities/regional_capabilities_country_id.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/sync/base/command_line_switches.h"
@@ -200,6 +201,8 @@ BraveSettingsUI::~BraveSettingsUI() = default;
 void BraveSettingsUI::AddResources(content::WebUIDataSource* html_source,
                                    Profile* profile) {
   html_source->AddResourcePaths(kBraveSettingsResources);
+  html_source->AddResourcePath("fingerprint-proxy-flags.png",
+                               IDR_FINGERPRINT_PROXY_FLAG_ATLAS);
 
   html_source->AddBoolean("isSyncDisabled", !syncer::IsSyncAllowedByFlag());
   html_source->AddString(

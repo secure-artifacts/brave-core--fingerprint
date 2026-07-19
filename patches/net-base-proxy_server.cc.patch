@@ -1,5 +1,5 @@
 diff --git a/net/base/proxy_server.cc b/net/base/proxy_server.cc
-index 42554e13328632066469b9385214e3130abb7991..8fe037a417b31bf5d44e0fdd0ea411721ff30879 100644
+index 42554e13328632066469b9385214e3130abb7991..840ff4d2b3b3c72eb4881a31405e2ce278a1b55c 100644
 --- a/net/base/proxy_server.cc
 +++ b/net/base/proxy_server.cc
 @@ -76,6 +76,7 @@ ProxyServer ProxyServer::FromSchemeHostAndPort(Scheme scheme,
@@ -9,12 +9,21 @@ index 42554e13328632066469b9385214e3130abb7991..8fe037a417b31bf5d44e0fdd0ea41172
 +  BRAVE_PROXY_SERVER_FROM_SCHEME_HOST_AND_PORT_EXTRACT_AUTH_INFO
    // Create INVALID proxies directly using `ProxyServer()`.
    DCHECK_NE(scheme, SCHEME_INVALID);
- 
+
 @@ -114,6 +115,7 @@ ProxyServer ProxyServer::FromSchemeHostAndPort(Scheme scheme,
    // A uint16_t port is always valid and canonicalized.
    uint16_t fixed_port = port.value_or(GetDefaultPortForScheme(scheme));
- 
+
 +  BRAVE_PROXY_SERVER_FROM_SCHEME_HOST_AND_PORT_RETURN_HOST_PORT_PAIR
    return ProxyServer(scheme, HostPortPair(unbracketed_host, fixed_port));
  }
- 
+
+@@ -172,7 +174,7 @@ int ProxyServer::GetDefaultPortForScheme(Scheme scheme) {
+ }
+
+ std::ostream& operator<<(std::ostream& os, const ProxyServer& proxy_server) {
+-  return os << ProxyServerToPacResultElement(proxy_server);
++  return os << ProxyServerToProxyUri_ChromiumImpl(proxy_server);
+ }
+
+ }  // namespace net
