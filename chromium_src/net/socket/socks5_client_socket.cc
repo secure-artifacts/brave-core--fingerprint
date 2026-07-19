@@ -63,7 +63,11 @@ HostPortPair ToLegacyDestinationEndpoint(
 
 int SOCKS5ClientSocket::DoAuth(int rv) {
   rv = Authenticate(rv, net_log_, io_callback_);
-  next_state_ = (rv == OK ? STATE_HANDSHAKE_WRITE : STATE_AUTH);
+  if (rv == OK) {
+    next_state_ = STATE_HANDSHAKE_WRITE;
+  } else if (rv == ERR_IO_PENDING) {
+    next_state_ = STATE_AUTH;
+  }
   return rv;
 }
 
@@ -184,9 +188,9 @@ int SOCKS5ClientSocketAuth::Authenticate(
       case STATE_READ_COMPLETE:
         net_log.EndEventWithNetErrorCode(NetLogEventType::SOCKS5_AUTH_READ,
                                          std::max(rv, 0));
-        if (rv < 0) {
+        if (rv <= 0) {
           next_state_ = STATE_BAD;
-          return rv;
+          return rv < 0 ? rv : ERR_SOCKS_CONNECTION_FAILED;
         }
         DCHECK_LE(static_cast<size_t>(rv), buffer_left_);
         buffer_.append(iobuf_->data(), rv);

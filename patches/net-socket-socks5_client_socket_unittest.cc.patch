@@ -1,5 +1,5 @@
 diff --git a/net/socket/socks5_client_socket_unittest.cc b/net/socket/socks5_client_socket_unittest.cc
-index 88d275f323e267e3a727ec46237396aebfe11446..52b435fd8761467cf35711e2bb7b075a77169a7a 100644
+index 88d275f323e267e3a727ec46237396aebfe11446..3301b9a458aaa1e5c756179b3b51cc0125186ebb 100644
 --- a/net/socket/socks5_client_socket_unittest.cc
 +++ b/net/socket/socks5_client_socket_unittest.cc
 @@ -27,6 +27,7 @@
@@ -182,7 +182,7 @@ index 88d275f323e267e3a727ec46237396aebfe11446..52b435fd8761467cf35711e2bb7b075a
 +  EXPECT_THAT(rv, IsError(ERR_SOCKS_CONNECTION_FAILED));
 +  EXPECT_FALSE(user_sock_->IsConnected());
 +}
-+
++#include "brave/chromium_src/net/socket/socks5_client_socket_unittest.h"
  // Test that you can call Connect() again after having called Disconnect().
  TEST_F(SOCKS5ClientSocketTest, ConnectAndDisconnectTwice) {
    const std::string_view kHostname = "my-host-name";
