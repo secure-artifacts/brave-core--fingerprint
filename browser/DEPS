@@ -55,6 +55,7 @@ include_rules += [
   "+brave/components/debounce/core/common",
   "+brave/components/email_aliases",
   "+brave/components/email_aliases/browser",
+  "+brave/components/fingerprint_browser",
   "+brave/components/global_privacy_control",
   "+brave/components/google_sign_in_permission",
   "+brave/components/local_ai/buildflags",

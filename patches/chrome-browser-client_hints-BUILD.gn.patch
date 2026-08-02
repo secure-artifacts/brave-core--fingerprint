@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/client_hints/BUILD.gn b/chrome/browser/client_hints/BUILD.gn
+index 1e6e1ccd1276c4846073a5505ba9008f6437797c..1e699d958f467c3ead3c9d6384a9fae6621a8731 100644
+--- a/chrome/browser/client_hints/BUILD.gn
++++ b/chrome/browser/client_hints/BUILD.gn
+@@ -14,6 +14,7 @@ source_set("client_hints") {
+   ]
+ 
+   deps = [
++    "//brave/browser/fingerprint_browser",
+     "//chrome/browser:browser_process",
+     "//chrome/browser/content_settings:content_settings_factory",
+     "//components/client_hints/browser",

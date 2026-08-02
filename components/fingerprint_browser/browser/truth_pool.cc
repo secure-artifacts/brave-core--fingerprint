@@ -402,6 +402,105 @@ TruthPool GetDefaultTruthPool() {
       },
   };
 
+  pool.plugin_sets = {
+      {
+          .id = "chromium-pdf-v1",
+          .plugins =
+              {
+                  {
+                      .name = "PDF Viewer",
+                      .filename = "internal-pdf-viewer",
+                      .description = "Portable Document Format",
+                      .mime_types =
+                          {
+                              {
+                                  .type = "application/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                              {
+                                  .type = "text/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                          },
+                  },
+                  {
+                      .name = "Chrome PDF Viewer",
+                      .filename = "internal-pdf-viewer",
+                      .description = "Portable Document Format",
+                      .mime_types =
+                          {
+                              {
+                                  .type = "application/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                              {
+                                  .type = "text/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                          },
+                  },
+                  {
+                      .name = "Chromium PDF Viewer",
+                      .filename = "internal-pdf-viewer",
+                      .description = "Portable Document Format",
+                      .mime_types =
+                          {
+                              {
+                                  .type = "application/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                              {
+                                  .type = "text/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                          },
+                  },
+                  {
+                      .name = "Microsoft Edge PDF Viewer",
+                      .filename = "internal-pdf-viewer",
+                      .description = "Portable Document Format",
+                      .mime_types =
+                          {
+                              {
+                                  .type = "application/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                              {
+                                  .type = "text/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                          },
+                  },
+                  {
+                      .name = "WebKit built-in PDF",
+                      .filename = "internal-pdf-viewer",
+                      .description = "Portable Document Format",
+                      .mime_types =
+                          {
+                              {
+                                  .type = "application/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                              {
+                                  .type = "text/pdf",
+                                  .description = "Portable Document Format",
+                                  .suffixes = {"pdf"},
+                              },
+                          },
+                  },
+              },
+      },
+  };
+
   return pool;
 }
 

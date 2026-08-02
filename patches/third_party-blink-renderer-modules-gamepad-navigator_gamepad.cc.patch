@@ -1,0 +1,12 @@
+diff --git a/third_party/blink/renderer/modules/gamepad/navigator_gamepad.cc b/third_party/blink/renderer/modules/gamepad/navigator_gamepad.cc
+index cce530646bf03d2a07ef884b3a6bce1f13443a94..66b56f326e5957489c3cec6e662140143a515c80 100644
+--- a/third_party/blink/renderer/modules/gamepad/navigator_gamepad.cc
++++ b/third_party/blink/renderer/modules/gamepad/navigator_gamepad.cc
+@@ -359,6 +359,7 @@ void NavigatorGamepad::SampleAndCompareGamepadState() {
+       if (gamepads_back_.size() == 0)
+         gamepads_back_.resize(device::Gamepads::kItemsLengthCap);
+       SampleGamepads();
++      BRAVE_NAVIGATOR_GAMEPAD_DID_SAMPLE(gamepads_back_)
+ 
+       // Compare the new sample with the previous sample and record which
+       // gamepad events should be dispatched. Swap buffers if the gamepad

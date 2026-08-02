@@ -70,6 +70,11 @@ struct SpeechVoicePoolEntry {
   std::vector<SpeechVoicePersona> voices;
 };
 
+struct PluginPoolEntry {
+  std::string id;
+  std::vector<PluginPersona> plugins;
+};
+
 struct TruthPool {
   std::vector<UserAgentPoolEntry> user_agents;
   std::vector<RendererPoolEntry> renderers;
@@ -79,6 +84,7 @@ struct TruthPool {
   std::vector<NoiseSeedPoolEntry> noise_seeds;
   std::vector<MediaDevicePoolEntry> media_device_sets;
   std::vector<SpeechVoicePoolEntry> speech_voice_sets;
+  std::vector<PluginPoolEntry> plugin_sets;
 };
 
 TruthPool GetDefaultTruthPool();

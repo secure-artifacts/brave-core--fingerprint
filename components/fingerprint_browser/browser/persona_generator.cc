@@ -27,11 +27,12 @@ std::string MakePersonaId(std::string_view seed,
                           std::string_view font_id,
                           std::string_view noise_id,
                           std::string_view media_device_id,
-                          std::string_view speech_voice_id) {
-  const auto high = HashFor(
-      seed, base::StrCat({ua_id, renderer_id, screen_id, media_device_id}));
-  const auto low =
-      HashFor(seed, base::StrCat({font_id, noise_id, speech_voice_id}));
+                          std::string_view speech_voice_id,
+                          std::string_view plugin_id) {
+  const auto high = HashFor(seed, base::StrCat({ua_id, renderer_id, screen_id,
+                                                media_device_id, plugin_id}));
+  const auto low = HashFor(
+      seed, base::StrCat({font_id, noise_id, speech_voice_id, plugin_id}));
   return base::StringPrintf("%08x%08x", high, low);
 }
 
@@ -166,10 +167,16 @@ std::optional<Persona> GeneratePersonaFromSeed(const TruthPool& pool,
     return std::nullopt;
   }
 
+  auto plugin_set = PickByHash(pool.plugin_sets, seed, "plugins", error);
+  if (!plugin_set) {
+    return std::nullopt;
+  }
+
   Persona persona;
-  persona.persona_id = MakePersonaId(
-      seed, user_agent->id, renderer->id, screen->id, font_set->id,
-      noise_seed->id, media_device_set->id, speech_voice_set->id);
+  persona.persona_id =
+      MakePersonaId(seed, user_agent->id, renderer->id, screen->id,
+                    font_set->id, noise_seed->id, media_device_set->id,
+                    speech_voice_set->id, plugin_set->id);
   persona.os = user_agent->os;
   persona.locale = locale_entry->locale;
   persona.languages = locale_entry->languages;
@@ -188,6 +195,7 @@ std::optional<Persona> GeneratePersonaFromSeed(const TruthPool& pool,
   persona.fonts = font_set->fonts;
   persona.media_devices = media_device_set->devices;
   persona.speech_voices = speech_voice_set->voices;
+  persona.plugins = plugin_set->plugins;
 
   if (!IsPersonaValid(persona)) {
     SetError(error, "generated persona failed validation");

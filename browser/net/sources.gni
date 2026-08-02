@@ -90,6 +90,7 @@ brave_browser_net_deps = [
   "//chrome/browser:browser_process",
   "//chrome/browser/profiles",
   "//components/content_settings/core/browser",
+  "//components/embedder_support:user_agent",
   "//components/language/core/browser",
   "//components/prefs",
   "//components/proxy_config",

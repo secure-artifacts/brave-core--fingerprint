@@ -62,8 +62,8 @@ void RegisterProxyConflictPrefs(TestingPrefServiceSimple* prefs) {
 }
 
 base::FilePath GetGeoIpTestDataDirectory() {
-  base::FilePath source_root;
-  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
+  const base::FilePath source_root =
+      base::PathService::CheckedGet(base::DIR_SRC_TEST_DATA_ROOT);
   const base::FilePath directory = source_root.AppendASCII("brave")
                                        .AppendASCII("components")
                                        .AppendASCII("fingerprint_browser")
@@ -131,6 +131,7 @@ TEST(PersonaGeneratorTest, GeneratedPersonaIsConsistent) {
   EXPECT_LE(persona->screen.avail_height, persona->screen.height);
   EXPECT_EQ(0, persona->max_touch_points);
   EXPECT_FALSE(persona->media_devices.empty());
+  EXPECT_EQ(5u, persona->plugins.size());
   EXPECT_EQ(
       1u, std::ranges::count_if(persona->speech_voices, [](const auto& voice) {
         return voice.is_default;
@@ -196,6 +197,9 @@ TEST(PersonaGeneratorTest, GeneratedPersonaFieldsComeFromTruthPool) {
         return entry.os == persona->os && entry.locale == persona->locale &&
                entry.voices == persona->speech_voices;
       }));
+  EXPECT_TRUE(std::ranges::any_of(pool.plugin_sets, [&](const auto& entry) {
+    return entry.plugins == persona->plugins;
+  }));
 }
 
 TEST(PersonaGeneratorTest, FailsWhenTruthPoolMissingRequiredDimension) {
@@ -222,6 +226,7 @@ TEST(PersonaSerializationTest, RoundTripsCurrentSchema) {
   EXPECT_EQ(persona->fonts, parsed->fonts);
   EXPECT_EQ(persona->media_devices, parsed->media_devices);
   EXPECT_EQ(persona->speech_voices, parsed->speech_voices);
+  EXPECT_EQ(persona->plugins, parsed->plugins);
 }
 
 TEST(PersonaServiceTest, PersistsPersonaAcrossServiceRestart) {
@@ -253,25 +258,24 @@ TEST(PersonaServiceTest, DifferentProfilesGetDifferentPersonaIds) {
             service_b.GetPersona().persona_id);
 }
 
-TEST(PersonaServiceTest, DamagedPrefRegeneratesCurrentSchema) {
+TEST(PersonaServiceTest, DamagedPrefFallsBackWithoutReplacingIdentity) {
   TestingPrefServiceSimple prefs;
   RegisterPrefs(&prefs);
 
   base::DictValue damaged;
   damaged.Set("schema_version", kCurrentPersonaSchemaVersion);
   damaged.Set("persona_id", "missing-required-fields");
+  const base::DictValue original = damaged.Clone();
   prefs.SetDict(prefs::kPersona, std::move(damaged));
 
   PersonaService service(&prefs, "profile-a");
-  ASSERT_TRUE(service.has_persona()) << service.last_error();
-  EXPECT_TRUE(IsPersonaValid(service.GetPersona()));
-
-  auto parsed = PersonaFromValue(prefs.GetDict(prefs::kPersona));
-  ASSERT_TRUE(parsed);
-  EXPECT_EQ(service.GetPersona().persona_id, parsed->persona_id);
+  EXPECT_FALSE(service.has_persona());
+  EXPECT_FALSE(service.EnsurePersona());
+  EXPECT_FALSE(service.last_error().empty());
+  EXPECT_EQ(original, prefs.GetDict(prefs::kPersona));
 }
 
-TEST(PersonaServiceTest, OldSchemaPrefRegeneratesCurrentSchema) {
+TEST(PersonaServiceTest, OldSchemaMigratesWithoutChangingIdentity) {
   TestingPrefServiceSimple prefs;
   RegisterPrefs(&prefs);
 
@@ -281,12 +285,14 @@ TEST(PersonaServiceTest, OldSchemaPrefRegeneratesCurrentSchema) {
   ASSERT_TRUE(old_persona) << error;
   base::DictValue old_pref = PersonaToValue(*old_persona);
   old_pref.Set("schema_version", kCurrentPersonaSchemaVersion - 1);
+  old_pref.Remove("plugins");
   prefs.SetDict(prefs::kPersona, std::move(old_pref));
 
   PersonaService service(&prefs, "profile-a");
   ASSERT_TRUE(service.has_persona()) << service.last_error();
   EXPECT_EQ(kCurrentPersonaSchemaVersion, service.GetPersona().schema_version);
-  EXPECT_NE(old_persona->persona_id, service.GetPersona().persona_id);
+  EXPECT_EQ(old_persona->persona_id, service.GetPersona().persona_id);
+  EXPECT_FALSE(service.GetPersona().plugins.empty());
 
   auto parsed = PersonaFromValue(prefs.GetDict(prefs::kPersona));
   ASSERT_TRUE(parsed);
@@ -520,6 +526,47 @@ TEST(ProfileProxyConfigTest, EnabledProfileProxyForcesWebRTCPolicy) {
       prefs.GetBoolean(prefs::kProfileProxyHasSavedWebRTCIPHandlingPolicy));
   EXPECT_EQ(kWebRTCIPHandlingDefaultPublicInterfaceOnly,
             prefs.GetString(prefs::kProfileProxySavedWebRTCIPHandlingPolicy));
+}
+
+TEST(ProfileProxyConfigTest, PreparedDerivedPrefsRestoreDuringConflict) {
+  TestingPrefServiceSimple prefs;
+  RegisterPrefs(&prefs);
+  RegisterWebRTCPrefs(&prefs);
+  RegisterAcceptLanguagePrefs(&prefs);
+  RegisterProxyConflictPrefs(&prefs);
+
+  prefs.SetString(kWebRTCIPHandlingPolicyPref,
+                  kWebRTCIPHandlingDefaultPublicInterfaceOnly);
+  prefs.SetString(kAcceptLanguagesPref, kAcceptLanguagesJapanese);
+
+  ProfileProxyGeo geo;
+  geo.country_code = "GB";
+  geo.timezone = "Europe/London";
+  geo.latitude = 51.5074;
+  geo.longitude = -0.1278;
+  geo.accept_languages = kAcceptLanguagesBritish;
+  PrepareVerifiedProfileProxyDerivedPrefs(prefs, geo);
+
+  EXPECT_EQ(kWebRTCIPHandlingDisableNonProxiedUdp,
+            prefs.GetString(kWebRTCIPHandlingPolicyPref));
+  EXPECT_EQ(kAcceptLanguagesBritish, prefs.GetString(kAcceptLanguagesPref));
+
+  prefs.SetBoolean(prefs::kProfileProxyEnabled, true);
+  SetProfileProxyPrefs(&prefs, prefs::kProfileProxySchemeHttp, "proxy.example",
+                       8080);
+  prefs.SetExtensionPref(proxy_config::prefs::kProxy, base::DictValue());
+  SyncProfileProxyWebRTCPolicy(prefs);
+  ClearVerifiedProfileProxyGeo(prefs);
+
+  EXPECT_EQ(kWebRTCIPHandlingDefaultPublicInterfaceOnly,
+            prefs.GetString(kWebRTCIPHandlingPolicyPref));
+  EXPECT_EQ(kAcceptLanguagesJapanese, prefs.GetString(kAcceptLanguagesPref));
+  EXPECT_TRUE(
+      prefs.GetString(prefs::kProfileProxyDerivedGeoCountryCode).empty());
+  EXPECT_TRUE(prefs.GetString(prefs::kProfileProxyDerivedGeoTimezone).empty());
+  EXPECT_FALSE(
+      prefs.GetBoolean(prefs::kProfileProxyHasSavedWebRTCIPHandlingPolicy));
+  EXPECT_FALSE(prefs.GetBoolean(prefs::kProfileProxyHasSavedAcceptLanguages));
 }
 
 TEST(ProfileProxyConfigTest, DisabledProfileProxyRestoresWebRTCPolicy) {

@@ -15,7 +15,7 @@
 
 namespace fingerprint_browser {
 
-inline constexpr int kCurrentPersonaSchemaVersion = 2;
+inline constexpr int kCurrentPersonaSchemaVersion = 3;
 
 enum class PersonaOS {
   kWindows,
@@ -86,6 +86,23 @@ struct SpeechVoicePersona {
   bool operator==(const SpeechVoicePersona&) const = default;
 };
 
+struct MimeTypePersona {
+  std::string type;
+  std::string description;
+  std::vector<std::string> suffixes;
+
+  bool operator==(const MimeTypePersona&) const = default;
+};
+
+struct PluginPersona {
+  std::string name;
+  std::string filename;
+  std::string description;
+  std::vector<MimeTypePersona> mime_types;
+
+  bool operator==(const PluginPersona&) const = default;
+};
+
 struct Persona {
   int schema_version = kCurrentPersonaSchemaVersion;
   std::string persona_id;
@@ -107,6 +124,7 @@ struct Persona {
   std::vector<std::string> fonts;
   std::vector<MediaDevicePersona> media_devices;
   std::vector<SpeechVoicePersona> speech_voices;
+  std::vector<PluginPersona> plugins;
 };
 
 std::string_view PersonaOSToString(PersonaOS os);
