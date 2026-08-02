@@ -19,9 +19,11 @@
 #include "brave/components/de_amp/common/pref_names.h"
 #include "brave/components/debounce/core/common/pref_names.h"
 #include "brave/components/decentralized_dns/core/pref_names.h"
+#include "brave/components/email_aliases/buildflags/buildflags.h"
 #include "brave/components/ntp_background_images/common/pref_names.h"
 #include "brave/components/omnibox/browser/brave_omnibox_prefs.h"
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
+#include "brave/components/psst/buildflags/buildflags.h"
 #include "brave/components/request_otr/common/pref_names.h"
 #include "brave/components/speedreader/common/buildflags/buildflags.h"
 #include "brave/components/tor/buildflags/buildflags.h"
@@ -73,8 +75,16 @@
 #include "brave/components/playlist/core/common/pref_names.h"
 #endif
 
+#if BUILDFLAG(ENABLE_PSST)
+#include "brave/components/psst/core/browser/pref_names.h"
+#endif
+
 #if BUILDFLAG(IS_WIN)
 #include "brave/components/windows_recall/windows_recall.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EMAIL_ALIASES)
+#include "brave/components/email_aliases/pref_names.h"
 #endif
 
 namespace extensions {
@@ -354,6 +364,8 @@ const PrefsUtil::TypedPrefMap& BravePrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_brave_allowlist)[brave_tabs::kVerticalTabsHideCompletelyWhenCollapsed] =
       settings_api::PrefType::kBoolean;
+  (*s_brave_allowlist)[brave_tabs::kVerticalTabsShowToggleButton] =
+      settings_api::PrefType::kBoolean;
 
   // Horizontal tabs settings
   (*s_brave_allowlist)[brave_tabs::kCompactHorizontalTabs] =
@@ -383,6 +395,17 @@ const PrefsUtil::TypedPrefMap& BravePrefsUtil::GetAllowlistedKeys() {
 #if BUILDFLAG(IS_WIN)
   (*s_brave_allowlist)[windows_recall::prefs::kWindowsRecallDisabled] =
       settings_api::PrefType::kBoolean;
+#endif
+
+#if BUILDFLAG(ENABLE_PSST)
+  (*s_brave_allowlist)[psst::prefs::kPsstEnabled] =
+      settings_api::PrefType::kBoolean;
+#endif
+
+#if BUILDFLAG(ENABLE_EMAIL_ALIASES)
+  (*s_brave_allowlist)
+      [email_aliases::prefs::kEmailAliasesNewAliasAutofillSuggestionEnabled] =
+          settings_api::PrefType::kBoolean;
 #endif
 
   return *s_brave_allowlist;

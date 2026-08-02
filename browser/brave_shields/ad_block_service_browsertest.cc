@@ -725,6 +725,21 @@ IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, ServiceWorkerRequest) {
   // EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
 }
 
+// A service worker request should use the controlling page's Shields setting.
+// Regression test for https://github.com/brave/brave-browser/issues/57535.
+IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, ServiceWorkerRequestShieldsOff) {
+  UpdateAdBlockInstanceWithRules("adbanner.js");
+
+  const GURL url = embedded_test_server()->GetURL(kAdBlockTestPage);
+  brave_shields::SetBraveShieldsEnabled(content_settings(), false, url);
+  NavigateToURL(url);
+
+  ASSERT_EQ(true, EvalJs(web_contents(),
+                         "setExpectations(0, 0, 1, 0);"
+                         "installBlockingServiceWorker()"));
+  EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 0ULL);
+}
+
 // See crbug.com/1372291.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_WebSocketBlocking DISABLED_WebSocketBlocking
@@ -1399,6 +1414,24 @@ IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, FrameSourceURL) {
   ASSERT_EQ(true, EvalJs(ChildFrameAt(contents, 0),
                          "setExpectations(0, 0, 0, 1);"
                          "xhr('adbanner.js?1')"));
+  EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
+}
+
+// The requests from sandboxed iframes also must be checked by adblock
+// even though they have an opaque request_initiator.
+IN_PROC_BROWSER_TEST_F(AdBlockServiceTest, SandboxedIframeRequestsBlocked) {
+  UpdateAdBlockInstanceWithRules("adbanner.js");
+
+  NavigateToURL(embedded_test_server()->GetURL("a.com", kAdBlockTestPage));
+  ASSERT_EQ(true, EvalJs(web_contents(),
+                         "addFrame('/blocking.html', 'allow-scripts')"));
+
+  content::RenderFrameHost* frame = ChildFrameAt(web_contents(), 0);
+  ASSERT_TRUE(frame->GetLastCommittedOrigin().opaque());
+
+  EXPECT_EQ(true, EvalJs(frame,
+                         "setExpectations(0, 0, 0, 1);"
+                         "xhr('adbanner.js')"));
   EXPECT_EQ(profile()->GetPrefs()->GetUint64(kAdsBlocked), 1ULL);
 }
 

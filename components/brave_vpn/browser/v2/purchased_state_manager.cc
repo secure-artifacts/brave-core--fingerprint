@@ -19,23 +19,34 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/types/expected.h"
+#include "brave/components/brave_vpn/browser/v2/api/brave_vpn_api_client.h"
 #include "brave/components/brave_vpn/browser/v2/credential_store.h"
+#include "brave/components/brave_vpn/browser/v2/credential_summary.h"
 #include "brave/components/brave_vpn/browser/v2/skus_service_client.h"
+#include "brave/components/brave_vpn/common/brave_vpn_constants.h"
 #include "brave/components/brave_vpn/common/mojom/brave_vpn.mojom.h"
 #include "brave/components/brave_vpn/common/pref_names.h"
 #include "brave/components/skus/browser/skus_utils.h"
 #include "brave/components/skus/common/skus_sdk.mojom.h"
+#include "build/build_config.h"
 #include "components/grit/brave_components_strings.h"
 #include "components/prefs/pref_service.h"
+#include "net/cookies/cookie_inclusion_status.h"
+#include "net/cookies/cookie_util.h"
+#include "net/cookies/parsed_cookie.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "url/url_util.h"
 
 namespace brave_vpn::v2 {
 
 PurchasedStateManager::PurchasedStateManager(
     PrefService* local_prefs,
+    BraveVpnApiClient* api_client,
     SkusServiceClient* skus_client,
     PurchasedStateChangedCallback callback)
     : local_prefs_(CHECK_DEREF(local_prefs)),
+      api_client_(CHECK_DEREF(api_client)),
       skus_client_(CHECK_DEREF(skus_client)),
       purchased_state_changed_callback_(std::move(callback)),
       credential_store_(std::make_unique<CredentialStore>(local_prefs)) {
@@ -78,19 +89,30 @@ void PurchasedStateManager::Load(const std::string& domain) {
       SetPurchasedState(request_environment, mojom::PurchasedState::PURCHASED);
       return;
     }
-
-    if (credential_store_->HasValidSkusCredential()) {
+    // The valid cached SKUS credential must have an expiration time, because
+    // the store only reports valid credentials. However, both GetSkusCredential
+    // and GetExpirationTime re-evaluate validity against current time, so a
+    // credential expiring between the two reads can make them disagree. We're
+    // checking for both valid credential and expiration time here to avoid
+    // TOCTOU issues.
+    const std::string skus_credential = credential_store_->GetSkusCredential();
+    const std::optional<base::Time> expiration_time =
+        credential_store_->GetExpirationTime();
+    if (!skus_credential.empty() && expiration_time.has_value()) {
       // Previous attempt to exchange the skus credential for a subscriber
       // credential failed. Try again with the cached skus credential.
       VLOG(2) << "Trying to exchange cached skus credential for subscriber "
                  "credential";
       BeginLoad(request_environment);
 
-      // TODO(https://github.com/brave/brave-browser/issues/54600)
-      // The API request class is intentionally not wired up yet. Once it is,
-      // this will call GetSubscriberCredentialV12, binding the current loading
-      // sequence into the callback.
-      NOTIMPLEMENTED();
+      // Exchange the cached SKUS credential for a subscriber credential. The
+      // valid cached SKUS credential must have an expiration time, because the
+      // store only reports valid SKUS credentials.
+      api_client_->GetSubscriberCredentialV12(
+          base::BindOnce(&PurchasedStateManager::OnGetSubscriberCredential,
+                         weak_factory_.GetWeakPtr(), loading_sequence_, domain,
+                         *expiration_time),
+          skus_credential, loading_environment_);
       return;
     }
   }
@@ -99,9 +121,6 @@ void PurchasedStateManager::Load(const std::string& domain) {
   // This cancels any in-flight load.
   BeginLoad(request_environment);
 
-  // The response arrives at OnCredentialSummary; its handling is not
-  // implemented yet, so until then the load settles via the timeout started in
-  // BeginLoad().
   VLOG(2) << "Requesting credential summary from SKUS";
   RequestCredentialSummary(domain);
 }
@@ -253,14 +272,184 @@ void PurchasedStateManager::OnCredentialSummary(
     VLOG(2) << __func__ << ": Called for non-vpn product";
     return;
   }
+  // Check for a transport error (the synthesized disconnect result) or any
+  // other SKUS error.
+  if (summary->code != skus::mojom::SkusResultCode::Ok) {
+    VLOG(1) << __func__ << ": SKUS error: " << summary->message;
+    FinishLoad(loading_environment_, mojom::PurchasedState::FAILED,
+               l10n_util::GetStringUTF8(
+                   IDS_BRAVE_VPN_PURCHASE_CREDENTIALS_FETCH_FAILED));
+    return;
+  }
 
-  // NOTE: when implemented, (1) every terminal outcome must go through
-  // FinishLoad(); (2) non-purchased outcomes must Clear() the credential
-  // store, or stale credentials resurrect via CheckInitialState() on next
-  // launch; (3) transport errors (the synthesized disconnect result) settle
-  // as FAILED with no immediate Reload() - that would retry-storm a dead
-  // service.
-  NOTIMPLEMENTED();
+  const std::optional<CredentialSummary> parsed =
+      CredentialSummary::FromMessage(summary->message);
+  if (!parsed) {
+    // Non-empty but unparseable summary.
+    VLOG(2) << __func__ << ": Got invalid credential summary";
+    FinishLoad(loading_environment_, mojom::PurchasedState::FAILED);
+    return;
+  }
+
+  if (parsed->IsEmpty()) {
+    // No subscription on record: the user needs to log in (or never had one).
+    VLOG(2) << __func__ << ": Got empty credential summary";
+    FinishLoad(loading_environment_, mojom::PurchasedState::NOT_PURCHASED);
+    return;
+  }
+
+  if (parsed->IsValid()) {
+    // Active credential: present it so we can read the credential cookie.
+    VLOG(2) << __func__ << ": Got valid credential summary";
+    skus_client_->PrepareCredentialsPresentation(
+        domain, "*",
+        base::BindOnce(&PurchasedStateManager::OnPrepareCredentialsPresentation,
+                       weak_factory_.GetWeakPtr(), loading_sequence_, domain));
+    return;
+  }
+
+  if (parsed->NeedsActivation()) {
+    // Needs activation from account; treat as not purchased until activated.
+    VLOG(2) << __func__ << ": Got credential summary but needs activation";
+    FinishLoad(loading_environment_, mojom::PurchasedState::NOT_PURCHASED);
+    return;
+  }
+
+  // Subscription on record but no remaining credential: the purchase is
+  // expired.
+#if BUILDFLAG(IS_ANDROID)
+  FinishLoad(loading_environment_, mojom::PurchasedState::NOT_PURCHASED);
+#else
+  UpdatePurchasedStateForSessionExpired();
+#endif
+}
+
+void PurchasedStateManager::OnPrepareCredentialsPresentation(
+    uint64_t sequence,
+    const std::string& domain,
+    skus::mojom::SkusResultPtr credential_as_cookie) {
+  if (sequence != loading_sequence_) {
+    VLOG(2) << __func__ << ": Ignoring response of a stale load";
+    return;
+  }
+  if (!skus::DomainIsForProduct(domain, skus::GetVpnProductPrefix())) {
+    VLOG(2) << __func__ << ": Called for non-vpn product";
+    return;
+  }
+  // Check for a transport error (the synthesized disconnect result) or any
+  // other SKUS error.
+  if (credential_as_cookie->code != skus::mojom::SkusResultCode::Ok) {
+    VLOG(1) << __func__ << ": SKUS error: " << credential_as_cookie->message;
+    FinishLoad(loading_environment_, mojom::PurchasedState::FAILED,
+               l10n_util::GetStringUTF8(
+                   IDS_BRAVE_VPN_PURCHASE_CREDENTIALS_FETCH_FAILED));
+    return;
+  }
+
+  // The credential is returned in cookie format.
+  net::CookieInclusionStatus status;
+  net::ParsedCookie credential_cookie(credential_as_cookie->message, &status);
+  if (!credential_cookie.IsValid() || !status.IsInclude() ||
+      !credential_cookie.Expires()) {
+    VLOG(2) << __func__ << ": Got invalid credential cookie";
+    FinishLoad(loading_environment_, mojom::PurchasedState::FAILED);
+    return;
+  }
+
+  // The value is URL-encoded; decode it to recover the Base64 credential blob.
+  const base::Time time =
+      net::cookie_util::ParseCookieExpirationTime(*credential_cookie.Expires());
+  const std::string credential = url::DecodeUrlEscapeSequences(
+      credential_cookie.Value(), url::DecodeUrlMode::kUtf8OrIsomorphic);
+  if (credential.empty()) {
+    VLOG(2) << __func__ << ": Got empty credential cookie";
+    FinishLoad(loading_environment_, mojom::PurchasedState::NOT_PURCHASED);
+    return;
+  }
+
+  // Already expired.
+  if (time < base::Time::Now()) {
+    VLOG(2) << __func__ << ": Got expired credential cookie";
+    FinishLoad(
+        loading_environment_, mojom::PurchasedState::FAILED,
+        l10n_util::GetStringUTF8(IDS_BRAVE_VPN_PURCHASE_CREDENTIALS_EXPIRED));
+    return;
+  }
+
+  // Update the cached skus credential and its expiration time.
+  credential_store_->SetSkusCredential(credential, time);
+
+  // We have successfully authorized with a new environment, now loading state
+  // becomes visible.
+  if (GetCurrentEnvironment() != loading_environment_) {
+    local_prefs_->SetString(prefs::kBraveVPNEnvironment, loading_environment_);
+    SetPurchasedState(loading_environment_, mojom::PurchasedState::LOADING);
+  }
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Clear expired state data as we have active credentials.
+  local_prefs_->SetTime(prefs::kBraveVPNSessionExpiredDate, {});
+#endif
+
+  // Exchange the cached SKUS credential for a subscriber credential.
+  api_client_->GetSubscriberCredentialV12(
+      base::BindOnce(&PurchasedStateManager::OnGetSubscriberCredential,
+                     weak_factory_.GetWeakPtr(), loading_sequence_, domain,
+                     time),
+      credential, loading_environment_);
+}
+
+void PurchasedStateManager::OnGetSubscriberCredential(
+    uint64_t sequence,
+    const std::string& domain,
+    const base::Time& expiration_time,
+    base::expected<std::string, std::string> result) {
+  if (sequence != loading_sequence_) {
+    VLOG(2) << __func__ << ": Ignoring response of a stale load";
+    return;
+  }
+
+  if (!result.has_value()) {
+    VLOG(1) << __func__ << ": Failed to get subscriber credential ("
+            << result.error() << ")";
+
+    const bool token_no_longer_valid =
+        result.error() == ::brave_vpn::kTokenNoLongerValid;
+
+    // "Token no longer valid" means the credential was already consumed. Make
+    // one more attempt with a fresh SKUS credential (two attempts total).
+    if (token_no_longer_valid) {
+      if (!credential_store_->IsExchangeRetried()) {
+        VLOG(2) << __func__
+                << "Token no longer valid, retrying with fresh SKUS credential";
+        // Set the retried flag before re-requesting so a synchronous callback
+        // won't loop forever.
+        credential_store_->SetExchangeRetried(true);
+        // As we request a new credential, clear the cached value.
+        credential_store_->Clear();
+        RequestCredentialSummary(domain);
+      } else {
+        // The retry also came back invalid: the token is definitively no good.
+        VLOG(2) << __func__ << ": Token no longer valid after retry";
+        FinishLoad(
+            loading_environment_, mojom::PurchasedState::FAILED,
+            l10n_util::GetStringUTF8(IDS_BRAVE_VPN_PURCHASE_TOKEN_NOT_VALID));
+      }
+    } else {
+      // Otherwise it's a transient vendor/network error. The cached credential
+      // will eventually expire and a new one will be fetched.
+      VLOG(2) << __func__ << ": Transient error, will retry later";
+      FinishLoad(loading_environment_, mojom::PurchasedState::FAILED,
+                 l10n_util::GetStringUTF8(
+                     IDS_BRAVE_VPN_PURCHASE_CREDENTIALS_FETCH_FAILED));
+    }
+    return;
+  }
+
+  // Got a valid subscriber credential.
+  credential_store_->SetSubscriberCredential(result.value(), expiration_time);
+  ScheduleSubscriberCredentialRefresh();
+  FinishLoad(loading_environment_, mojom::PurchasedState::PURCHASED);
 }
 
 void PurchasedStateManager::RunPurchasedStateCallback(
@@ -272,5 +461,75 @@ void PurchasedStateManager::RunPurchasedStateCallback(
 void PurchasedStateManager::ScheduleSubscriberCredentialRefresh() {
   NOTIMPLEMENTED();
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+
+void PurchasedStateManager::UpdatePurchasedStateForSessionExpired() {
+  // TODO(https://github.com/brave/brave-browser/issues/54601)
+  // BraveVpnService v1 first guarded against marking a *fresh* user as
+  // session-expired by checking connection-manager region-data readiness
+  // (treating "no region data" as a brand-new user -> NOT_PURCHASED). In v2,
+  // until the agent is properly plumbed, a brand-new user who reaches this path
+  // would be reported SESSION_EXPIRED rather than NOT_PURCHASED.
+
+  if (loading_environment_ != GetCurrentEnvironment()) {
+    VLOG(2) << "Session expired for the non-current environment";
+    FinishLoad(loading_environment_, mojom::PurchasedState::NOT_PURCHASED);
+    return;
+  }
+
+  // If the last credential expiry is in the future, the user redeemed their
+  // credentials but we lost communication with the vendor: out of credentials.
+  // kBraveVPNLastCredentialExpiry is only set after obtaining a valid
+  // credential, so checking it first is safe.
+  const base::Time current_time = base::Time::Now();
+  const base::Time last_credential_expiry =
+      local_prefs_->GetTime(prefs::kBraveVPNLastCredentialExpiry);
+  if (!last_credential_expiry.is_null() &&
+      last_credential_expiry > current_time) {
+    const base::TimeDelta delta = last_credential_expiry - current_time;
+    VLOG(2) << "Out of credentials; check again in " << delta.InHours()
+            << " hours " << (delta - base::Hours(delta.InHours())).InMinutes()
+            << " minutes.";
+    FinishLoad(loading_environment_, mojom::PurchasedState::OUT_OF_CREDENTIALS,
+               l10n_util::GetStringUTF8(
+                   IDS_BRAVE_VPN_MAIN_PANEL_OUT_OF_CREDENTIALS_CONTENT));
+    return;
+  }
+
+  const base::Time session_expired_time =
+      local_prefs_->GetTime(prefs::kBraveVPNSessionExpiredDate);
+  // First session expiration since the last purchase (this pref is cleared
+  // when a valid credential is presented): stamp it now and report expired.
+  if (session_expired_time.is_null()) {
+    VLOG(2) << "First session expiration since last purchase";
+    local_prefs_->SetTime(prefs::kBraveVPNSessionExpiredDate, current_time);
+    FinishLoad(loading_environment_, mojom::PurchasedState::SESSION_EXPIRED);
+    return;
+  }
+
+  // Stamp in the future (clock weirdness): treat as not purchased.
+  if (session_expired_time > current_time) {
+    VLOG(2) << "Session expired time is in the future";
+    FinishLoad(loading_environment_, mojom::PurchasedState::NOT_PURCHASED);
+    return;
+  }
+
+  // The session-expired state has been held longer than the grace period:
+  // stop reporting SESSION_EXPIRED and demote to not purchased.
+  constexpr base::TimeDelta kSessionExpiredGracePeriod = base::Days(30);
+  if (current_time - session_expired_time > kSessionExpiredGracePeriod) {
+    VLOG(2) << "Session expired state held for more than "
+            << kSessionExpiredGracePeriod.InDays() << " days";
+    FinishLoad(loading_environment_, mojom::PurchasedState::NOT_PURCHASED);
+    return;
+  }
+
+  // Expiry is in the past - the user must log into account.brave.com again.
+  VLOG(2) << "Session expired, user must log in again";
+  FinishLoad(loading_environment_, mojom::PurchasedState::SESSION_EXPIRED);
+}
+
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace brave_vpn::v2

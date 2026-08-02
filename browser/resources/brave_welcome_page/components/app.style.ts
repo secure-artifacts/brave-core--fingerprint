@@ -26,7 +26,8 @@ export const style = scoped.css`
   .welcome-container {
     position: relative;
     max-width: 1130px;
-    max-height: 700px;
+    min-width: min-content;
+    max-height: 720px;
     width: 100%;
     height: calc(100dvh - 2 * ${spacing.xl});
     background-color: ${color.material.thick};
@@ -38,7 +39,7 @@ export const style = scoped.css`
 
 style.passthrough.css`
   & {
-    font: ${font.large.regular};
+    font: ${font.default.regular};
     color: ${color.text.primary};
   }
 
@@ -94,6 +95,7 @@ style.passthrough.css`
   }
 
   .step-text {
+    font: ${font.large.regular};
     display: flex;
     flex-direction: column;
     gap: ${spacing['2Xl']};
@@ -150,7 +152,7 @@ style.passthrough.css`
     }
 
     .step-ui {
-      align-self: center;
+      align-self: safe center;
     }
   }
 `

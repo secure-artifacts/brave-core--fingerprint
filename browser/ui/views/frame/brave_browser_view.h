@@ -195,10 +195,20 @@ class BraveBrowserView : public BrowserView,
     return top_container_separator_;
   }
 
+  views::View* vertical_tab_strip_host_view_for_testing() const {
+    return vertical_tab_strip_host_view_;
+  }
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Returns the PWA Shields toolbar button, if it exists. Note that this
   // returns valid pointer only when it's web app browser.
   BraveShieldsToolbarButton* GetPwaShieldsToolbarButton();
+
+  // Should be called once, when the button is first created for this window.
+  // Cached directly here, in order to keep track of the button regardless of
+  // its current widget. (e.g. in macOS immersive fullscreen, the button is
+  // reparented into other widget)
+  void SetPwaShieldsToolbarButton(BraveShieldsToolbarButton* button);
 #endif
 
  private:
@@ -220,6 +230,8 @@ class BraveBrowserView : public BrowserView,
   FRIEND_TEST_ALL_PREFIXES(SpeedReaderBrowserTest, ToolbarLangs);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedState);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest, ExpandedWidth);
+  FRIEND_TEST_ALL_PREFIXES(VerticalTabStripBrowserTest,
+                           HidingToggleButtonCollapsesAndForcesFloating);
   FRIEND_TEST_ALL_PREFIXES(SplitViewBrowserTest, BraveMultiContentsViewTest);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest, GetMinimumWidth);
   FRIEND_TEST_ALL_PREFIXES(VerticalTabStripHideCompletelyTest,
@@ -303,6 +315,13 @@ class BraveBrowserView : public BrowserView,
       vertical_tab_strip_container_view_ = nullptr;
   raw_ptr<FocusModeTitleBarView> focus_mode_title_bar_view_ = nullptr;
   raw_ptr<FocusModeTopOverlay> focus_mode_top_overlay_ = nullptr;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Caches the PWA Shields toolbar button for this window. Note that this
+  // button could belong to overlay widget in macOS fullscreen. That's why we
+  // cache it here instead of looking it up via BrowserElementsViews.
+  raw_ptr<BraveShieldsToolbarButton> pwa_shields_toolbar_button_;
+#endif
 
 #if defined(USE_AURA)
   raw_ptr<views::View> sidebar_host_view_ = nullptr;

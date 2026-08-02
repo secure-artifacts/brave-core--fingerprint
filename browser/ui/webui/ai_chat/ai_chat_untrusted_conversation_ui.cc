@@ -268,6 +268,12 @@ class UIHandler : public ai_chat::mojom::UntrustedUIHandler {
     if (!web_ui_->GetRenderFrameHost()->HasTransientUserActivation()) {
       return;
     }
+    // If AI Chat is a full browser tab, move the live conversation into the
+    // side panel. No-op unless the feature is enabled and AI Chat is a full
+    // tab. This covers the links the conversation asks us to open over Mojo;
+    // links it renders as anchors are opened by the browser itself and move the
+    // conversation via `AIChatFullPageLinkObserver`.
+    ai_chat::MaybeMoveFullPageChatToSidePanel(web_ui_->GetWebContents());
 #if !BUILDFLAG(IS_ANDROID)
     Browser* browser =
         ai_chat::GetBrowserForWebContents(web_ui_->GetWebContents());

@@ -10,7 +10,7 @@ import {
   deterministicOptimization,
   deterministicIdsPlugins,
 } from './deterministic-output.ts'
-import generatePathMap from './path-map.js'
+import { generatePathMap } from './path-map.ts'
 import { provideNodeGlobals, chromePrefixReplacers } from './plugins.ts'
 import { baseResolve } from './resolve.ts'
 import {
@@ -18,6 +18,8 @@ import {
   tsLoaderRule,
   ifdefLoaderRule,
   fileLoaderRule,
+  onnxRuntimeWorkerJsRule,
+  onnxRuntimeWasmRule,
   braveUiFullySpecifiedRule,
   htmlAssetRule,
 } from './rules.ts'
@@ -142,6 +144,8 @@ export function createWebpackConfig(
         ...cssRules({ isDevMode }),
         tsLoaderRule({ configFile: tsConfigPath }),
         ifdefLoaderRule(buildFlags),
+        onnxRuntimeWorkerJsRule(),
+        onnxRuntimeWasmRule(),
         fileLoaderRule(),
         // web-discovery-project is built as CommonJS but may be classified
         // as ESM by webpack. Force auto-detection for correct CJS handling.

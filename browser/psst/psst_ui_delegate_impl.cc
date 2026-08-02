@@ -7,6 +7,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/logging.h"
 #include "brave/components/psst/core/browser/pref_names.h"
 #include "brave/components/psst/core/common/psst_metadata_schema.h"
 #include "components/prefs/pref_service.h"
@@ -29,20 +30,37 @@ PsstUiDelegateImpl::PsstUiDelegateImpl(
   CHECK(psst_settings_service_);
   CHECK(ui_presenter_);
   CHECK(prefs_);
+  psst_settings_service_->AddObserver(this);
 }
-PsstUiDelegateImpl::~PsstUiDelegateImpl() = default;
+PsstUiDelegateImpl::~PsstUiDelegateImpl() {
+  psst_settings_service_->RemoveObserver(this);
+}
 
 void PsstUiDelegateImpl::Show(
     url::Origin origin,
     PsstWebsiteSettings dialog_data,
+    const int rule_version,
     std::optional<UserScriptResult> user_script_result,
     PsstTabWebContentsObserver::ConsentCallback apply_changes_callback) {
   apply_changes_callback_ = std::move(apply_changes_callback);
   dialog_data_ = std::move(dialog_data);
   origin_ = std::move(origin);
   user_script_result_ = std::move(user_script_result);
+
+  auto icon_status = LocationBarIconStatus::kOnlyIcon;
+
+  // Show the icon with the badge only if the status is not blocked and the
+  // version has changed.
+  if ((dialog_data_->consent_status == ConsentStatus::kAsk ||
+       dialog_data_->consent_status == ConsentStatus::kAllow) &&
+      dialog_data_->script_version != rule_version) {
+    icon_status = LocationBarIconStatus::kIconWithBadge;
+    // A new version will be saved when the user accepts the consent dialog.
+    dialog_data_->script_version = rule_version;
+  }
+
   ui_presenter_->SetLocationBarIconStatus(
-      LocationBarIconStatus::kIconWithBadge,
+      icon_status,
       base::BindOnce(&PsstUiDelegateImpl::OnDontShowForThisSite,
                      weak_ptr_factory_.GetWeakPtr()),
       base::BindOnce(&PsstUiDelegateImpl::OnDisablePrivacySettingsTuning,
@@ -153,7 +171,7 @@ void PsstUiDelegateImpl::OnUserAcceptedInfobar(const bool is_accepted) {
     ui_presenter_->ShowConsentDialog();
   } else {
     // Disable PSST if user declined the infobar
-    prefs_->SetBoolean(prefs::kPsstEnabled, false);
+    psst_settings_service_->SetPsstEnabled(false);
   }
 }
 
@@ -170,8 +188,20 @@ void PsstUiDelegateImpl::OnDontShowForThisSite() {
 }
 
 void PsstUiDelegateImpl::OnDisablePrivacySettingsTuning() {
-  prefs_->SetBoolean(prefs::kPsstEnabled, false);
+  psst_settings_service_->SetPsstEnabled(false);
   ui_presenter_->HideInfoBar();
+  ui_presenter_->SetLocationBarIconStatus(LocationBarIconStatus::kHidden,
+                                          base::NullCallback(),
+                                          base::NullCallback());
+}
+
+void PsstUiDelegateImpl::OnPsstEnableChange(bool new_value) {
+  if (new_value) {
+    return;
+  }
+
+  ui_presenter_->HideInfoBar();
+  ui_presenter_->HideConsentDialog();
   ui_presenter_->SetLocationBarIconStatus(LocationBarIconStatus::kHidden,
                                           base::NullCallback(),
                                           base::NullCallback());

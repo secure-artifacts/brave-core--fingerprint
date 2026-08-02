@@ -20,8 +20,10 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import engine  # pylint: disable=wrong-import-position
-from recipe_api import RecipeApi  # pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position
+import engine
+from recipe_api import RecipeApi
+from recipe_test_api import RecipeTestApi
 
 
 class DepsResolutionTest(unittest.TestCase):
@@ -40,6 +42,77 @@ class DepsResolutionTest(unittest.TestCase):
         dt = eng._instantiate_module('depot_tools', [])
         # chromium_checkout and depot_tools share one `step` instance.
         self.assertIs(cc.m.step, dt.m.step)
+
+
+class TestApiInjectionTest(unittest.TestCase):
+    """Every module is given its own TEST_API, in production runs too.
+
+    A module reaches it as `self.test_api` to describe what its steps should
+    return under simulation (`step_test_data=`), so it has to be there whether
+    or not the run is simulated.
+    """
+
+    def test_module_gets_its_own_test_api(self):
+        cc = engine._Engine()._instantiate_module('chromium_checkout', [])
+        self.assertIsInstance(cc.test_api, RecipeTestApi)
+        # It is the chromium_checkout test api, not the base class.
+        self.assertTrue(hasattr(cc.test_api, 'with_git_cache'))
+
+    def test_module_without_a_test_api_gets_the_base(self):
+        context = engine._Engine()._instantiate_module('context', [])
+        self.assertIs(type(context.test_api), RecipeTestApi)
+
+    def test_deps_are_wired_onto_m(self):
+        cache = {}
+        cc = engine.instantiate_test_module('chromium_checkout', [], cache)
+        # chromium_checkout's DEPS test apis are reachable via .m.
+        self.assertTrue(hasattr(cc.m, 'env'))
+        self.assertTrue(hasattr(cc.m, 'path'))
+        # Cached instances are shared.
+        self.assertIs(engine.instantiate_test_module('path', [], cache),
+                      cc.m.path)
+
+    def test_root_api_exposes_dep_helpers(self):
+        root = engine.build_root_test_api(['platform', 'step'])
+        # api.platform.name(...) and api.step.data(...) resolve to the module
+        # test apis.
+        self.assertEqual(
+            root.platform.name('mac').mod_data['platform']['name'], 'mac')
+        self.assertIn('s', root.step.data('s', retcode=2).step_data)
+
+
+class FindTestApiClassTest(unittest.TestCase):
+    """_find_test_api_class allows at most one RecipeTestApi subclass."""
+
+    def test_defaults_to_base_when_absent(self):
+        module = types.ModuleType('fake')
+        self.assertIs(engine._find_test_api_class(module, 'fake'),
+                      RecipeTestApi)
+
+    def test_finds_the_single_subclass(self):
+        module = types.ModuleType('fake')
+
+        class MyTestApi(RecipeTestApi):
+            pass
+
+        MyTestApi.__module__ = 'fake'
+        module.MyTestApi = MyTestApi
+        self.assertIs(engine._find_test_api_class(module, 'fake'), MyTestApi)
+
+    def test_two_classes_raises(self):
+        module = types.ModuleType('fake')
+
+        class TestApiA(RecipeTestApi):
+            pass
+
+        class TestApiB(RecipeTestApi):
+            pass
+
+        TestApiA.__module__ = TestApiB.__module__ = 'fake'
+        module.TestApiA = TestApiA
+        module.TestApiB = TestApiB
+        with self.assertRaises(RuntimeError):
+            engine._find_test_api_class(module, 'fake')
 
 
 class FindApiClassTest(unittest.TestCase):
@@ -160,8 +233,10 @@ class WorkspaceTest(unittest.TestCase):
             path = eng._instantiate_module('path', [])
             workspace = Path(tmp).resolve()
             self.assertEqual(path.workspace, workspace)
-            self.assertEqual(path.chromium_src, workspace / 'chromium/src')
-            self.assertEqual(path.brave_core, workspace / 'chromium/src/brave')
+            self.assertEqual(path.chromium_src,
+                             workspace / 'brave-browser/src')
+            self.assertEqual(path.brave_core,
+                             workspace / 'brave-browser/src/brave')
             self.assertEqual(path.out, workspace / 'out')
             self.assertEqual(Path.cwd(), workspace)
 
@@ -172,12 +247,77 @@ class WorkspaceTest(unittest.TestCase):
     def test_brave_core_ref_seeded_with_override(self):
         module = engine._Engine(
             brave_core_ref='feature/x')._instantiate_module(
-                'brave_core_shallow', [])
+                'brave_core_checkout', [])
         self.assertEqual(getattr(module, '_brave_core_ref'), 'feature/x')
 
     def test_brave_core_ref_defaults_to_master(self):
-        module = engine._Engine()._instantiate_module('brave_core_shallow', [])
+        module = engine._Engine()._instantiate_module('brave_core_checkout',
+                                                      [])
         self.assertEqual(getattr(module, '_brave_core_ref'), 'master')
+
+
+class ModulePropertiesTest(unittest.TestCase):
+    """The engine binds a module's PROPERTIES/ENV_PROPERTIES into its api.
+
+    Uses the `hello` module (which declares a PROPERTIES message) for the
+    end-to-end paths, and package_rust's compiled messages for the arg-order /
+    env path via `_module_property_args` directly.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        engine._ensure_protos()
+        # pylint: disable=import-outside-toplevel,import-error
+        from PB.recipes.brave.toolchains.rust.package_rust import (
+            EnvProperties, InputProperties)
+        cls.InputProperties = InputProperties
+        cls.EnvProperties = EnvProperties
+
+    def test_properties_bound_from_namespaced_block(self):
+        eng = engine._Engine()
+        eng._properties = {'$hello': {'target': 'Ada'}}
+        hello = eng._instantiate_module('hello', [])
+        self.assertEqual(hello._target, 'Ada')
+
+    def test_absent_block_yields_proto_defaults(self):
+        # No `$hello` block: the message defaults (empty target -> None).
+        hello = engine._Engine()._instantiate_module('hello', [])
+        self.assertIsNone(hello._target)
+
+    def test_top_level_props_do_not_leak_into_module(self):
+        # A non-namespaced top-level property is not a module property.
+        eng = engine._Engine()
+        eng._properties = {'target': 'Zed'}
+        hello = eng._instantiate_module('hello', [])
+        self.assertIsNone(hello._target)
+
+    def test_property_feeds_config_end_to_end(self):
+        eng = engine._Engine()
+        eng._properties = {'$hello': {'target': 'Ada'}}
+        hello = eng._instantiate_module('hello', [])
+        hello.set_config('default_tool')
+        self.assertEqual(hello.c.TARGET, 'Ada')
+
+    def test_arg_order_properties_then_env(self):
+        eng = engine._Engine()
+        eng._properties = {'$fake': {'chromium_ref': 'x'}}
+        eng._environ = {'git_cache': '/c'}  # lower-case: must be upper-cased
+        pkg = types.SimpleNamespace(PROPERTIES=self.InputProperties,
+                                    ENV_PROPERTIES=self.EnvProperties)
+        args = eng._module_property_args('fake', pkg)
+        self.assertEqual(len(args), 2)
+        self.assertEqual(args[0].chromium_ref, 'x')
+        self.assertEqual(args[1].GIT_CACHE, '/c')
+
+    def test_no_defs_means_no_args(self):
+        pkg = types.SimpleNamespace(DEPS=[])
+        self.assertEqual(engine._Engine()._module_property_args('fake', pkg),
+                         [])
+
+    def test_non_message_properties_raises(self):
+        pkg = types.SimpleNamespace(PROPERTIES=dict, DEPS=[])
+        with self.assertRaises(TypeError):
+            engine._Engine()._module_property_args('fake', pkg)
 
 
 if __name__ == '__main__':

@@ -6,23 +6,23 @@
 use adblock::{lists::ParseOptions, resources::PermissionMask, FilterSet as InnerFilterSet};
 use cxx::CxxVector;
 
-use crate::ffi::{FilterListMetadata, FilterListMetadataResult};
+use crate::ffi::{AddFilterListResult, AddedFiltersRecord};
 use crate::result::InternalError;
 
 pub struct FilterSet(pub(crate) InnerFilterSet);
 
 impl Default for Box<FilterSet> {
     fn default() -> Self {
-        new_filter_set()
+        new_filter_set(false)
     }
 }
 
-pub fn new_filter_set() -> Box<FilterSet> {
-    Box::new(FilterSet(InnerFilterSet::new(false)))
+pub fn new_filter_set(debug: bool) -> Box<FilterSet> {
+    Box::new(FilterSet(InnerFilterSet::new(debug)))
 }
 
 impl FilterSet {
-    pub fn add_filter_list(&mut self, rules: &CxxVector<u8>) -> FilterListMetadataResult {
+    pub fn add_filter_list(&mut self, rules: &CxxVector<u8>) -> AddFilterListResult {
         self.add_filter_list_with_permissions(rules, 0)
     }
 
@@ -30,12 +30,12 @@ impl FilterSet {
         &mut self,
         rules: &CxxVector<u8>,
         permission_mask: u8,
-    ) -> FilterListMetadataResult {
-        || -> Result<FilterListMetadata, InternalError> {
+    ) -> AddFilterListResult {
+        || -> Result<AddedFiltersRecord, InternalError> {
             Ok(self
                 .0
                 .add_filter_list(
-                    std::str::from_utf8(rules.as_slice())?,
+                    std::str::from_utf8(rules.as_slice())?.to_string(),
                     ParseOptions {
                         permissions: PermissionMask::from_bits(permission_mask),
                         ..Default::default()

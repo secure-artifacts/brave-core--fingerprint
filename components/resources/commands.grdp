@@ -34,6 +34,9 @@
   <message name="IDS_IDC_CLOSE_TAB">
     Close tab
   </message>
+  <message name="IDS_IDC_CLOSE_ALL_DUPLICATE_TABS">
+    Close all duplicate tabs
+  </message>
   <message name="IDS_IDC_SELECT_NEXT_TAB">
     Next tab
   </message>
@@ -386,7 +389,19 @@
     Toggle sidebar position
   </message>
   <message name="IDS_IDC_TOGGLE_SIDEBAR">
-    Toggle sidebar
+    Toggle current side panel
+  </message>
+  <message name="IDS_IDC_TOGGLE_BOOKMARKS_SIDE_PANEL">
+    Toggle Bookmarks side panel
+  </message>
+  <message name="IDS_IDC_TOGGLE_READING_LIST_SIDE_PANEL">
+    Toggle Reading List side panel
+  </message>
+  <message name="IDS_IDC_TOGGLE_PLAYLIST_SIDE_PANEL">
+    Toggle Playlist side panel
+  </message>
+  <message name="IDS_IDC_TOGGLE_BRAVE_NEWS_SIDE_PANEL">
+    Toggle Brave News side panel
   </message>
   <message name="IDS_IDC_TOGGLE_VERTICAL_TABS">
     Toggle vertical tabs
@@ -423,6 +438,9 @@
   </message>
   <message name="IDS_IDC_TOGGLE_JAVASCRIPT">
     Toggle JavaScript
+  </message>
+  <message name="IDS_IDC_BLOCK_ELEMENTS" desc="Name of the command/shortcut that launches the element picker to block page elements">
+    Block elements
   </message>
   <message name="IDS_IDC_SHOW_PLAYLIST_BUBBLE">
     Show playlist bubble

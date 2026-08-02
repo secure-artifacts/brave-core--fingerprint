@@ -6,7 +6,6 @@
 """Tests for the simulation runtime: SimFS, step runner, and expectations."""
 
 import os
-import subprocess
 import sys
 import unittest
 
@@ -21,13 +20,13 @@ from recipe_test_api import RecipeTestApi, StepTestData, TestData
 class SimFSTest(unittest.TestCase):
 
     def test_file_and_ancestor_semantics(self):
-        fs = simulation.SimFS(files=['/b/s/chromium/src/chrome/VERSION'])
-        self.assertTrue(fs.is_file('/b/s/chromium/src/chrome/VERSION'))
-        self.assertTrue(fs.exists('/b/s/chromium/src/chrome/VERSION'))
+        fs = simulation.SimFS(files=['/b/s/brave-browser/src/chrome/VERSION'])
+        self.assertTrue(fs.is_file('/b/s/brave-browser/src/chrome/VERSION'))
+        self.assertTrue(fs.exists('/b/s/brave-browser/src/chrome/VERSION'))
         # Ancestors of a seeded file are directories that exist.
-        self.assertTrue(fs.is_dir('/b/s/chromium/src'))
+        self.assertTrue(fs.is_dir('/b/s/brave-browser/src'))
         # The file itself is not a directory.
-        self.assertFalse(fs.is_dir('/b/s/chromium/src/chrome/VERSION'))
+        self.assertFalse(fs.is_dir('/b/s/brave-browser/src/chrome/VERSION'))
         self.assertFalse(fs.exists('/b/s/nope'))
 
     def test_mkdir_mutates(self):
@@ -37,43 +36,72 @@ class SimFSTest(unittest.TestCase):
         self.assertTrue(fs.is_dir('/b/s/out'))
 
 
+def _run(runner, step):
+    """Hand *runner* a step, as the `step` module would."""
+    runner.step_test_data(step['name'], None)
+    return runner.run(step, {'stdin': None, 'stdout': None, 'stderr': None})
+
+
 class SimulationStepRunnerTest(unittest.TestCase):
 
-    def test_records_and_returns_completed_process(self):
+    def test_records_the_step_and_returns_its_retcode(self):
         runner = simulation.SimulationStepRunner()
-        result = runner.run({
+        self.assertEqual(_run(runner, {
             'name': 'go',
             'cmd': ['echo', 'hi']
-        },
-                            check=True,
-                            capture_output=False)
-        self.assertIsInstance(result, subprocess.CompletedProcess)
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(runner.recorded_steps[0]['name'], 'go')
+        }), 0)
+        self.assertEqual(runner.recorded_steps[0], {
+            'name': 'go',
+            'cmd': ['echo', 'hi']
+        })
 
-    def test_checked_failure_raises_and_records_retcode(self):
+    def test_seeded_retcode_is_returned_and_recorded(self):
         runner = simulation.SimulationStepRunner(
-            {'go': StepTestData(retcode=1)})
-        with self.assertRaises(subprocess.CalledProcessError):
-            runner.run({
-                'name': 'go',
-                'cmd': ['false']
-            },
-                       check=True,
-                       capture_output=False)
-        # The failing step is still recorded (before the raise).
+            TestData() + RecipeTestApi.step_data('go', retcode=1))
+        self.assertEqual(_run(runner, {'name': 'go', 'cmd': ['false']}), 1)
         self.assertEqual(runner.recorded_steps[0]['retcode'], 1)
 
-    def test_unchecked_failure_does_not_raise(self):
-        runner = simulation.SimulationStepRunner(
-            {'go': StepTestData(retcode=1)})
-        result = runner.run({
+    def test_stdin_is_recorded_but_the_other_handles_are_not(self):
+        runner = simulation.SimulationStepRunner()
+        runner.step_test_data('cat', None)
+        runner.run({
+            'name': 'cat',
+            'cmd': ['cat'],
+            'stdin': 'fed to the step'
+        }, {
+            'stdin': 'fed to the step',
+            'stdout': '/path/to/tmp/',
+            'stderr': None
+        })
+        self.assertEqual(runner.recorded_steps[0], {
+            'name': 'cat',
+            'cmd': ['cat'],
+            'stdin': 'fed to the step'
+        })
+
+    def test_a_steps_own_default_data_is_used(self):
+        runner = simulation.SimulationStepRunner()
+
+        def default():
+            data = StepTestData()
+            data.retcode = 7
+            return data
+
+        runner.step_test_data('go', default)
+        self.assertEqual(runner.run({
             'name': 'go',
-            'cmd': ['false']
-        },
-                            check=False,
-                            capture_output=False)
-        self.assertEqual(result.returncode, 1)
+            'cmd': ['do-thing']
+        }, {}), 7)
+
+
+class SubprocessStepRunnerTest(unittest.TestCase):
+
+    def test_nothing_is_simulated(self):
+        # The production runner reports "not simulated" for every lookup, so a
+        # placeholder rendering for a real step touches the real filesystem.
+        data = simulation.SubprocessStepRunner().step_test_data('go', None)
+        self.assertFalse(data.enabled)
+        self.assertFalse(data.stdout.enabled)
 
 
 class TestContextTest(unittest.TestCase):
@@ -93,7 +121,7 @@ class TestContextTest(unittest.TestCase):
                 }
             },
             'path': {
-                'files': ['chromium/src/chrome/VERSION'],
+                'files': ['brave-browser/src/chrome/VERSION'],
                 'dirs': []
             },
         }
@@ -102,7 +130,8 @@ class TestContextTest(unittest.TestCase):
         self.assertEqual(ctx.env['K'], 'V')
         self.assertEqual(ctx.which_map['gclient'], '/g')
         # Relative seed resolves under the simulated workspace.
-        self.assertTrue(ctx.fs.is_file('/b/s/chromium/src/chrome/VERSION'))
+        self.assertTrue(
+            ctx.fs.is_file('/b/s/brave-browser/src/chrome/VERSION'))
 
 
 class ExpectationTest(unittest.TestCase):
@@ -114,44 +143,52 @@ class ExpectationTest(unittest.TestCase):
         self.assertEqual(simulation.stabilize('/b/home/.cache', ctx),
                          '[HOME]/.cache')
 
-    def test_build_steps_appends_result(self):
+    def test_build_steps_success_result(self):
         runner = simulation.SimulationStepRunner()
-        runner.run({
-            'name': 'a',
-            'cmd': ['/b/s/out/tool']
-        },
-                   check=True,
-                   capture_output=False)
-        steps = simulation.build_steps(runner, 'EXCEPTION', 'boom',
-                                       simulation.TestContext())
+        _run(runner, {'name': 'a', 'cmd': ['/b/s/out/tool']})
+        steps = simulation.build_steps(runner, None, simulation.TestContext())
         self.assertEqual(steps['a']['cmd'], ['[WORKSPACE]/out/tool'])
-        self.assertEqual(steps[pp.RESULT_STEP], {
-            'name': '$result',
-            'status': 'EXCEPTION',
-            'reason': 'boom',
-        })
+        # A successful run's $result carries no failure key.
+        self.assertEqual(steps[pp.RESULT_STEP], {'name': '$result'})
+
+    def test_build_steps_failure_result_stabilizes_reason(self):
+        runner = simulation.SimulationStepRunner()
+        failure = {'humanReason': 'boom at /b/s/out/tool'}
+        steps = simulation.build_steps(runner, failure,
+                                       simulation.TestContext())
+        # An infra failure carries only humanReason (paths stabilized).
+        self.assertEqual(
+            steps[pp.RESULT_STEP], {
+                'name': '$result',
+                'failure': {
+                    'humanReason': 'boom at [WORKSPACE]/out/tool'
+                },
+            })
 
     def test_apply_post_process_filter_and_drop(self):
-        steps = {
-            'a': {
-                'name': 'a'
-            },
-            '$result': {
-                'name': '$result',
-                'status': 'SUCCESS'
-            }
-        }
+        steps = {'a': {'name': 'a'}, '$result': {'name': '$result'}}
         # A filtering hook narrows the steps for the written expectation.
         keep_a = RecipeTestApi.post_process(lambda c, s: {'a': s['a']})
-        filtered, failures = simulation.apply_post_process(
+        filtered, failed_checks = simulation.apply_post_process(
             keep_a.post_process_hooks, steps)
         self.assertEqual(list(filtered), ['a'])
-        self.assertEqual(failures, [])
+        self.assertEqual(failed_checks, [])
         # DropExpectation -> None.
         drop = RecipeTestApi.post_process(pp.DropExpectation)
         filtered, _ = simulation.apply_post_process(drop.post_process_hooks,
                                                     steps)
         self.assertIsNone(filtered)
+
+    def test_apply_post_process_rejects_superset(self):
+        steps = {'a': {'name': 'a'}, '$result': {'name': '$result'}}
+        # A hook that adds a step is not a subset of the recorded steps.
+        add = RecipeTestApi.post_process(lambda c, s: {
+            **s, 'b': {
+                'name': 'b'
+            }
+        })
+        with self.assertRaises(simulation.PostProcessError):
+            simulation.apply_post_process(add.post_process_hooks, steps)
 
 
 if __name__ == '__main__':

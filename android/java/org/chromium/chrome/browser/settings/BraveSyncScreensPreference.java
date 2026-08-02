@@ -5,8 +5,11 @@
 
 package org.chromium.chrome.browser.settings;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.Manifest;
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
@@ -34,6 +37,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.app.ActivityCompat;
@@ -55,7 +59,6 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.BraveSyncWorker;
-import org.chromium.chrome.browser.back_press.BackPressHelper;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.notifications.BravePermissionUtils;
 import org.chromium.chrome.browser.qrreader.CameraSourcePreview;
@@ -79,7 +82,6 @@ import java.util.ArrayList;
 /** Settings fragment that allows to control Sync functionality. */
 public class BraveSyncScreensPreference extends BravePreferenceFragment
         implements View.OnClickListener,
-                BackPressHelper.ObsoleteBackPressedHandler,
                 QRCodeCameraManager.Callback,
                 QRCodeCameraManager.HostProvider,
                 BraveSyncDevices.DeviceInfoChangedListener,
@@ -128,7 +130,18 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
     private FrameLayout mLayoutMobile;
     private FrameLayout mLayoutLaptop;
     private AlertDialog mFinalWarningDialog;
+    private Dialog mPlayServicesErrorDialog;
     private TabLayout mTabLayout;
+    private View mRootView;
+
+    // One-shot listener used to re-apply the wide-display layout correction once the fragment root
+    // gets its post-rotation size (see correctWideDisplayLayoutAfterRotation).
+    private View.OnLayoutChangeListener mRotationLayoutListener;
+
+    // The title resource of the currently shown Sync (sub-)screen. Remembered so it can be
+    // re-applied to the correct title source after a rotation flips the column mode (see
+    // setScreenTitle / correctWideDisplayLayoutAfterRotation).
+    private int mCurrentScreenTitleResId = R.string.sync_category_title;
 
     // Below enum is matching the values of GetDeviceTypeString() in brave_device_info.cc
     public enum DeviceType {
@@ -150,6 +163,26 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
 
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
+
+    // Intercepts the system back press while a Sync sub-screen is shown, so back navigates one step
+    // within the Sync flow (see #handleSyncSubScreenBackPress) instead of leaving the Sync screen.
+    // It is disabled on the Sync landing screen, letting the back press propagate to the settings
+    // host, which returns to the main settings screen. Registered on the fragment's view lifecycle
+    // in onViewCreated().
+    //
+    // cr151 note: the fragment previously implemented BackPressHelper.ObsoleteBackPressedHandler,
+    // which the Multi-column Settings host no longer consults, leaving back presses unhandled and
+    // closing Settings entirely. A directly-registered OnBackPressedCallback is used instead of
+    // implementing the modern BackPressHandler, because SettingsActivity's
+    // registerMainFragmentBackPressHandler() forbids the (non-standalone) detail-pane fragment from
+    // implementing BackPressHandler while the single-activity feature is enabled.
+    private final OnBackPressedCallback mBackPressedCallback =
+            new OnBackPressedCallback(/* enabled= */ false) {
+                @Override
+                public void handleOnBackPressed() {
+                    handleSyncSubScreenBackPress();
+                }
+            };
 
     BraveSyncWorker getBraveSyncWorker() {
         return BraveSyncWorker.get();
@@ -182,35 +215,69 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
      *
      * <p>We correct this after the rotation layout pass settles: apply the padding computed from
      * screenWidthDp (already updated for the new orientation), force a re-layout, and rebuild the
-     * device list so the dynamically-added rows are re-measured against the correct width. This
-     * runs from a posted runnable (not from within a layout pass) so the forced re-layout is
-     * honored.
+     * device list so the dynamically-added rows are re-measured against the correct width.
+     *
+     * <p>Since cr151 the Multi-column Settings feature (default-on) hosts this fragment in a narrow
+     * detail pane rather than full screen. In that mode the screenWidthDp-based centering padding
+     * is wrong (it is computed for the whole screen, not the pane) and would collapse the content,
+     * so we skip it and let the pane constrain the width - mirroring upstream WideDisplayPadding,
+     * which does not attach a ViewResizer when {@link
+     * SettingsActivity#isTwoColumnSettingsVisible()}.
+     *
+     * <p>This also affects phones: when the landscape window is wide enough the multi-column
+     * SlidingPaneLayout keeps both panes visible (a narrow detail pane), which is why the issue
+     * does not reproduce with 3-button navigation - the extra nav-bar width keeps the pane below
+     * the two-column threshold. The detail pane re-measures on its own schedule after a rotation,
+     * so the correction is applied from a one-shot OnLayoutChangeListener once the root actually
+     * receives its new size.
      */
     private void correctWideDisplayLayoutAfterRotation() {
-        // Post twice so this runs after the framework's rotation layout pass and the ViewResizer
-        // have finished, guaranteeing our padding is the final value and the forced re-layout is
-        // not swallowed by being called during a layout pass.
-        PostTask.postTask(
-                TaskTraits.UI_USER_VISIBLE,
-                () ->
-                        PostTask.postTask(
-                                TaskTraits.UI_USER_VISIBLE,
-                                this::applyWideDisplayLayoutCorrection));
+        // The fragment root re-measures on its own schedule after a rotation. In Multi-column
+        // Settings it lives in a SlidingPaneLayout detail pane whose size settles a frame or two
+        // after onConfigurationChanged, so reading it synchronously here would give a stale
+        // (previous-orientation) size and leave the fillViewport weighted content (e.g. the Sync
+        // graphic) at its old height. Re-apply the correction from a one-shot
+        // OnLayoutChangeListener
+        // once the root actually receives its new size, so we measure against the final
+        // orientation.
+        if (getView() == null) {
+            return;
+        }
+        // root persists across rotations; ensure only one listener is attached.
+        if (mRotationLayoutListener != null) {
+            mRootView.removeOnLayoutChangeListener(mRotationLayoutListener);
+        }
+        mRotationLayoutListener =
+                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    boolean sizeChanged =
+                            (right - left) != (oldRight - oldLeft)
+                                    || (bottom - top) != (oldBottom - oldTop);
+                    if (!sizeChanged) {
+                        return;
+                    }
+                    v.removeOnLayoutChangeListener(mRotationLayoutListener);
+                    mRotationLayoutListener = null;
+                    applyWideDisplayLayoutCorrection();
+                    // The rotation may have flipped the column mode; re-apply the current screen
+                    // title to the correct source (detail-pane supplier vs activity title) now that
+                    // isTwoColumnSettingsVisible() reflects the settled layout.
+                    setScreenTitle(mCurrentScreenTitleResId);
+                };
+        mRootView.addOnLayoutChangeListener(mRotationLayoutListener);
     }
 
     private void applyWideDisplayLayoutCorrection() {
-        // PostTask does not track the fragment/view lifecycle (unlike View.post), so guard against
-        // the fragment being torn down between posting and execution.
-        if (getActivity() == null || getView() == null) {
-            return;
-        }
-        View root = getView().findViewById(R.id.brave_sync_layout);
-        if (root == null) {
-            return;
-        }
+        assertNonNull(mRootView);
         int screenWidthDp = getResources().getConfiguration().screenWidthDp;
         int padding = 0;
-        if (screenWidthDp >= UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP) {
+        // In Multi-column Settings mode this fragment lives in a narrow detail pane, which already
+        // constrains the width. Applying the full-screen centering padding here would squeeze the
+        // content, so only compute it in single-column (full-width) mode. The host is always a
+        // SettingsActivity (getActivity() null case is handled by the early return above).
+        FragmentActivity activity = requireActivity();
+        assert activity instanceof SettingsActivity;
+        boolean twoColumn = ((SettingsActivity) activity).isTwoColumnSettingsVisible();
+        if (!twoColumn && screenWidthDp >= UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP) {
             int minWidePadding =
                     getResources().getDimensionPixelSize(R.dimen.settings_wide_display_min_padding);
             int excessWidthDp = screenWidthDp - UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP;
@@ -218,12 +285,40 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
                     Math.round((excessWidthDp / 2.f) * getResources().getDisplayMetrics().density);
             padding = Math.max(minWidePadding, paddingPx);
         }
-        root.setPadding(padding, root.getPaddingTop(), padding, root.getPaddingBottom());
-        ViewUtils.requestLayout(root, "BraveSyncScreensPreference.correctWideDisplayLayout");
+        mRootView.setPadding(
+                padding, mRootView.getPaddingTop(), padding, mRootView.getPaddingBottom());
+        ViewUtils.requestLayout(mRootView, "BraveSyncScreensPreference.correctWideDisplayLayout");
+        // Re-measure the currently visible sub-screen against the corrected size. The initial and
+        // other sub-screens use a fillViewport ScrollView with weighted children (e.g. the Sync
+        // graphic), whose heights depend on the viewport size and must be recomputed after a
+        // rotation; requestLayout on the visible ScrollView forces that.
+        View visibleScrollView = getVisibleSyncScrollView();
+        if (visibleScrollView != null) {
+            ViewUtils.requestLayout(
+                    visibleScrollView, "BraveSyncScreensPreference.correctVisibleScrollView");
+        }
         // Rebuild the device rows so they re-measure against the corrected content width.
         if (mScrollViewSyncDone != null && View.VISIBLE == mScrollViewSyncDone.getVisibility()) {
             onDevicesAvailable();
         }
+    }
+
+    private View getVisibleSyncScrollView() {
+        View[] scrollViews = {
+            mScrollViewSyncInitial,
+            mScrollViewSyncChainCode,
+            mScrollViewSyncStartChain,
+            mScrollViewAddMobileDevice,
+            mScrollViewAddLaptop,
+            mScrollViewEnterCodeWords,
+            mScrollViewSyncDone
+        };
+        for (View scrollView : scrollViews) {
+            if (scrollView != null && View.VISIBLE == scrollView.getVisibility()) {
+                return scrollView;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -237,9 +332,28 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         return mInflater.inflate(R.layout.brave_sync_layout, container, false);
     }
 
+    @Override
+    public void onViewCreated(View view, Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        // Intercept back only while a Sync sub-screen is shown; see mBackPressedCallback. Tied to
+        // the view lifecycle so it is removed automatically when the fragment's view is destroyed.
+        requireActivity()
+                .getOnBackPressedDispatcher()
+                .addCallback(getViewLifecycleOwner(), mBackPressedCallback);
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (mRotationLayoutListener != null) {
+            mRootView.removeOnLayoutChangeListener(mRotationLayoutListener);
+            mRotationLayoutListener = null;
+        }
+        super.onDestroyView();
+    }
+
     private boolean ensureCameraPermission() {
         if (ActivityCompat.checkSelfPermission(
-                    getActivity().getApplicationContext(), Manifest.permission.CAMERA)
+                        getActivity().getApplicationContext(), Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
             return true;
         }
@@ -527,6 +641,8 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         mLayoutMobile = getView().findViewById(R.id.brave_sync_frame_mobile);
         mLayoutLaptop = getView().findViewById(R.id.brave_sync_frame_laptop);
 
+        mRootView = getView().findViewById(R.id.brave_sync_layout);
+
         setAppropriateView();
 
         super.onActivityCreated(savedInstanceState);
@@ -535,6 +651,38 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
     @Override
     public MonotonicObservableSupplier<String> getPageTitle() {
         return mPageTitle;
+    }
+
+    /**
+     * Sets the title shown for the current Sync (sub-)screen.
+     *
+     * <p>On a phone (single-pane settings) the sole toolbar shows the current screen, which is
+     * driven by the activity title. In cr151 Multi-column Settings the activity title is the left
+     * list-pane toolbar ("Settings") and must not be overwritten by a Sync sub-screen; the detail
+     * (right) pane title is driven by {@link #getPageTitle()} instead, so update that supplier.
+     *
+     * <p>The chosen source depends on the current column mode, but a rotation can flip that mode
+     * without a screen transition, leaving the other source stale. We remember the current title in
+     * {@link #mCurrentScreenTitleResId} and re-apply it once the post-rotation layout settles (see
+     * {@link #correctWideDisplayLayoutAfterRotation}).
+     */
+    private void setScreenTitle(int titleResId) {
+        mCurrentScreenTitleResId = titleResId;
+        Activity activity = getActivity();
+        if (activity == null) {
+            return;
+        }
+        if (activity instanceof SettingsActivity settingsActivity
+                && settingsActivity.isTwoColumnSettingsVisible()) {
+            mPageTitle.set(getString(titleResId));
+        } else {
+            activity.setTitle(titleResId);
+        }
+    }
+
+    @Override
+    public String getMainMenuKey() {
+        return "brave_sync_layout";
     }
 
     private void setAppropriateView() {
@@ -546,7 +694,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         getActivity()
                 .getWindow()
                 .setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
-        getActivity().setTitle(R.string.sync_category_title);
+        setScreenTitle(R.string.sync_category_title);
 
         boolean firstSetupComplete = getBraveSyncWorker().isInitialSyncFeatureSetupComplete();
 
@@ -582,6 +730,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
             if (null != mCodeWords) {
                 mCodeWords.setText("");
             }
+            updateBackPressState();
             return;
         }
         setSyncDoneLayout();
@@ -717,7 +866,8 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
             if (null != mScrollViewEnterCodeWords) {
                 mScrollViewEnterCodeWords.setVisibility(View.VISIBLE);
             }
-            getActivity().setTitle(R.string.brave_sync_code_words_title);
+            updateBackPressState();
+            setScreenTitle(R.string.brave_sync_code_words_title);
             if (null != mCodeWords && null != mBraveSyncWordCountTitle) {
                 mCodeWords.addTextChangedListener(
                         new TextWatcher() {
@@ -743,7 +893,16 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         } else if (mShowCategoriesButton == v) {
             SettingsNavigation settingsLauncher =
                     SettingsNavigationFactory.createSettingsNavigation();
-            settingsLauncher.startSettings(getContext(), BraveManageSyncSettings.class);
+            // addToBackStack=true so the sync options (datatypes) screen is pushed on top of this
+            // screen. In cr151 Multi-column Settings, navigating without a back-stack entry swaps
+            // the detail pane with no entry to pop, so back closes Settings instead of returning
+            // here. See https://github.com/brave/brave-core/commit/5ea51a2 for the same fix on the
+            // custom search engines screen.
+            settingsLauncher.startSettings(
+                    getContext(),
+                    BraveManageSyncSettings.class,
+                    /* fragmentArgs= */ null,
+                    /* addToBackStack= */ true);
         } else if (mAddDeviceButton == v) {
             setNewChainLayout();
         } else if (mDeleteAccountButton == v) {
@@ -978,6 +1137,10 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (mPlayServicesErrorDialog != null) {
+            mPlayServicesErrorDialog.dismiss();
+            mPlayServicesErrorDialog = null;
+        }
         if (mCameraManager != null) {
             mCameraManager.release();
         }
@@ -1298,7 +1461,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
             mCameraManager.createCameraSource();
         }
 
-        getActivity().setTitle(R.string.brave_sync_scan_chain_code);
+        setScreenTitle(R.string.brave_sync_scan_chain_code);
         if (null != mScrollViewSyncChainCode) {
             mScrollViewSyncChainCode.setVisibility(View.VISIBLE);
         }
@@ -1319,10 +1482,11 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
                 }
             }
         }
+        updateBackPressState();
     }
 
     private void setNewChainLayout() {
-        getActivity().setTitle(R.string.brave_sync_start_new_chain);
+        setScreenTitle(R.string.brave_sync_start_new_chain);
         if (null != mScrollViewSyncInitial) {
             mScrollViewSyncInitial.setVisibility(View.GONE);
         }
@@ -1347,6 +1511,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
                         .getResources()
                         .getConfiguration()
                         .orientation);
+        updateBackPressState();
     }
 
     private String mCodephrase;
@@ -1363,7 +1528,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
     }
 
     private void setAddMobileDeviceLayout() {
-        getActivity().setTitle(R.string.brave_sync_btn_mobile);
+        setScreenTitle(R.string.brave_sync_btn_mobile);
 
         getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
 
@@ -1387,6 +1552,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         }
 
         generateNewQrCode();
+        updateBackPressState();
     }
 
     private void setQrCountDown(LocalDateTime notAfterTime) {
@@ -1408,7 +1574,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
     }
 
     private void setAddLaptopLayout() {
-        getActivity().setTitle(R.string.brave_sync_btn_laptop);
+        setScreenTitle(R.string.brave_sync_btn_laptop);
 
         getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
 
@@ -1432,6 +1598,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         }
 
         generateNewCodeWords();
+        updateBackPressState();
     }
 
     private void setWordsCountDown(LocalDateTime notAfterTime) {
@@ -1461,7 +1628,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         getActivity()
                 .getWindow()
                 .setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
-        getActivity().setTitle(R.string.sync_category_title);
+        setScreenTitle(R.string.sync_category_title);
         if (mCameraManager != null) {
             mCameraManager.stopCameraSource();
         }
@@ -1495,6 +1662,7 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
 
         onDevicesAvailable();
         resumeSyncStateChangedObserver();
+        updateBackPressState();
     }
 
     private void adjustWidth(View view, int orientation) {
@@ -1537,6 +1705,21 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         }
     }
 
+    // QRCodeCameraManager.Callback implementation
+    @Override
+    public void onPlayServicesUnavailable(Dialog errorDialog) {
+        // Scanning the QR code is not possible without Google Play Services, but the code words
+        // button on this screen still is, so the user stays here after acknowledging the error.
+        if (errorDialog == null || !isHostValid() || requireActivity().isFinishing()) {
+            return;
+        }
+        // The dialog is attached to the activity window, so it has to be dismissed before this
+        // fragment goes away, otherwise the window is leaked.
+        mPlayServicesErrorDialog = errorDialog;
+        errorDialog.setOnDismissListener(dialog -> mPlayServicesErrorDialog = null);
+        errorDialog.show();
+    }
+
     // QRCodeCameraManager.HostProvider implementation
     @Override
     public Activity getHostActivity() {
@@ -1548,22 +1731,41 @@ public class BraveSyncScreensPreference extends BravePreferenceFragment
         return getActivity() != null && !isRemoving() && !isDetached();
     }
 
-    // Handles 'Back' button. Returns true if it is handled, false otherwise.
-    @Override
-    public boolean onBackPressed() {
+    // Handles 'Back' while a Sync sub-screen is shown: navigates one step back within the Sync
+    // flow. Only invoked while mBackPressedCallback is enabled (a sub-screen is visible); on the
+    // Sync landing screen the callback is disabled and the back press propagates to the settings
+    // host, which returns to the main settings screen.
+    private void handleSyncSubScreenBackPress() {
         if ((View.VISIBLE == mScrollViewSyncChainCode.getVisibility())
                 || (View.VISIBLE == mScrollViewSyncStartChain.getVisibility())) {
             setAppropriateView();
-            return true;
         } else if ((View.VISIBLE == mScrollViewAddMobileDevice.getVisibility())
                 || (View.VISIBLE == mScrollViewAddLaptop.getVisibility())) {
             setNewChainLayout();
-            return true;
         } else if (View.VISIBLE == mScrollViewEnterCodeWords.getVisibility()) {
             setJoinExistingChainLayout();
-            return true;
         }
-        return false;
+    }
+
+    /**
+     * Recomputes whether back should be intercepted, from the currently visible sub-screen, and
+     * enables/disables {@link #mBackPressedCallback} accordingly. Must be called after every view
+     * transition so back is intercepted only while a Sync sub-screen is shown.
+     */
+    private void updateBackPressState() {
+        mBackPressedCallback.setEnabled(isSyncSubScreenVisible());
+    }
+
+    private boolean isSyncSubScreenVisible() {
+        return isVisible(mScrollViewSyncChainCode)
+                || isVisible(mScrollViewSyncStartChain)
+                || isVisible(mScrollViewAddMobileDevice)
+                || isVisible(mScrollViewAddLaptop)
+                || isVisible(mScrollViewEnterCodeWords);
+    }
+
+    private static boolean isVisible(View view) {
+        return view != null && View.VISIBLE == view.getVisibility();
     }
 
     @Override

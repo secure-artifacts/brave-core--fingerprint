@@ -6,34 +6,216 @@
       "--depth",
       "1",
       "https://chromium.googlesource.com/chromium/tools/depot_tools",
-      "[WORKSPACE]/chromium/third_party/depot_tools"
+      "[WORKSPACE]/brave-browser/src/third_party/depot_tools"
     ],
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
     "name": "clone depot_tools"
   },
   {
     "cmd": [
       "gclient"
     ],
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
     "name": "verify gclient"
   },
   {
     "cmd": [
-      "fetch",
-      "--nohooks",
-      "chromium"
+      "gclient",
+      "config",
+      "--name",
+      "src",
+      "--unmanaged",
+      "https://chromium.googlesource.com/chromium/src.git"
     ],
-    "cwd": "[WORKSPACE]/chromium",
-    "name": "fetch chromium"
+    "cwd": "[WORKSPACE]/brave-browser",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "gclient config"
+  },
+  {
+    "cmd": [
+      "git",
+      "cache",
+      "populate",
+      "--cache-dir",
+      "/b/cache",
+      "https://chromium.googlesource.com/chromium/src.git",
+      "--reset-fetch-config",
+      "--no-fetch-tags",
+      "--depth",
+      "1"
+    ],
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "git cache populate"
+  },
+  {
+    "cmd": [
+      "git",
+      "cache",
+      "exists",
+      "--quiet",
+      "--cache-dir",
+      "/b/cache",
+      "https://chromium.googlesource.com/chromium/src.git"
+    ],
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "git cache exists"
+  },
+  {
+    "cmd": [
+      "git",
+      "clone",
+      "--no-checkout",
+      "--local",
+      "--shared",
+      "/b/cache/chromium.googlesource.com-chromium-src",
+      "[WORKSPACE]/brave-browser/src"
+    ],
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "clone from git cache"
+  },
+  {
+    "cmd": [
+      "git",
+      "config",
+      "gc.auto",
+      "0"
+    ],
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "git config gc.auto=0"
+  },
+  {
+    "cmd": [
+      "git",
+      "config",
+      "gc.autodetach",
+      "0"
+    ],
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "git config gc.autodetach=0"
+  },
+  {
+    "cmd": [
+      "git",
+      "config",
+      "gc.autopacklimit",
+      "0"
+    ],
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "git config gc.autopacklimit=0"
+  },
+  {
+    "cmd": [
+      "git",
+      "checkout",
+      "--force",
+      "origin/HEAD",
+      "--"
+    ],
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "checkout origin/HEAD"
+  },
+  {
+    "cmd": [
+      "git",
+      "cache",
+      "populate",
+      "--cache-dir",
+      "/b/cache",
+      "https://chromium.googlesource.com/chromium/src.git",
+      "--reset-fetch-config",
+      "--no-fetch-tags",
+      "--ref",
+      "refs/tags/151.0.7917.1",
+      "--depth",
+      "1"
+    ],
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "git cache populate for ref"
+  },
+  {
+    "cmd": [
+      "git",
+      "cache",
+      "exists",
+      "--quiet",
+      "--cache-dir",
+      "/b/cache",
+      "https://chromium.googlesource.com/chromium/src.git"
+    ],
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "git cache exists for ref"
+  },
+  {
+    "cmd": [
+      "git",
+      "remote",
+      "set-url",
+      "origin",
+      "/b/cache/chromium.googlesource.com-chromium-src"
+    ],
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "point origin at git cache"
+  },
+  {
+    "cmd": [
+      "git",
+      "remote",
+      "set-url",
+      "--push",
+      "origin",
+      "https://chromium.googlesource.com/chromium/src.git"
+    ],
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
+    "name": "restore origin push url"
   },
   {
     "cmd": [
       "git",
       "fetch",
+      "--depth",
+      "1",
       "--no-tags",
       "origin",
       "refs/tags/151.0.7917.1:refs/tags/151.0.7917.1"
     ],
-    "cwd": "[WORKSPACE]/chromium/src",
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
     "name": "fetch tag"
   },
   {
@@ -43,7 +225,10 @@
       "--force",
       "FETCH_HEAD"
     ],
-    "cwd": "[WORKSPACE]/chromium/src",
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
     "name": "checkout FETCH_HEAD"
   },
   {
@@ -53,7 +238,10 @@
       "--force",
       "-D"
     ],
-    "cwd": "[WORKSPACE]/chromium/src",
+    "cwd": "[WORKSPACE]/brave-browser/src",
+    "env": {
+      "CHROME_HEADLESS": "1"
+    },
     "name": "gclient sync"
   },
   {
@@ -67,7 +255,7 @@
       "--branch",
       "master",
       "git@github.com:brave/brave-core.git",
-      "[WORKSPACE]/chromium/src/brave"
+      "[WORKSPACE]/brave-browser/src/brave"
     ],
     "name": "clone brave-core (shallow, sparse)"
   },
@@ -75,7 +263,17 @@
     "cmd": [
       "git",
       "-C",
-      "[WORKSPACE]/chromium/src/brave",
+      "[WORKSPACE]/brave-browser/src/brave",
+      "sparse-checkout",
+      "list"
+    ],
+    "name": "sparse-checkout list"
+  },
+  {
+    "cmd": [
+      "git",
+      "-C",
+      "[WORKSPACE]/brave-browser/src/brave",
       "sparse-checkout",
       "add",
       "tools/cr/toolchains"
@@ -84,12 +282,12 @@
   },
   {
     "cmd": [
-      "[WORKSPACE]/chromium/third_party/depot_tools/vpython3",
-      "[WORKSPACE]/chromium/src/brave/tools/cr/toolchains/build_rust_toolchain.py",
+      "[WORKSPACE]/brave-browser/src/third_party/depot_tools/vpython3",
+      "[WORKSPACE]/brave-browser/src/brave/tools/cr/toolchains/build_rust_toolchain.py",
       "--out-dir",
       "[WORKSPACE]/out",
       "--chromium-src",
-      "[WORKSPACE]/chromium/src",
+      "[WORKSPACE]/brave-browser/src",
       "--brave-subrevision",
       "1",
       "--clear",
@@ -98,7 +296,6 @@
     "name": "build rust toolchain"
   },
   {
-    "name": "$result",
-    "status": "SUCCESS"
+    "name": "$result"
   }
 ]

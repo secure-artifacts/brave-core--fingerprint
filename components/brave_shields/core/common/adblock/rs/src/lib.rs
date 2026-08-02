@@ -21,13 +21,13 @@ use resource_storage::*;
 mod ffi {
     extern "Rust" {
         type FilterSet;
-        fn new_filter_set() -> Box<FilterSet>;
-        fn add_filter_list(&mut self, rules: &CxxVector<u8>) -> FilterListMetadataResult;
+        fn new_filter_set(debug: bool) -> Box<FilterSet>;
+        fn add_filter_list(&mut self, rules: &CxxVector<u8>) -> AddFilterListResult;
         fn add_filter_list_with_permissions(
             &mut self,
             rules: &CxxVector<u8>,
             permission_mask: u8,
-        ) -> FilterListMetadataResult;
+        ) -> AddFilterListResult;
     }
     extern "Rust" {
         type BraveCoreResourceStorage;
@@ -47,6 +47,7 @@ mod ffi {
         /// Creates a new engine with no rules.
         fn new_engine() -> Box<Engine>;
         /// Creates a new engine with rules from a given filter list.
+        /// Deprecated: Use engine_from_filter_set instead.
         fn engine_with_rules(rules: &CxxVector<u8>) -> BoxEngineResult;
         /// Creates a new engine with rules from a given filter set.
         fn engine_from_filter_set(filter_set: Box<FilterSet>) -> BoxEngineResult;
@@ -66,9 +67,10 @@ mod ffi {
             &self,
             url: &CxxString,
             hostname: &CxxString,
-            source_hostname: &CxxString,
+            initiator_hostname: &CxxString,
             request_type: &CxxString,
             third_party_request: bool,
+            method: &CxxString,
             previously_matched_rule: bool,
             force_check_exceptions: bool,
         ) -> BlockerResult;
@@ -81,6 +83,7 @@ mod ffi {
             source_hostname: &CxxString,
             request_type: &CxxString,
             third_party_request: bool,
+            method: &CxxString,
         ) -> String;
         pub fn serialize(&self) -> Vec<u8>;
         /// Deserializes and loads a binary-serialized Engine.
@@ -144,10 +147,20 @@ mod ffi {
         usage_count: usize,
     }
 
+    struct SourceInfo {
+        title: OptionalString,
+        homepage: OptionalString,
+        network_filter_count: usize,
+        cosmetic_filter_count: usize,
+        parse_error: usize,
+        invalid_lines: Vec<String>,
+    }
+
     struct DebugInfo {
         regex_data: Vec<RegexDebugEntry>,
         compiled_regex_count: usize,
         flatbuffer_size: usize,
+        source_info: Vec<SourceInfo>,
     }
 
     struct RegexManagerDiscardPolicy {
@@ -160,6 +173,12 @@ mod ffi {
         homepage: OptionalString,
         title: OptionalString,
         expires_hours: OptionalU16,
+    }
+
+    #[derive(Default)]
+    struct AddedFiltersRecord {
+        source_index: usize,
+        metadata: FilterListMetadata,
     }
 
     #[derive(Default)]
@@ -198,8 +217,8 @@ mod ffi {
         error_message: String,
     }
 
-    struct FilterListMetadataResult {
-        value: FilterListMetadata,
+    struct AddFilterListResult {
+        value: AddedFiltersRecord,
         result_kind: ResultKind,
         error_message: String,
     }

@@ -16,9 +16,11 @@
 #include "brave/browser/ui/browser_commands.h"
 #include "brave/browser/ui/focus_mode/focus_mode_controller.h"
 #include "brave/browser/ui/focus_mode/focus_mode_features.h"
+#include "brave/browser/ui/tabs/public/vertical_tab_controller.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_account/features.h"
+#include "brave/components/brave_shields/core/common/features.h"
 #include "brave/components/brave_vpn/common/buildflags/buildflags.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
 #include "brave/components/email_aliases/buildflags/buildflags.h"
@@ -45,6 +47,7 @@
 #include "components/sync/base/command_line_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 
 #if BUILDFLAG(ENABLE_AI_CHAT)
 #include "brave/components/ai_chat/core/browser/utils.h"
@@ -266,6 +269,13 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
       command_controller->IsCommandEnabled(IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER));
 
   EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_TOGGLE_SIDEBAR));
+
+  // Bookmarks and reading list side panels are always available in a normal
+  // window.
+  EXPECT_TRUE(
+      command_controller->IsCommandEnabled(IDC_TOGGLE_BOOKMARKS_SIDE_PANEL));
+  EXPECT_TRUE(
+      command_controller->IsCommandEnabled(IDC_TOGGLE_READING_LIST_SIDE_PANEL));
 }
 
 // Create private browser and test its brave commands status.
@@ -463,6 +473,169 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
   EXPECT_EQ(will_pin, tsm->GetWebContentsAt(1)->GetVisibleURL());
 }
 
+// The element picker (and its command controller) is desktop-only.
+#if !BUILDFLAG(IS_ANDROID)
+class BraveBrowserCommandControllerElementPickerTest
+    : public BraveBrowserCommandControllerTest {
+ public:
+  BraveBrowserCommandControllerElementPickerTest() {
+    scoped_features_.InitAndEnableFeature(
+        brave_shields::features::kBraveShieldsElementPicker);
+  }
+  ~BraveBrowserCommandControllerElementPickerTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_features_;
+};
+
+// The "Block elements" command (IDC_BLOCK_ELEMENTS) launches the element
+// picker, which can only run on http(s) pages. It should be enabled only while
+// such a page is active, and follow same-tab navigations.
+IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerElementPickerTest,
+                       EnabledOnlyOnHttpPages) {
+  auto* command_controller = browser()->command_controller();
+
+  // The initial tab isn't an http(s) page, so the command starts disabled.
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_BLOCK_ELEMENTS));
+
+  // Navigating to an http(s) page enables the command.
+  embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/simple.html")));
+  EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_BLOCK_ELEMENTS));
+
+  // Navigating to a non-http(s) page (a WebUI page) disables it again.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("chrome://version")));
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_BLOCK_ELEMENTS));
+}
+
+class BraveBrowserCommandControllerElementPickerDisabledTest
+    : public BraveBrowserCommandControllerTest {
+ public:
+  BraveBrowserCommandControllerElementPickerDisabledTest() {
+    scoped_features_.InitAndDisableFeature(
+        brave_shields::features::kBraveShieldsElementPicker);
+  }
+  ~BraveBrowserCommandControllerElementPickerDisabledTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_features_;
+};
+
+// When the element picker feature is disabled, the "Block elements" command
+// (IDC_BLOCK_ELEMENTS) should never be available, even on http(s) pages.
+IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerElementPickerDisabledTest,
+                       CommandUnavailableWhenFeatureDisabled) {
+  auto* command_controller = browser()->command_controller();
+
+  // Disabled on the initial (non-http) tab.
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_BLOCK_ELEMENTS));
+
+  // Still disabled after navigating to an http(s) page.
+  embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/simple.html")));
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_BLOCK_ELEMENTS));
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+// Closes every duplicate across the whole tab strip, keeping the first
+// occurrence of each URL.
+IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
+                       BraveCommandsCloseAllDuplicateTabs) {
+  auto* tsm = browser()->tab_strip_model();
+  auto* command_controller = browser()->command_controller();
+
+  // Start with a single about:blank tab, so there are no duplicates.
+  EXPECT_FALSE(
+      command_controller->IsCommandEnabled(IDC_CLOSE_ALL_DUPLICATE_TABS));
+
+  const GURL a("https://a.com/");
+  const GURL b("https://b.com/");
+
+  // Two distinct URLs, so there are still no duplicates.
+  chrome::AddTabAt(browser(), a, -1, false);
+  chrome::AddTabAt(browser(), b, -1, false);
+  EXPECT_EQ(3, tsm->count());
+  EXPECT_FALSE(
+      command_controller->IsCommandEnabled(IDC_CLOSE_ALL_DUPLICATE_TABS));
+
+  // Add duplicates of both URLs, so the command becomes enabled.
+  chrome::AddTabAt(browser(), a, -1, false);
+  chrome::AddTabAt(browser(), b, -1, false);
+  chrome::AddTabAt(browser(), a, -1, false);
+  EXPECT_EQ(6, tsm->count());
+  EXPECT_TRUE(
+      command_controller->IsCommandEnabled(IDC_CLOSE_ALL_DUPLICATE_TABS));
+
+  command_controller->ExecuteCommand(IDC_CLOSE_ALL_DUPLICATE_TABS);
+
+  // Closing a WebContents can be asynchronous, so wait until the duplicates
+  // have actually been removed.
+  ASSERT_TRUE(base::test::RunUntil([&]() { return tsm->count() == 3; }));
+
+  // The first occurrence of each URL is kept, preserving the original order.
+  EXPECT_EQ(GURL("about:blank"), tsm->GetWebContentsAt(0)->GetVisibleURL());
+  EXPECT_EQ(a, tsm->GetWebContentsAt(1)->GetVisibleURL());
+  EXPECT_EQ(b, tsm->GetWebContentsAt(2)->GetVisibleURL());
+
+  // No duplicates remain, so the command is disabled again.
+  EXPECT_FALSE(
+      command_controller->IsCommandEnabled(IDC_CLOSE_ALL_DUPLICATE_TABS));
+}
+
+// Closes only the duplicates of the active tab, leaving other duplicate groups
+// untouched.
+IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
+                       BraveCommandsCloseDuplicatesOfActiveTab) {
+  auto* tsm = browser()->tab_strip_model();
+  auto* command_controller = browser()->command_controller();
+
+  // The lone active about:blank tab has no duplicates.
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_CLOSE_DUPLICATE_TABS));
+
+  const GURL a("https://a.com/");
+  const GURL b("https://b.com/");
+
+  // Open 'a' in the foreground so it becomes the active tab, plus a 'b' tab.
+  chrome::AddTabAt(browser(), a, -1, true);
+  chrome::AddTabAt(browser(), b, -1, false);
+  ASSERT_EQ(a, tsm->GetActiveWebContents()->GetVisibleURL());
+  // The active tab has no duplicate yet.
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_CLOSE_DUPLICATE_TABS));
+
+  // Add a duplicate of the active tab ('a') and of the inactive 'b' tab.
+  chrome::AddTabAt(browser(), a, 3, false);
+  chrome::AddTabAt(browser(), b, 4, false);
+  EXPECT_EQ(5, tsm->count());
+  EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_CLOSE_DUPLICATE_TABS));
+
+  command_controller->ExecuteCommand(IDC_CLOSE_DUPLICATE_TABS);
+
+  // Only the duplicate of the active tab is closed; the 'b' duplicates remain.
+  ASSERT_TRUE(base::test::RunUntil([&]() { return tsm->count() == 4; }));
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_CLOSE_DUPLICATE_TABS));
+
+  // The first (original) about:blank tab is left untouched.
+  EXPECT_EQ(GURL("about:blank"), tsm->GetWebContentsAt(0)->GetVisibleURL());
+
+  int a_count = 0;
+  int b_count = 0;
+  for (int i = 0; i < tsm->count(); ++i) {
+    const GURL url = tsm->GetWebContentsAt(i)->GetVisibleURL();
+    if (url == a) {
+      ++a_count;
+    } else if (url == b) {
+      ++b_count;
+    }
+  }
+  EXPECT_EQ(1, a_count);
+  EXPECT_EQ(2, b_count);
+}
+
 IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
                        BraveCommandsAddAllToNewGroup) {
   auto* command_controller = browser()->command_controller();
@@ -545,15 +718,16 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
                        BraveCommandsToggleVerticalTabs) {
   auto* command_controller = browser()->command_controller();
   EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_TOGGLE_VERTICAL_TABS));
-  ASSERT_FALSE(tabs::utils::ShouldShowBraveVerticalTabs(browser()));
+  auto* vtc = VerticalTabController::FromBrowser(browser());
+  ASSERT_FALSE(vtc->ShouldShowBraveVerticalTabs());
 
   // Enable Vertical tabs
   command_controller->ExecuteCommand(IDC_TOGGLE_VERTICAL_TABS);
-  ASSERT_TRUE(tabs::utils::ShouldShowBraveVerticalTabs(browser()));
+  ASSERT_TRUE(vtc->ShouldShowBraveVerticalTabs());
 
   // Toggle back
   command_controller->ExecuteCommand(IDC_TOGGLE_VERTICAL_TABS);
-  ASSERT_FALSE(tabs::utils::ShouldShowBraveVerticalTabs(browser()));
+  ASSERT_FALSE(vtc->ShouldShowBraveVerticalTabs());
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -582,8 +756,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
 class BraveBrowserCommandControllerWithSideBySideTest
     : public BraveBrowserCommandControllerTest {
  public:
-  BraveBrowserCommandControllerWithSideBySideTest() {
-  }
+  BraveBrowserCommandControllerWithSideBySideTest() {}
   ~BraveBrowserCommandControllerWithSideBySideTest() override = default;
 
   TabStripModel* tab_strip_model() { return browser()->tab_strip_model(); }

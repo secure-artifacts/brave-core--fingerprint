@@ -234,14 +234,6 @@
     "META": {"sizes": {"includes": [1]}},
     "includes": [54030],
   },
-  "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-candle_embedding_module/candle_embedding_module.grd": {
-    "META": {"sizes": {"includes": [2]}},
-    "includes": [54035],
-  },
-  "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-local_ai/local_ai.grd": {
-    "META": {"sizes": {"includes": [1]}},
-    "includes": [54037],
-  },
   "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-ai_chat_agent_new_tab_page/ai_chat_agent_new_tab_page.grd": {
     "META": {"sizes": {"includes": [20]}},
     "includes": [54040],
@@ -267,13 +259,21 @@
     "META": {"sizes": {"includes": [10]}},
     "includes": [54150],
   },
+  "brave/components/local_ai/resources/speech_worker/ort_dist_resources.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [54160],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-on_device_speech_recognition_worker/on_device_speech_recognition_worker.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [54165],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/brave/web-ui-fingerprint_test/fingerprint_test.grd": {
     "META": {"sizes": {"includes": [10]}},
-    "includes": [54160],
+    "includes": [54170],
   },
   "brave/components/fingerprint_browser/resources/fingerprint_test_static_resources.grd": {
     "META": {"sizes": {"includes": [10]}},
-    "includes": [54170],
+    "includes": [54180],
   },
   # WARNING: The IDs range is 2^16-1. Check
   # out/<BUILD_TYPE>/gen/brave/resources/brave_resource_ids for how much the

@@ -844,6 +844,14 @@
       Never
     </message>
   </if>
+  <if expr="enable_psst">
+    <message name="IDS_SETTINGS_PSST_LABEL" desc="Privacy settings tuning label">
+      Show Privacy settings tuning notification on compatible sites
+    </message>
+    <message name="IDS_SETTINGS_PSST_SUB_LABEL" desc="Privacy settings tuning sub-label">
+      Allows Brave to automatically suggest (and adjust) site-specific privacy settings.
+    </message>
+  </if>
   <if expr="is_win">
     <message name="IDS_SETTINGS_WINDOWS_RECALL_DISABLED_LABEL" desc="Windows Recall setting label">
       Block Microsoft Recall
@@ -863,6 +871,12 @@
   </message>
   <message name="IDS_SETTINGS_CLEAR_BRAVE_ADS_DATA" desc="The label for the link to clear 'Brave Ads' data">
     Clear Brave Ads data...
+  </message>
+  <message name="IDS_SETTINGS_CLEAR_BRAVE_ADS_DATA_TOAST_LABEL" desc="The label for the toast shown after Brave Ads data is cleared">
+    Brave Ads data cleared
+  </message>
+  <message name="IDS_SETTINGS_CLEAR_BRAVE_ADS_DATA_ERROR_TOAST_LABEL" desc="The label for the toast shown when clearing Brave Ads data fails">
+    Couldn't clear Brave Ads data. Try again.
   </message>
   <message name="IDS_SETTINGS_RESET_REWARDS_DATA" desc="The label for opening rewards manage wallet dialog">
     Reset Brave Rewards data...
@@ -1465,6 +1479,9 @@
   <message name="IDS_SETTINGS_TOR_PROVIDED_BRIDGES_PLACEHOLDER" desc="">
     Type address:port (one per line)
   </message>
+  <message name="IDS_SETTINGS_TOR_INVALID_BRIDGE_ERROR" desc="Error shown when a Tor bridge line the person typed fails validation. The bridge line itself is displayed below this message.">
+    Tor can't use this bridge. Check it against the bridge you were given, then try again:
+  </message>
   <message name="IDS_SETTINGS_TOR_REQUEST_BRIDGE_DIALOG_TITLE" desc="">
     Request Bridge
   </message>
@@ -1852,6 +1869,9 @@
   <message name="IDS_SETTINGS_LEO_ASSISTANT_EDIT_MODEL_LABEL" desc="A title for adding a custom model">
     Edit model
   </message>
+  <message name="IDS_SETTINGS_LEO_ASSISTANT_REQUIRED_LABEL" desc="A label indicating that a form field is required">
+    Required
+  </message>
   <message name="IDS_SETTINGS_LEO_ASSISTANT_INPUT_MODEL_LABEL" desc="An input title for adding a custom model">
     Label
   </message>
@@ -1893,9 +1913,6 @@
   </message>
   <message name="IDS_SETTINGS_LEO_ASSISTANT_INPUT_CONTEXT_SIZE_TOOLTIP_INFO" desc="A brief description for context size, as well as a concise explanation for how it relates to the the user's experience.">
     The maximum number of tokens the model can process in a single interaction. A larger context size allows the model to handle longer conversations. Different models support different maximum context sizes.
-  </message>
-  <message name="IDS_SETTINGS_LEO_ASSISTANT_CLOSE_BUTTON_LABEL" desc="A label for a button that closes configuration UI">
-    Close
   </message>
   <message name="IDS_SETTINGS_LEO_ASSISTANT_PROXY_NOTE" desc="A note for users when adding model server info">
     Brave doesn't proxy these requests, please read privacy terms of the chosen provider.
@@ -2046,9 +2063,6 @@
   </message>
   <message name="IDS_SETTINGS_LEO_ASSISTANT_OLLAMA_SYNC_LABEL" desc="The label for the Ollama sync toggle button">
     Sync your Ollama local models
-  </message>
-  <message name="IDS_SETTINGS_LEO_ASSISTANT_OLLAMA_MANAGED_LABEL" desc="The label shown for models managed by Ollama">
-    Managed by Ollama
   </message>
 
   <!-- Settings / Survey Panelist -->

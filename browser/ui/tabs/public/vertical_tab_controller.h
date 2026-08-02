@@ -49,10 +49,18 @@ class VerticalTabController {
   // bar regardless of the setting of kVerticalTabsFloatingEnabled.
   bool ShouldHideVerticalTabsCompletelyWhenCollapsed() const;
 
+  // Returns true when the vertical tab toggle button (the button used to
+  // expand/collapse the vertical tab strip) should be shown.
+  bool ShouldShowVerticalTabToggleButton() const;
+
+  base::WeakPtr<VerticalTabController> GetWeakPtr();
+
  private:
   BrowserWindowInterface::Type type_;
   raw_ptr<PrefService> prefs_;
   raw_ptr<FocusModeController> focus_mode_controller_;
+
+  base::WeakPtrFactory<VerticalTabController> weak_ptr_factory_{this};
 };
 
 #endif  // BRAVE_BROWSER_UI_TABS_PUBLIC_VERTICAL_TAB_CONTROLLER_H_

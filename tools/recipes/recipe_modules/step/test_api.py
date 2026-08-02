@@ -5,24 +5,20 @@
 """Test API for the `step` module: seed a step's simulated result.
 
 `api.step_data(...)` on the root api is the usual entry point; this exposes the
-same thing as `api.step.data(...)` for symmetry with recipes_py, so a step's
-retcode/output can be seeded next to other `api.step.*` fragments.
+same thing as `api.step.data(...)`, so a step's retcode/output can be seeded next
+to other `api.step.*` fragments.
 """
 
 from __future__ import annotations
 
-from recipe_test_api import RecipeTestApi, TestData
+from typing import Any
+
+from recipe_test_api import RecipeTestApi, StepTestData, TestData
 
 
 class StepTestApi(RecipeTestApi):
-    """Seed the simulated result (retcode / captured output) of a step."""
+    """Seed the simulated result (retcode / placeholder data) of a step."""
 
-    def data(self,
-             name: str,
-             retcode: int = 0,
-             stdout: str | None = None,
-             stderr: str | None = None) -> TestData:
-        return self.step_data(name,
-                              retcode=retcode,
-                              stdout=stdout,
-                              stderr=stderr)
+    def data(self, name: str, *data: StepTestData, **kwargs: Any) -> TestData:
+        """See `api.step_data`."""
+        return self.step_data(name, *data, **kwargs)

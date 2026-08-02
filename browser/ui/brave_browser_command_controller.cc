@@ -23,6 +23,7 @@
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_news/common/buildflags/buildflags.h"
 #include "brave/components/brave_rewards/core/rewards_util.h"
+#include "brave/components/brave_shields/core/common/features.h"
 #include "brave/components/brave_talk/buildflags/buildflags.h"
 #include "brave/components/brave_vpn/common/buildflags/buildflags.h"
 #include "brave/components/brave_wallet/common/buildflags/buildflags.h"
@@ -86,6 +87,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_BRAVE_NEWS)
+#include "brave/components/brave_news/common/features.h"
 #include "brave/components/brave_news/common/pref_names.h"
 #endif
 
@@ -147,9 +149,12 @@ void BraveBrowserCommandController::OnTabChangedAt(tabs::TabInterface* tab,
                                                    TabChangeType change_type) {
   BrowserCommandController::OnTabChangedAt(tab, index, change_type);
   UpdateCommandEnabled(IDC_CLOSE_DUPLICATE_TABS,
-                       brave::HasDuplicateTabs(&*browser_));
+                       brave::HasDuplicatesOfActiveTab(&*browser_));
+  UpdateCommandEnabled(IDC_CLOSE_ALL_DUPLICATE_TABS,
+                       brave::HasAnyDuplicateTabs(&*browser_));
   UpdateCommandsForTabs();
   UpdateCommandsForSend();
+  UpdateCommandForBlockElements();
 }
 
 void BraveBrowserCommandController::OnTabPinnedStateChanged(
@@ -168,10 +173,13 @@ void BraveBrowserCommandController::OnTabStripModelChanged(
   UpdateCommandEnabled(IDC_WINDOW_CLOSE_TABS_TO_LEFT,
                        brave::CanCloseTabsToLeft(&*browser_));
   UpdateCommandEnabled(IDC_CLOSE_DUPLICATE_TABS,
-                       brave::HasDuplicateTabs(&*browser_));
+                       brave::HasDuplicatesOfActiveTab(&*browser_));
+  UpdateCommandEnabled(IDC_CLOSE_ALL_DUPLICATE_TABS,
+                       brave::HasAnyDuplicateTabs(&*browser_));
   UpdateCommandsForTabs();
   UpdateCommandsForSend();
   UpdateCommandsForPin();
+  UpdateCommandForBlockElements();
 
   if (browser_->is_type_normal() && selection.active_tab_changed()) {
     UpdateCommandForSplitView();
@@ -339,9 +347,12 @@ void BraveBrowserCommandController::InitBraveCommandState() {
 #endif
   UpdateCommandEnabled(IDC_TOGGLE_SHIELDS, true);
   UpdateCommandEnabled(IDC_TOGGLE_JAVASCRIPT, true);
+  UpdateCommandForBlockElements();
 
   UpdateCommandEnabled(IDC_CLOSE_DUPLICATE_TABS,
-                       brave::HasDuplicateTabs(&*browser_));
+                       brave::HasDuplicatesOfActiveTab(&*browser_));
+  UpdateCommandEnabled(IDC_CLOSE_ALL_DUPLICATE_TABS,
+                       brave::HasAnyDuplicateTabs(&*browser_));
   UpdateCommandEnabled(IDC_WINDOW_ADD_ALL_TABS_TO_NEW_GROUP, true);
 
   UpdateCommandEnabled(IDC_SCROLL_TAB_TO_TOP, true);
@@ -420,6 +431,21 @@ void BraveBrowserCommandController::UpdateCommandForSidebar() {
     UpdateCommandEnabled(IDC_SIDEBAR_SHOW_OPTION_MENU, true);
     UpdateCommandEnabled(IDC_SIDEBAR_TOGGLE_POSITION, true);
     UpdateCommandEnabled(IDC_TOGGLE_SIDEBAR, true);
+    UpdateCommandEnabled(IDC_TOGGLE_BOOKMARKS_SIDE_PANEL, true);
+    UpdateCommandEnabled(IDC_TOGGLE_READING_LIST_SIDE_PANEL, true);
+#if BUILDFLAG(ENABLE_PLAYLIST_WEBUI)
+    UpdateCommandEnabled(
+        IDC_TOGGLE_PLAYLIST_SIDE_PANEL,
+        playlist::IsPlaylistAllowed(browser_->profile()->GetPrefs()));
+#endif
+#if BUILDFLAG(ENABLE_BRAVE_NEWS)
+    // The Brave News side panel is only shown when the sidebar feature is on
+    // and the user has opted into Brave News.
+    UpdateCommandEnabled(
+        IDC_TOGGLE_BRAVE_NEWS_SIDE_PANEL,
+        base::FeatureList::IsEnabled(brave_news::features::kBraveNewsSidebar) &&
+            brave_news::IsEnabled(browser_->profile()->GetPrefs()));
+#endif
   }
 }
 
@@ -525,6 +551,15 @@ void BraveBrowserCommandController::UpdateCommandsForSend() {
 void BraveBrowserCommandController::UpdateCommandsForPin() {
   UpdateCommandEnabled(IDC_WINDOW_CLOSE_UNPINNED_TABS,
                        brave::CanCloseUnpinnedTabs(&*browser_));
+}
+
+void BraveBrowserCommandController::UpdateCommandForBlockElements() {
+  auto* contents = browser_->tab_strip_model()->GetActiveWebContents();
+  const bool enabled =
+      base::FeatureList::IsEnabled(
+          brave_shields::features::kBraveShieldsElementPicker) &&
+      contents && contents->GetLastCommittedURL().SchemeIsHTTPOrHTTPS();
+  UpdateCommandEnabled(IDC_BLOCK_ELEMENTS, enabled);
 }
 
 void BraveBrowserCommandController::UpdateCommandForFocusMode() {
@@ -650,6 +685,18 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
     case IDC_TOGGLE_SIDEBAR:
       brave::ToggleSidebar(&*browser_);
       break;
+    case IDC_TOGGLE_BOOKMARKS_SIDE_PANEL:
+      brave::ToggleSidePanel(&*browser_, SidePanelEntryId::kBookmarks);
+      break;
+    case IDC_TOGGLE_READING_LIST_SIDE_PANEL:
+      brave::ToggleSidePanel(&*browser_, SidePanelEntryId::kReadingList);
+      break;
+    case IDC_TOGGLE_PLAYLIST_SIDE_PANEL:
+      brave::ToggleSidePanel(&*browser_, SidePanelEntryId::kPlaylist);
+      break;
+    case IDC_TOGGLE_BRAVE_NEWS_SIDE_PANEL:
+      brave::ToggleSidePanel(&*browser_, SidePanelEntryId::kBraveNews);
+      break;
     case IDC_COPY_CLEAN_LINK:
       brave::CopySanitizedURL(
           &*browser_,
@@ -686,6 +733,9 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
     case IDC_TOGGLE_JAVASCRIPT:
       brave::ToggleJavascriptEnabled(&*browser_);
       break;
+    case IDC_BLOCK_ELEMENTS:
+      brave::LaunchContentPicker(&*browser_);
+      break;
     case IDC_SHOW_PLAYLIST_BUBBLE:
 #if BUILDFLAG(ENABLE_PLAYLIST_WEBUI)
       brave::ShowPlaylistBubble(&*browser_);
@@ -705,7 +755,10 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
       brave::MoveGroupToNewWindow(&*browser_);
       break;
     case IDC_CLOSE_DUPLICATE_TABS:
-      brave::CloseDuplicateTabs(&*browser_);
+      brave::CloseDuplicatesOfActiveTab(&*browser_);
+      break;
+    case IDC_CLOSE_ALL_DUPLICATE_TABS:
+      brave::CloseAllDuplicateTabs(&*browser_);
       break;
     case IDC_WINDOW_CLOSE_TABS_TO_LEFT:
       brave::CloseTabsToLeft(&*browser_);

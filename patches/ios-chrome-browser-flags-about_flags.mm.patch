@@ -1,5 +1,5 @@
 diff --git a/ios/chrome/browser/flags/about_flags.mm b/ios/chrome/browser/flags/about_flags.mm
-index d8aa1b874da33601474a6c8319145c0ad460d3f3..885d50686451c0dc61ebab80f2ec57668e88da9c 100644
+index 314635fc234ad05427de71f75a76be856f7061f5..17378bcc96a34dc813e2d6f8892e0079e4e695f9 100644
 --- a/ios/chrome/browser/flags/about_flags.mm
 +++ b/ios/chrome/browser/flags/about_flags.mm
 @@ -1417,6 +1417,7 @@

@@ -27,6 +27,7 @@ std::optional<std::string> GetCspDirectivesOnTaskRunner(
     const GURL& initiator_url,
     const GURL& request_url,
     blink::mojom::ResourceType resource_type,
+    const std::string& method,
     std::optional<std::string> original_csp,
     brave_shields::AdBlockEngineWrapper* engine_wrapper) {
   std::string source_host;
@@ -41,8 +42,8 @@ std::optional<std::string> GetCspDirectivesOnTaskRunner(
     return std::nullopt;
   }
 
-  std::optional<std::string> csp_directives =
-      engine_wrapper->GetCspDirectives(request_url, resource_type, source_host);
+  std::optional<std::string> csp_directives = engine_wrapper->GetCspDirectives(
+      request_url, resource_type, source_host, method);
 
   brave_shields::MergeCspDirectiveInto(original_csp, &csp_directives);
   return csp_directives;
@@ -93,9 +94,11 @@ int OnHeadersReceived_AdBlockCspWork(
     (*override_response_headers)->RemoveHeader("Content-Security-Policy");
 
     auto* ad_block_service = g_brave_browser_process->ad_block_service();
+    const GURL initiator_url =
+        ctx->request_initiator().value_or(url::Origin()).GetURL();
     ad_block_service->AsyncCallAndReplyWithResult<std::optional<std::string>>(
-        base::BindOnce(&GetCspDirectivesOnTaskRunner, ctx->initiator_url(),
-                       ctx->request_url(), ctx->resource_type(),
+        base::BindOnce(&GetCspDirectivesOnTaskRunner, initiator_url,
+                       ctx->request_url(), ctx->resource_type(), ctx->method(),
                        std::move(original_csp)),
         base::BindOnce(&OnReceiveCspDirectives, next_callback,
                        *override_response_headers));

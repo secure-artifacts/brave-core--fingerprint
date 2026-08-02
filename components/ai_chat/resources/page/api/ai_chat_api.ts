@@ -196,6 +196,10 @@ export default function createAIChatApi(
           onNewDefaultConversation(contentId: number) {},
 
           onChildFrameBound(parentPagePendingReceiver) {},
+
+          onDisplayModeChanged(isStandalone) {
+            api.isStandalone.update(isStandalone)
+          },
         },
         async (observer) => {
           chatUIObserver = observer
@@ -209,12 +213,12 @@ export default function createAIChatApi(
           // in mojom to `OnConversationEntriesFrameHeightChanged`, etc.
           childHeightChanged(height) {},
           rateMessage(turnUuid, isLiked) {},
-          userRequestedOpenGeneratedUrl(url) {},
           dragStart() {},
           // <if expr="is_ios">
           dismissMenus() {},
           // </if>
           showSkillDialog(prompt) {},
+          showImageLightbox(file) {},
           requestNewConversation() {},
           handleResetError() {},
         },

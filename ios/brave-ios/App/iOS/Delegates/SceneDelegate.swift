@@ -142,6 +142,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     Task { @MainActor in
       let (profileController, profileState) = await loadDefaultProfile()
+
+      // The scene may have disconnected while `loadDefaultProfile` was awaiting. UIKit clears
+      // `session.scene` back to nil once a scene disconnects, so use that to detect this rather
+      // than tracking our own state. Creating a new `UIWindow` for a windowScene that has
+      // already disconnected will crash, so bail out if that's the case.
+      guard windowScene.session.scene != nil else { return }
+
       Self.profileState = profileState
       PlaylistCoordinator.shared.isPlaylistAvailable =
         profileController.profile.prefs.isPlaylistAvailable
@@ -284,13 +291,16 @@ extension SceneDelegate {
 
   @MainActor private func loadDefaultProfile() async -> (BraveProfileController, ProfileState) {
     let braveCore = AppState.shared.braveCore
-    if let profileController = braveCore.profileController, let profileState = Self.profileState {
+    let profileController = await AppState.shared.defaultProfileLoader.profileController(
+      braveCore: braveCore
+    )
+    if let profileState = Self.profileState {
       return (profileController, profileState)
     }
-    // Setup default profile & profile state
-    let defaultProfileController = await braveCore.loadDefaultProfile()
-    let profileState = ProfileState(profileController: defaultProfileController)
-    return (defaultProfileController, profileState)
+    // Setup profile state.
+    // Note that the profile itself may have already been loaded by CarPlay connecting independently of this scene.
+    let profileState = ProfileState(profileController: profileController)
+    return (profileController, profileState)
   }
 
   @objc private func enableUserSelectedTypesForSync() {

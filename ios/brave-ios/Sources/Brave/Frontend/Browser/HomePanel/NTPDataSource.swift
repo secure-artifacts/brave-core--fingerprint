@@ -9,14 +9,7 @@ import UIKit
 
 enum NTPWallpaper {
   case image(NTPBackgroundImage)
-  case sponsoredMedia(NTPSponsoredImageBackground, NewTabPageAd)
-
-  var backgroundVideoPath: URL? {
-    if case .sponsoredMedia(let background, _) = self {
-      return background.isVideoFile ? background.imagePath : nil
-    }
-    return nil
-  }
+  case sponsoredMedia(NTPSponsoredImageBackground, BraveAds.NewTabPageAdInfo)
 
   var backgroundImage: UIImage? {
     let imagePath: URL
@@ -24,9 +17,6 @@ enum NTPWallpaper {
     case .image(let background):
       imagePath = background.imagePath
     case .sponsoredMedia(let background, _):
-      if background.isVideoFile {
-        return nil
-      }
       imagePath = background.imagePath
     }
     return UIImage(contentsOfFile: imagePath.path)
@@ -100,22 +90,18 @@ public class NTPDataSource {
       && !privateBrowsingManager.isPrivateBrowsing
   }
 
-  func getSponsoredMediaBackground(for newTabPageAd: NewTabPageAd) -> NTPWallpaper? {
+  func getSponsoredMediaBackground(for newTabPageAd: BraveAds.NewTabPageAdInfo) -> NTPWallpaper? {
     guard let sponsoredImageData = service.sponsoredImageData
     else { return nil }
 
-    let isSponsoredVideoAllowed =
-      Preferences.NewTabPage.backgroundMediaType == .sponsoredImagesAndVideos
-
     for campaign in sponsoredImageData.campaigns {
-      if campaign.campaignId != newTabPageAd.campaignID {
+      if campaign.campaignId != newTabPageAd.campaignId {
         continue
       }
 
       for creative in campaign.backgrounds {
         if creative.logo.imagePath != nil
-          && creative.creativeInstanceId == newTabPageAd.creativeInstanceID
-          && (!creative.isVideoFile || isSponsoredVideoAllowed)
+          && creative.creativeInstanceId == newTabPageAd.creativeInstanceId
         {
           return .sponsoredMedia(creative, newTabPageAd)
         }
@@ -213,10 +199,4 @@ extension NTPBackgroundImage {
     author: "Corwin Prescott",
     link: URL(string: "https://www.brave.com")!
   )
-}
-
-extension NTPSponsoredImageBackground {
-  var isVideoFile: Bool {
-    imagePath.pathExtension == "mp4"
-  }
 }
