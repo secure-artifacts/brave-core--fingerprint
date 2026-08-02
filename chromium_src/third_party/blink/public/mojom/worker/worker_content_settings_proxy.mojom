@@ -12,5 +12,6 @@ interface WorkerContentSettingsProxy {
   // Returns whether the worker is allowed access to privileged functions that
   // could be used for fingerprinting.
   [Sync]
-  GetBraveShieldsSettings() => (brave_shields.mojom.ShieldsSettings result);
+  GetBraveShieldsSettings(int32 webcompat_settings_type)
+      => (brave_shields.mojom.ShieldsSettings result);
 };

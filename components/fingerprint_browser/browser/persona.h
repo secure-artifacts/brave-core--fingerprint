@@ -6,6 +6,7 @@
 #ifndef BRAVE_COMPONENTS_FINGERPRINT_BROWSER_BROWSER_PERSONA_H_
 #define BRAVE_COMPONENTS_FINGERPRINT_BROWSER_BROWSER_PERSONA_H_
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -155,6 +156,20 @@ std::vector<bool> PersonaSpeechVoiceLocalServices(
     const std::vector<SpeechVoicePersona>& voices);
 std::vector<bool> PersonaSpeechVoiceDefaults(
     const std::vector<SpeechVoicePersona>& voices);
+std::vector<std::string> PersonaPluginNames(
+    const std::vector<PluginPersona>& plugins);
+std::vector<std::string> PersonaPluginFilenames(
+    const std::vector<PluginPersona>& plugins);
+std::vector<std::string> PersonaPluginDescriptions(
+    const std::vector<PluginPersona>& plugins);
+std::vector<uint32_t> PersonaPluginMimeTypeCounts(
+    const std::vector<PluginPersona>& plugins);
+std::vector<std::string> PersonaMimeTypeTypes(
+    const std::vector<PluginPersona>& plugins);
+std::vector<std::string> PersonaMimeTypeDescriptions(
+    const std::vector<PluginPersona>& plugins);
+std::vector<std::vector<std::string>> PersonaMimeTypeSuffixes(
+    const std::vector<PluginPersona>& plugins);
 
 }  // namespace fingerprint_browser
 

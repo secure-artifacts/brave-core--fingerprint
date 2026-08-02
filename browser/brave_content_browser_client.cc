@@ -19,6 +19,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "brave/browser/bluetooth/brave_bluetooth_delegate.h"
 #include "brave/browser/brave_account/brave_account_navigation_throttle.h"
@@ -376,6 +377,8 @@ using extensions::ChromeContentBrowserClientExtensionsPart;
 
 namespace {
 
+constexpr char kWorkerWebcompatRefPrefix[] = "brave-worker-webcompat-";
+
 void BindCosmeticFiltersResourcesOnTaskRunner(
     mojo::PendingReceiver<cosmetic_filters::mojom::CosmeticFiltersResources>
         receiver,
@@ -538,6 +541,25 @@ bool IsJsBlockingEnforced(content::BrowserContext* browser_context,
   }
 
   return settings_service->IsJsBlockingEnforced(url);
+}
+
+std::pair<GURL, ContentSettingsType> ExtractWorkerWebcompatType(
+    const GURL& tagged_url) {
+  if (!base::StartsWith(tagged_url.ref(), kWorkerWebcompatRefPrefix)) {
+    return {tagged_url, ContentSettingsType::BRAVE_WEBCOMPAT_NONE};
+  }
+  int value = 0;
+  if (!base::StringToInt(
+          tagged_url.ref().substr(sizeof(kWorkerWebcompatRefPrefix) - 1),
+          &value) ||
+      value < static_cast<int>(ContentSettingsType::BRAVE_WEBCOMPAT_NONE) ||
+      value >= static_cast<int>(ContentSettingsType::BRAVE_WEBCOMPAT_ALL)) {
+    return {tagged_url, ContentSettingsType::BRAVE_WEBCOMPAT_NONE};
+  }
+  GURL::Replacements replacements;
+  replacements.ClearRef();
+  return {tagged_url.ReplaceComponents(replacements),
+          static_cast<ContentSettingsType>(value)};
 }
 
 }  // namespace
@@ -906,12 +928,19 @@ void BraveContentBrowserClient::UpdateRendererPreferencesForWorker(
 
 brave_shields::mojom::ShieldsSettingsPtr
 BraveContentBrowserClient::WorkerGetBraveShieldSettings(
-    const GURL& url,
+    const GURL& tagged_url,
     content::BrowserContext* browser_context,
     const content::StoragePartitionConfig* storage_partition_config) {
-  const brave_shields::mojom::FarblingLevel farbling_level =
-      brave_shields::GetFarblingLevel(
-          HostContentSettingsMapFactory::GetForProfile(browser_context), url);
+  auto [url, webcompat_settings_type] = ExtractWorkerWebcompatType(tagged_url);
+  auto* content_settings =
+      HostContentSettingsMapFactory::GetForProfile(browser_context);
+  brave_shields::mojom::FarblingLevel farbling_level =
+      brave_shields::GetFarblingLevel(content_settings, url);
+  if (webcompat_settings_type != ContentSettingsType::BRAVE_WEBCOMPAT_NONE &&
+      brave_shields::IsWebcompatEnabled(content_settings,
+                                        webcompat_settings_type, url)) {
+    farbling_level = brave_shields::mojom::FarblingLevel::OFF;
+  }
   std::string additional_entropy;
 #if BUILDFLAG(ENABLE_CONTAINERS)
   if (storage_partition_config &&
@@ -1031,6 +1060,26 @@ BraveContentBrowserClient::WorkerGetBraveShieldSettings(
       has_persona_l1 ? fingerprint_browser::PersonaSpeechVoiceDefaults(
                            persona->speech_voices)
                      : std::vector<bool>(),
+      has_persona_l1 ? fingerprint_browser::PersonaPluginNames(persona->plugins)
+                     : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaPluginFilenames(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaPluginDescriptions(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaPluginMimeTypeCounts(persona->plugins)
+          : std::vector<uint32_t>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMimeTypeTypes(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMimeTypeDescriptions(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMimeTypeSuffixes(persona->plugins)
+          : std::vector<std::vector<std::string>>(),
       std::vector<std::string>(),
       brave_shields::IsReduceLanguageEnabledForProfile(pref_service),
       IsJsBlockingEnforced(browser_context, url));

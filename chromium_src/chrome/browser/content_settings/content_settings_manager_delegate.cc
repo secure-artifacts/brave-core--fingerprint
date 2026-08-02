@@ -188,6 +188,26 @@ brave_shields::mojom::ShieldsSettingsPtr GetBraveShieldsSettingsOnUI(
       has_persona_l1 ? fingerprint_browser::PersonaSpeechVoiceDefaults(
                            persona->speech_voices)
                      : std::vector<bool>(),
+      has_persona_l1 ? fingerprint_browser::PersonaPluginNames(persona->plugins)
+                     : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaPluginFilenames(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaPluginDescriptions(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaPluginMimeTypeCounts(persona->plugins)
+          : std::vector<uint32_t>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMimeTypeTypes(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMimeTypeDescriptions(persona->plugins)
+          : std::vector<std::string>(),
+      has_persona_l1
+          ? fingerprint_browser::PersonaMimeTypeSuffixes(persona->plugins)
+          : std::vector<std::vector<std::string>>(),
       std::vector<std::string>(),
       brave_shields::IsReduceLanguageEnabledForProfile(pref_service),
       IsJsBlockingEnforced(browser_context, top_frame_url));

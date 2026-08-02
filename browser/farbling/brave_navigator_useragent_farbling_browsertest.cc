@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -27,6 +28,8 @@
 #include "brave/components/constants/brave_paths.h"
 #include "brave/components/constants/pref_names.h"
 #include "brave/components/fingerprint_browser/browser/persona.h"
+#include "brave/components/fingerprint_browser/browser/persona_service.h"
+#include "brave/components/fingerprint_browser/browser/pref_names.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
@@ -977,8 +980,12 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
   ASSERT_TRUE(persona);
 
   SetFingerprintingDefault(kDomain);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), https_server()->GetURL(kDomain, kPersonaWorkerPagePath)));
+  const GURL workers_url =
+      https_server()->GetURL(kDomain, kPersonaWorkerPagePath);
+  brave_shields::SetWebcompatEnabled(
+      content_settings(), ContentSettingsType::BRAVE_WEBCOMPAT_CANVAS, true,
+      workers_url, g_browser_process->local_state());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), workers_url));
 
   const content::EvalJsResult result = EvalJs(contents(), R"(
     (async () => {
@@ -1282,6 +1289,35 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
 IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
                        PersonaFontMediaAndSpeechSurfaces) {
   constexpr char kDomain[] = "persona-rich-surfaces.test";
+  base::DictValue persona_pref =
+      browser()
+          ->profile()
+          ->GetPrefs()
+          ->GetDict(fingerprint_browser::prefs::kPersona)
+          .Clone();
+  base::ListValue* plugins = persona_pref.FindList("plugins");
+  ASSERT_TRUE(plugins);
+  ASSERT_FALSE(plugins->empty());
+  base::DictValue& first_plugin = plugins->front().GetDict();
+  first_plugin.Set("name", "Persona PDF Test Plugin");
+  first_plugin.Set("filename", "persona-pdf-test-plugin");
+  base::ListValue* mime_types = first_plugin.FindList("mime_types");
+  ASSERT_TRUE(mime_types);
+  base::DictValue custom_mime;
+  custom_mime.Set("type", "application/x-persona-test");
+  custom_mime.Set("description", "Persona Test Format");
+  base::ListValue custom_suffixes;
+  custom_suffixes.Append("persona");
+  custom_mime.Set("suffixes", std::move(custom_suffixes));
+  mime_types->Append(std::move(custom_mime));
+  browser()->profile()->GetPrefs()->SetDict(
+      fingerprint_browser::prefs::kPersona, std::move(persona_pref));
+  auto* persona_service =
+      fingerprint_browser::PersonaServiceFactory::GetForProfile(
+          browser()->profile());
+  ASSERT_TRUE(persona_service);
+  ASSERT_TRUE(persona_service->EnsurePersona())
+      << persona_service->last_error();
   const auto* persona =
       fingerprint_browser::GetPersonaForProfile(browser()->profile());
   ASSERT_TRUE(persona);
@@ -1434,9 +1470,18 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
                                         base::JoinString(mime.suffixes, ",")});
     }
   }
+  std::set<std::string> expected_mime_set;
+  for (const auto& plugin : persona->plugins) {
+    for (const auto& mime : plugin.mime_types) {
+      expected_mime_set.insert(
+          base::StrCat({mime.type, "|", mime.description, "|",
+                        base::JoinString(mime.suffixes, ",")}));
+    }
+  }
   const std::string expected_mimes =
-      "application/pdf|Portable Document Format|pdf\n"
-      "text/pdf|Portable Document Format|pdf";
+      base::JoinString(std::vector<std::string>(expected_mime_set.begin(),
+                                                expected_mime_set.end()),
+                       "\n");
 
   const std::string* media_core = values.FindString("mediaCore");
   const std::string* media_labels = values.FindString("mediaLabels");
@@ -1885,6 +1930,20 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
   EXPECT_TRUE(settings->has_persona_l2);
   EXPECT_EQ(persona->user_agent, settings->persona_user_agent);
   EXPECT_EQ(persona->webgl.renderer, settings->persona_webgl_renderer);
+  EXPECT_EQ(fingerprint_browser::PersonaPluginNames(persona->plugins),
+            settings->persona_plugin_names);
+  EXPECT_EQ(fingerprint_browser::PersonaPluginFilenames(persona->plugins),
+            settings->persona_plugin_filenames);
+  EXPECT_EQ(fingerprint_browser::PersonaPluginDescriptions(persona->plugins),
+            settings->persona_plugin_descriptions);
+  EXPECT_EQ(fingerprint_browser::PersonaPluginMimeTypeCounts(persona->plugins),
+            settings->persona_plugin_mime_type_counts);
+  EXPECT_EQ(fingerprint_browser::PersonaMimeTypeTypes(persona->plugins),
+            settings->persona_mime_type_types);
+  EXPECT_EQ(fingerprint_browser::PersonaMimeTypeDescriptions(persona->plugins),
+            settings->persona_mime_type_descriptions);
+  EXPECT_EQ(fingerprint_browser::PersonaMimeTypeSuffixes(persona->plugins),
+            settings->persona_mime_type_suffixes);
   WakeUpServiceWorker(*extension, *browser()->profile());
 
   constexpr char kWorkerFingerprintScript[] = R"(

@@ -116,7 +116,11 @@ WorkerContentSettingsClient_BraveImpl::GetBraveShieldsSettings(
         std::vector<std::string>(), std::vector<std::string>(),
         std::vector<std::string>(), std::vector<std::string>(),
         std::vector<std::string>(), std::vector<bool>(), std::vector<bool>(),
-        std::vector<std::string>(), false, false);
+        std::vector<std::string>(), std::vector<std::string>(),
+        std::vector<std::string>(), std::vector<uint32_t>(),
+        std::vector<std::string>(), std::vector<std::string>(),
+        std::vector<std::vector<std::string>>(), std::vector<std::string>(),
+        false, false);
   }
 }
 

@@ -1,16 +1,14 @@
 diff --git a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
-index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..71566f26e22501837c242fbb019b11c309904a48 100644
+index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..a1ec71bf1a5609335c4f14b949d7cfbc494c83ab 100644
 --- a/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
 +++ b/third_party/blink/renderer/modules/plugins/dom_plugin_array.cc
-@@ -18,8 +18,13 @@
-  *  MA 02110-1301 USA
-  */
-
+@@ -20,6 +20,11 @@
+ 
+ #include "third_party/blink/renderer/modules/plugins/dom_plugin_array.h"
+ 
 +#include <algorithm>
 +#include <vector>
 +
- #include "third_party/blink/renderer/modules/plugins/dom_plugin_array.h"
-
 +#include "brave/components/brave_shields/core/common/farbling_prng.h"
 +#include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
  #include "third_party/blink/public/common/features.h"
@@ -22,9 +20,9 @@ index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..71566f26e22501837c242fbb019b11c3
  #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 +#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
  #include "third_party/blink/renderer/platform/wtf/vector.h"
-
+ 
  namespace blink {
-@@ -50,6 +56,106 @@ DOMPlugin* MakeFakePlugin(String plugin_name, LocalDOMWindow* window) {
+@@ -50,6 +56,124 @@ DOMPlugin* MakeFakePlugin(String plugin_name, LocalDOMWindow* window) {
    }
    return MakeGarbageCollected<DOMPlugin>(window, *plugin_info);
  }
@@ -74,6 +72,20 @@ index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..71566f26e22501837c242fbb019b11c3
 +  return MakeGarbageCollected<DOMPlugin>(window, *plugin_info);
 +}
 +
++DOMPlugin* MakePersonaPlugin(LocalDOMWindow* window,
++                             const brave::PersonaPluginValue& plugin) {
++  auto* plugin_info = MakeGarbageCollected<PluginInfo>(
++      plugin.name, plugin.filename, plugin.description, Color::kTransparent,
++      /*may_use_external_handler=*/false);
++  for (const auto& mime_type : plugin.mime_types) {
++    auto* mime_info = MakeGarbageCollected<MimeClassInfo>(
++        mime_type.type, mime_type.description, *plugin_info,
++        mime_type.suffixes);
++    plugin_info->AddMimeType(mime_info);
++  }
++  return MakeGarbageCollected<DOMPlugin>(window, *plugin_info);
++}
++
 +void ApplyBravePluginPolicy(LocalDOMWindow* window,
 +                            HeapVector<Member<DOMPlugin>>& dom_plugins) {
 +  auto farbling_level = brave::GetBraveFarblingLevelFor(
@@ -84,7 +96,11 @@ index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..71566f26e22501837c242fbb019b11c3
 +  }
 +
 +  brave::BraveSessionCache& cache = brave::BraveSessionCache::From(*window);
-+  if (cache.HasPersonaL1()) {
++  if (auto persona_plugins = cache.PersonaPlugins()) {
++    dom_plugins.clear();
++    for (const auto& plugin : *persona_plugins) {
++      dom_plugins.push_back(MakePersonaPlugin(window, plugin));
++    }
 +    return;
 +  }
 +
@@ -129,12 +145,40 @@ index 534277a85ae07f59ea9fabdd98b7ad411d18e5d0..71566f26e22501837c242fbb019b11c3
 +  }
 +}
  }  // namespace
-
+ 
  DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
-@@ -63,5 +169,6 @@ DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
+@@ -63,6 +187,7 @@ DOMPluginArray::DOMPluginArray(LocalDOMWindow* window) : window_(window) {
      for (auto name : plugins) {
        dom_plugins_.push_back(MakeFakePlugin(name, window));
      }
 +    ApplyBravePluginPolicy(window, dom_plugins_);
    }
  }
+ 
+@@ -128,6 +253,26 @@ HeapVector<Member<DOMMimeType>> DOMPluginArray::GetFixedMimeTypeArray() {
+   HeapVector<Member<DOMMimeType>> mimetypes;
+   if (dom_plugins_.empty())
+     return mimetypes;
++
++  if (window_ &&
++      brave::GetBraveFarblingLevelFor(
++          window_, ContentSettingsType::BRAVE_WEBCOMPAT_PLUGINS,
++          BraveFarblingLevel::OFF) != BraveFarblingLevel::OFF &&
++      brave::BraveSessionCache::From(*window_).PersonaPlugins()) {
++    Vector<String> seen_mime_types;
++    for (const auto& plugin : dom_plugins_) {
++      for (unsigned index = 0; index < plugin->length(); ++index) {
++        DOMMimeType* mime_type = plugin->item(index);
++        if (!mime_type || seen_mime_types.Contains(mime_type->type())) {
++          continue;
++        }
++        seen_mime_types.push_back(mime_type->type());
++        mimetypes.push_back(mime_type);
++      }
++    }
++    return mimetypes;
++  }
++
+   DCHECK_EQ(dom_plugins_[0]->length(), 2u);
+   mimetypes.push_back(dom_plugins_[0]->item(0));
+   mimetypes.push_back(dom_plugins_[0]->item(1));

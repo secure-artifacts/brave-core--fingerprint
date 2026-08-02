@@ -73,6 +73,12 @@ bool PersonaService::EnsurePersona() {
       return false;
     }
 
+    if (*schema_version != kCurrentPersonaSchemaVersion - 1) {
+      persona_.reset();
+      last_error_ = "persisted persona has an unsupported migration path";
+      return false;
+    }
+
     std::string error;
     auto defaults =
         GeneratePersonaFromSeed(GetDefaultTruthPool(), profile_seed_, &error);
@@ -81,13 +87,10 @@ bool PersonaService::EnsurePersona() {
       last_error_ = error;
       return false;
     }
-
     base::DictValue migrated = stored.Clone();
-    const base::DictValue default_values = PersonaToValue(*defaults);
-    for (const auto [key, value] : default_values) {
-      if (!migrated.Find(key)) {
-        migrated.Set(key, value.Clone());
-      }
+    if (!migrated.Find("plugins")) {
+      const base::DictValue default_values = PersonaToValue(*defaults);
+      migrated.Set("plugins", default_values.FindList("plugins")->Clone());
     }
     migrated.Set("schema_version", kCurrentPersonaSchemaVersion);
 
