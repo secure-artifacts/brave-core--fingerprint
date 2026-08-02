@@ -757,4 +757,77 @@ std::vector<bool> PersonaSpeechVoiceDefaults(
   return result;
 }
 
+std::vector<std::string> PersonaPluginNames(
+    const std::vector<PluginPersona>& plugins) {
+  std::vector<std::string> result;
+  result.reserve(plugins.size());
+  for (const auto& plugin : plugins) {
+    result.push_back(plugin.name);
+  }
+  return result;
+}
+
+std::vector<std::string> PersonaPluginFilenames(
+    const std::vector<PluginPersona>& plugins) {
+  std::vector<std::string> result;
+  result.reserve(plugins.size());
+  for (const auto& plugin : plugins) {
+    result.push_back(plugin.filename);
+  }
+  return result;
+}
+
+std::vector<std::string> PersonaPluginDescriptions(
+    const std::vector<PluginPersona>& plugins) {
+  std::vector<std::string> result;
+  result.reserve(plugins.size());
+  for (const auto& plugin : plugins) {
+    result.push_back(plugin.description);
+  }
+  return result;
+}
+
+std::vector<uint32_t> PersonaPluginMimeTypeCounts(
+    const std::vector<PluginPersona>& plugins) {
+  std::vector<uint32_t> result;
+  result.reserve(plugins.size());
+  for (const auto& plugin : plugins) {
+    result.push_back(static_cast<uint32_t>(plugin.mime_types.size()));
+  }
+  return result;
+}
+
+std::vector<std::string> PersonaMimeTypeTypes(
+    const std::vector<PluginPersona>& plugins) {
+  std::vector<std::string> result;
+  for (const auto& plugin : plugins) {
+    for (const auto& mime_type : plugin.mime_types) {
+      result.push_back(mime_type.type);
+    }
+  }
+  return result;
+}
+
+std::vector<std::string> PersonaMimeTypeDescriptions(
+    const std::vector<PluginPersona>& plugins) {
+  std::vector<std::string> result;
+  for (const auto& plugin : plugins) {
+    for (const auto& mime_type : plugin.mime_types) {
+      result.push_back(mime_type.description);
+    }
+  }
+  return result;
+}
+
+std::vector<std::vector<std::string>> PersonaMimeTypeSuffixes(
+    const std::vector<PluginPersona>& plugins) {
+  std::vector<std::vector<std::string>> result;
+  for (const auto& plugin : plugins) {
+    for (const auto& mime_type : plugin.mime_types) {
+      result.push_back(mime_type.suffixes);
+    }
+  }
+  return result;
+}
+
 }  // namespace fingerprint_browser

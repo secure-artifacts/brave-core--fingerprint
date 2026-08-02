@@ -54,6 +54,19 @@ struct PersonaSpeechVoiceValue {
   bool is_default = false;
 };
 
+struct PersonaMimeTypeValue {
+  blink::String type;
+  blink::String description;
+  blink::Vector<blink::String> suffixes;
+};
+
+struct PersonaPluginValue {
+  blink::String name;
+  blink::String filename;
+  blink::String description;
+  blink::Vector<PersonaMimeTypeValue> mime_types;
+};
+
 enum FarbleKey : uint64_t {
   kNone,
   kWindowInnerWidth,
@@ -140,6 +153,7 @@ class CORE_EXPORT BraveSessionCache final
       const;
   std::optional<blink::Vector<PersonaSpeechVoiceValue>> PersonaSpeechVoices()
       const;
+  std::optional<blink::Vector<PersonaPluginValue>> PersonaPlugins() const;
   int FarbledInteger(FarbleKey key,
                      int spoof_value,
                      int min_random_offset,

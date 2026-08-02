@@ -299,6 +299,28 @@ TEST(PersonaServiceTest, OldSchemaMigratesWithoutChangingIdentity) {
   EXPECT_EQ(service.GetPersona().persona_id, parsed->persona_id);
 }
 
+TEST(PersonaServiceTest, DamagedOldSchemaDoesNotReplaceIdentity) {
+  TestingPrefServiceSimple prefs;
+  RegisterPrefs(&prefs);
+
+  std::string error;
+  auto old_persona =
+      GeneratePersonaFromSeed(GetDefaultTruthPool(), "profile-b", &error);
+  ASSERT_TRUE(old_persona) << error;
+  base::DictValue old_pref = PersonaToValue(*old_persona);
+  old_pref.Set("schema_version", kCurrentPersonaSchemaVersion - 1);
+  old_pref.Remove("persona_id");
+  old_pref.Remove("plugins");
+  const base::DictValue original = old_pref.Clone();
+  prefs.SetDict(prefs::kPersona, std::move(old_pref));
+
+  PersonaService service(&prefs, "profile-a");
+  EXPECT_FALSE(service.has_persona());
+  EXPECT_FALSE(service.EnsurePersona());
+  EXPECT_FALSE(service.last_error().empty());
+  EXPECT_EQ(original, prefs.GetDict(prefs::kPersona));
+}
+
 TEST(ProfileProxyConfigTest, ProfileProxyDefaultsOff) {
   TestingPrefServiceSimple prefs;
   RegisterPrefs(&prefs);

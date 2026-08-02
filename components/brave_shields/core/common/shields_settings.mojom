@@ -72,6 +72,13 @@ struct ShieldsSettings {
   array<string> persona_speech_voice_langs;
   array<bool> persona_speech_voice_local_services;
   array<bool> persona_speech_voice_defaults;
+  array<string> persona_plugin_names;
+  array<string> persona_plugin_filenames;
+  array<string> persona_plugin_descriptions;
+  array<uint32> persona_plugin_mime_type_counts;
+  array<string> persona_mime_type_types;
+  array<string> persona_mime_type_descriptions;
+  array<array<string>> persona_mime_type_suffixes;
   array<string> origins_to_allow_scripts;
   bool reduce_language;
   bool enforced_script_blocking;

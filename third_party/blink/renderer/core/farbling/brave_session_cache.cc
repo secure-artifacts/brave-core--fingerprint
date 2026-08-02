@@ -741,6 +741,82 @@ BraveSessionCache::PersonaSpeechVoices() const {
   return voices;
 }
 
+std::optional<blink::Vector<PersonaPluginValue>>
+BraveSessionCache::PersonaPlugins() const {
+  if (!HasPersonaL1()) {
+    return std::nullopt;
+  }
+
+  const auto& names = default_shields_settings_->persona_plugin_names;
+  const auto& filenames = default_shields_settings_->persona_plugin_filenames;
+  const auto& descriptions =
+      default_shields_settings_->persona_plugin_descriptions;
+  const auto& mime_counts =
+      default_shields_settings_->persona_plugin_mime_type_counts;
+  const auto& mime_types = default_shields_settings_->persona_mime_type_types;
+  const auto& mime_descriptions =
+      default_shields_settings_->persona_mime_type_descriptions;
+  const auto& mime_suffixes =
+      default_shields_settings_->persona_mime_type_suffixes;
+  if (names.empty() || names.size() != filenames.size() ||
+      names.size() != descriptions.size() ||
+      names.size() != mime_counts.size() ||
+      mime_types.size() != mime_descriptions.size() ||
+      mime_types.size() != mime_suffixes.size()) {
+    return std::nullopt;
+  }
+
+  size_t expected_mime_count = 0;
+  for (uint32_t count : mime_counts) {
+    if (count == 0) {
+      return std::nullopt;
+    }
+    expected_mime_count += count;
+  }
+  if (expected_mime_count != mime_types.size()) {
+    return std::nullopt;
+  }
+
+  blink::Vector<PersonaPluginValue> plugins;
+  plugins.ReserveInitialCapacity(names.size());
+  size_t mime_index = 0;
+  for (blink::wtf_size_t plugin_index = 0; plugin_index < names.size();
+       ++plugin_index) {
+    auto name = BlinkStringFromUtf8IfNotEmpty(names[plugin_index]);
+    auto filename = BlinkStringFromUtf8IfNotEmpty(filenames[plugin_index]);
+    auto description =
+        BlinkStringFromUtf8IfNotEmpty(descriptions[plugin_index]);
+    if (!name || !filename || !description) {
+      return std::nullopt;
+    }
+
+    PersonaPluginValue plugin{*name, *filename, *description, {}};
+    plugin.mime_types.ReserveInitialCapacity(mime_counts[plugin_index]);
+    for (uint32_t offset = 0; offset < mime_counts[plugin_index]; ++offset) {
+      auto type = BlinkStringFromUtf8IfNotEmpty(mime_types[mime_index]);
+      auto mime_description =
+          BlinkStringFromUtf8IfNotEmpty(mime_descriptions[mime_index]);
+      if (!type || !mime_description || mime_suffixes[mime_index].empty()) {
+        return std::nullopt;
+      }
+      blink::Vector<blink::String> suffixes;
+      suffixes.ReserveInitialCapacity(mime_suffixes[mime_index].size());
+      for (const auto& suffix : mime_suffixes[mime_index]) {
+        auto value = BlinkStringFromUtf8IfNotEmpty(suffix);
+        if (!value) {
+          return std::nullopt;
+        }
+        suffixes.push_back(*value);
+      }
+      plugin.mime_types.push_back(
+          PersonaMimeTypeValue{*type, *mime_description, std::move(suffixes)});
+      ++mime_index;
+    }
+    plugins.push_back(std::move(plugin));
+  }
+  return plugins;
+}
+
 int BraveSessionCache::FarbledInteger(FarbleKey key,
                                       int spoof_value,
                                       int min_random_offset,

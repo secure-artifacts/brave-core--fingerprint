@@ -11,7 +11,8 @@
 #include "third_party/blink/public/mojom/worker/worker_content_settings_proxy.mojom.h"
 
 #define RequestFileSystemAccessSync                                           \
-  GetBraveShieldsSettings(GetBraveShieldsSettingsCallback callback) override; \
+  GetBraveShieldsSettings(int32_t webcompat_settings_type,                    \
+                          GetBraveShieldsSettingsCallback callback) override; \
   void RequestFileSystemAccessSync
 
 #include <content/browser/service_worker/service_worker_content_settings_proxy_impl.h>  // IWYU pragma: export

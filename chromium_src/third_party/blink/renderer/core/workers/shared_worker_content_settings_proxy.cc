@@ -15,7 +15,8 @@ brave_shields::mojom::ShieldsSettingsPtr
 SharedWorkerContentSettingsProxy::GetBraveShieldsSettings(
     ContentSettingsType webcompat_settings_type) {
   brave_shields::mojom::blink::ShieldsSettingsPtr blink_result;
-  if (!GetService()->GetBraveShieldsSettings(&blink_result)) {
+  if (!GetService()->GetBraveShieldsSettings(
+          static_cast<int32_t>(webcompat_settings_type), &blink_result)) {
     return brave_shields::mojom::ShieldsSettings::New();
   }
 
