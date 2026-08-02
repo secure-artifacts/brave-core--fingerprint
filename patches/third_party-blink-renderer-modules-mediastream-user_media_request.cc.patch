@@ -1,0 +1,14 @@
+diff --git a/third_party/blink/renderer/modules/mediastream/user_media_request.cc b/third_party/blink/renderer/modules/mediastream/user_media_request.cc
+index ce75a00b19f91ad4ae16362eb6a2bf93e80d3015..4f3ff89b3f07b586ccef1198d1d2dcb12001e0bd 100644
+--- a/third_party/blink/renderer/modules/mediastream/user_media_request.cc
++++ b/third_party/blink/renderer/modules/mediastream/user_media_request.cc
+@@ -405,6 +405,9 @@ UserMediaRequest* UserMediaRequest::Create(
+     return nullptr;
+   }
+ 
++  BRAVE_USER_MEDIA_REQUEST_TRANSLATE_PERSONA_DEVICE_IDS(context, &audio,
++                                                        &video)
++
+   std::string display_surface_constraint;
+   std::optional<bool> suppress_local_audio_playback;
+   std::optional<bool> restrict_own_audio;

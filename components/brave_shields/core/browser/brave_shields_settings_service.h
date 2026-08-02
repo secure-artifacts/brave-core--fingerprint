@@ -7,6 +7,7 @@
 #define BRAVE_COMPONENTS_BRAVE_SHIELDS_CORE_BROWSER_BRAVE_SHIELDS_SETTINGS_SERVICE_H_
 
 #include "base/containers/span.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/token.h"
@@ -31,7 +32,8 @@ class BraveShieldsSettingsService : public KeyedService {
   explicit BraveShieldsSettingsService(
       HostContentSettingsMap& host_content_settings_map,
       PrefService* local_state = nullptr,
-      PrefService* profile_state = nullptr);
+      PrefService* profile_state = nullptr,
+      base::RepeatingCallback<base::Token()> persona_token_provider = {});
   ~BraveShieldsSettingsService() override;
 
   void SetBraveShieldsEnabled(bool enable, const GURL& url);
@@ -95,6 +97,7 @@ class BraveShieldsSettingsService : public KeyedService {
       host_content_settings_map_;       // NOT OWNED
   raw_ptr<PrefService> local_state_;    // NOT OWNED
   raw_ptr<PrefService> profile_prefs_;  // NOT OWNED
+  base::RepeatingCallback<base::Token()> persona_token_provider_;
 
   // This token is generated when the service is created and stays stable until
   // the service is destoryed. It allows to show different farbled values for a

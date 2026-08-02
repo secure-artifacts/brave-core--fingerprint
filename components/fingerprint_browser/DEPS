@@ -1,0 +1,7 @@
+include_rules = [
+  "+brave/third_party/libmaxminddb",
+  "+components/keyed_service/core",
+  "+components/pref_registry",
+  "+components/prefs",
+  "+components/proxy_config",
+]

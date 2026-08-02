@@ -5,14 +5,14 @@
 
 source_set("browser") {
   sources = [
+    "offline_geoip_database.cc",
+    "offline_geoip_database.h",
     "persona.cc",
     "persona.h",
     "persona_generator.cc",
     "persona_generator.h",
     "persona_service.cc",
     "persona_service.h",
-    "offline_geoip_database.cc",
-    "offline_geoip_database.h",
     "pref_names.cc",
     "pref_names.h",
     "profile_proxy_config.cc",
@@ -25,13 +25,14 @@ source_set("browser") {
 
   deps = [
     "//base",
+    "//brave/third_party/libmaxminddb",
     "//components/keyed_service/core",
     "//components/pref_registry",
     "//components/prefs",
     "//components/proxy_config",
     "//net",
     "//third_party/icu:icui18n",
-    "//brave/third_party/libmaxminddb:libmaxminddb",
+    "//third_party/icu:icuuc_public",
   ]
 }
 

@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/net/BUILD.gn b/chrome/browser/net/BUILD.gn
+index 220d27e1b55eb140feb1fd99ad437a14f7bee54b..e5e9cb30b878ffd14419369e258f78588159c9df 100644
+--- a/chrome/browser/net/BUILD.gn
++++ b/chrome/browser/net/BUILD.gn
+@@ -160,6 +160,11 @@ source_set("impl") {
+   deps = [
+     ":key_pinning_proto",
+     "//base:build_time",
++    "//brave/browser/fingerprint_browser",
++    "//brave/browser/tor",
++    "//brave/components/fingerprint_browser/browser",
++    "//brave/components/tor",
++    "//brave/components/tor/buildflags",
+     "//chrome/browser:browser_features",
+     "//chrome/browser:browser_process",
+     "//chrome/browser:browser_process_platform_part",
+@@ -206,6 +211,7 @@ source_set("impl") {
+     "//components/variations/net",
+     "//components/webui/flags",
+     "//crypto",
++    "//net",
+     "//sandbox/policy",
+     "//services/network:network_service",
+     "//services/strings",

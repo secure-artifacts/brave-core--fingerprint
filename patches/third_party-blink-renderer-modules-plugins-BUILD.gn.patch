@@ -1,0 +1,13 @@
+diff --git a/third_party/blink/renderer/modules/plugins/BUILD.gn b/third_party/blink/renderer/modules/plugins/BUILD.gn
+index d5c89beda9dea0fb9c11ecbd3eef6de60ee3ffda..ef4f5ba486e7d92d924f48da7256f371022ea6e8 100644
+--- a/third_party/blink/renderer/modules/plugins/BUILD.gn
++++ b/third_party/blink/renderer/modules/plugins/BUILD.gn
+@@ -5,6 +5,8 @@
+ import("//third_party/blink/renderer/modules/modules.gni")
+ 
+ blink_modules_sources("plugins") {
++  deps = [ "//brave/components/brave_shields/core/common" ]
++
+   sources = [
+     "dom_mime_type.cc",
+     "dom_mime_type.h",

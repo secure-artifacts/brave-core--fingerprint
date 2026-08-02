@@ -44,9 +44,62 @@ void PersonaService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
 }
 
 bool PersonaService::EnsurePersona() {
-  const auto persisted = PersonaFromValue(prefs_->GetDict(prefs::kPersona));
-  if (persisted) {
-    persona_ = *persisted;
+  const base::Value* user_value = prefs_->GetUserPrefValue(prefs::kPersona);
+  if (user_value) {
+    if (!user_value->is_dict()) {
+      persona_.reset();
+      last_error_ = "persisted persona is not a dictionary";
+      return false;
+    }
+
+    const base::DictValue& stored = user_value->GetDict();
+    const std::optional<int> schema_version = stored.FindInt("schema_version");
+    if (schema_version && *schema_version == kCurrentPersonaSchemaVersion) {
+      auto persisted = PersonaFromValue(stored);
+      if (!persisted) {
+        persona_.reset();
+        last_error_ = "persisted persona failed validation";
+        return false;
+      }
+      persona_ = std::move(*persisted);
+      last_error_.clear();
+      return true;
+    }
+
+    if (!schema_version || *schema_version <= 0 ||
+        *schema_version > kCurrentPersonaSchemaVersion) {
+      persona_.reset();
+      last_error_ = "persisted persona has an unsupported schema";
+      return false;
+    }
+
+    std::string error;
+    auto defaults =
+        GeneratePersonaFromSeed(GetDefaultTruthPool(), profile_seed_, &error);
+    if (!defaults) {
+      persona_.reset();
+      last_error_ = error;
+      return false;
+    }
+
+    base::DictValue migrated = stored.Clone();
+    const base::DictValue default_values = PersonaToValue(*defaults);
+    for (const auto [key, value] : default_values) {
+      if (!migrated.Find(key)) {
+        migrated.Set(key, value.Clone());
+      }
+    }
+    migrated.Set("schema_version", kCurrentPersonaSchemaVersion);
+
+    auto persisted = PersonaFromValue(migrated);
+    if (!persisted) {
+      persona_.reset();
+      last_error_ = "persisted persona migration failed validation";
+      return false;
+    }
+
+    prefs_->SetDict(prefs::kPersona, std::move(migrated));
+    persona_ = std::move(*persisted);
     last_error_.clear();
     return true;
   }
@@ -55,6 +108,7 @@ bool PersonaService::EnsurePersona() {
   auto generated =
       GeneratePersonaFromSeed(GetDefaultTruthPool(), profile_seed_, &error);
   if (!generated) {
+    persona_.reset();
     last_error_ = error;
     return false;
   }

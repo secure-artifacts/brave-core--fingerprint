@@ -7,7 +7,9 @@
 
 #include <array>
 #include <tuple>
+#include <utility>
 
+#include "base/functional/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_p3a.h"
@@ -54,6 +56,14 @@ class BraveShieldsSettingsServiceTest : public testing::Test {
 
   brave_shields::BraveShieldsSettingsService* brave_shields_settings() {
     return brave_shields_settings_.get();
+  }
+
+  void SetPersonaTokenProvider(
+      base::RepeatingCallback<base::Token()> provider) {
+    brave_shields_settings_ =
+        std::make_unique<brave_shields::BraveShieldsSettingsService>(
+            *GetHostContentSettingsMap(), GetLocalState(), &profile_prefs_,
+            std::move(provider));
   }
 
   base::Value AutoShredDictFrom(AutoShredMode mode) {
@@ -748,6 +758,32 @@ TEST_P(BraveShieldsSettingsFarblingTest,
   EXPECT_EQ(zero, brave_shields_settings()->GetFarblingToken(
                       GURL("file:///etc/hosts"), {}));
   EXPECT_EQ(zero, brave_shields_settings()->GetFarblingToken(GURL(), {}));
+}
+
+TEST_P(BraveShieldsSettingsFarblingTest,
+       FarblingToken_PersonaProviderOverridesOriginAndContainerEntropy) {
+  const base::Token persona_token(0x1234, 0x5678);
+  SetPersonaTokenProvider(base::BindRepeating(
+      [](base::Token token) { return token; }, persona_token));
+
+  constexpr std::array<uint8_t, 4> entropy = {0x01, 0x02, 0x03, 0x04};
+  EXPECT_EQ(persona_token, brave_shields_settings()->GetFarblingToken(
+                               GURL("https://example.com"), {}));
+  EXPECT_EQ(persona_token, brave_shields_settings()->GetFarblingToken(
+                               GURL("https://other.test"), entropy));
+  EXPECT_EQ(persona_token, brave_shields_settings()->GetFarblingToken(
+                               GURL("chrome-extension://test"), entropy));
+}
+
+TEST_P(BraveShieldsSettingsFarblingTest,
+       FarblingToken_EmptyPersonaProviderPreservesBraveBehavior) {
+  SetPersonaTokenProvider(base::BindRepeating([] { return base::Token(); }));
+
+  const base::Token token = brave_shields_settings()->GetFarblingToken(
+      GURL("https://example.com"), {});
+  EXPECT_FALSE(token.is_zero());
+  EXPECT_EQ(base::Token(), brave_shields_settings()->GetFarblingToken(
+                               GURL("chrome://settings"), {}));
 }
 
 // HTTP and HTTPS URLs must produce a non-zero token.

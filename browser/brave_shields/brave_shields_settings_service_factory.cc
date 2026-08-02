@@ -5,7 +5,9 @@
 
 #include "brave/browser/brave_shields/brave_shields_settings_service_factory.h"
 
+#include "base/functional/bind.h"
 #include "base/no_destructor.h"
+#include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_settings_service.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -36,6 +38,7 @@ BraveShieldsSettingsServiceFactory::BraveShieldsSettingsServiceFactory()
               .WithGuest(ProfileSelection::kOwnInstance)
               .Build()) {
   DependsOn(HostContentSettingsMapFactory::GetInstance());
+  DependsOn(fingerprint_browser::PersonaServiceFactory::GetInstance());
 }
 
 BraveShieldsSettingsServiceFactory::~BraveShieldsSettingsServiceFactory() =
@@ -48,5 +51,7 @@ BraveShieldsSettingsServiceFactory::BuildServiceInstanceForBrowserContext(
   auto* map = HostContentSettingsMapFactory::GetForProfile(profile);
   CHECK(map);
   return std::make_unique<brave_shields::BraveShieldsSettingsService>(
-      *map, g_browser_process->local_state(), profile->GetPrefs());
+      *map, g_browser_process->local_state(), profile->GetPrefs(),
+      base::BindRepeating(
+          &fingerprint_browser::GetPersonaFarblingTokenForProfile, profile));
 }

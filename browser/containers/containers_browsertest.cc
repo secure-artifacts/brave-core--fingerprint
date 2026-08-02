@@ -10,8 +10,8 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/run_until.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
 #include "brave/browser/containers/containers_service_factory.h"
 #include "brave/browser/containers/used_container_storage_partitions.h"
@@ -53,10 +53,10 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/language/core/browser/pref_names.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
-#include "components/language/core/browser/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/tabs/public/tab_interface.h"
@@ -150,8 +150,7 @@ FarblingSurfaceValues ReadFarblingSurface(content::WebContents* web_contents) {
           .ExtractString(),
       content::EvalJs(web_contents, kCanvasHashScript).ExtractString(),
       content::EvalJs(web_contents, kWebGLSurfaceScript).ExtractString(),
-      content::EvalJs(web_contents, kNavigatorLanguagesScript)
-          .ExtractString(),
+      content::EvalJs(web_contents, kNavigatorLanguagesScript).ExtractString(),
   };
 }
 
@@ -359,7 +358,8 @@ class ContainersBrowserTest : public InProcessBrowserTest {
     PrefService* prefs = browser()->profile()->GetPrefs();
     prefs->Set(language::prefs::kSelectedLanguages,
                base::Value(accept_languages));
-    prefs->Set(language::prefs::kAcceptLanguages, base::Value(accept_languages));
+    prefs->Set(language::prefs::kAcceptLanguages,
+               base::Value(accept_languages));
   }
 
   void MonitorHTTPRequest(const net::test_server::HttpRequest& request) {
@@ -2171,10 +2171,8 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
                        WebsiteFarblingUsesProfilePersonaAcrossContainers) {
   const GURL default_url(
       "https://a.test/simple.html?farbling-container=default");
-  const GURL container_a_url(
-      "https://a.test/simple.html?farbling-container=a");
-  const GURL container_b_url(
-      "https://a.test/simple.html?farbling-container=b");
+  const GURL container_a_url("https://a.test/simple.html?farbling-container=a");
+  const GURL container_b_url("https://a.test/simple.html?farbling-container=b");
   const GURL container_a_second_url(
       "https://a.test/simple.html?farbling-container=a-second");
 
@@ -2205,8 +2203,8 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
   ExpectSameFarblingSurface(default_surface, container_b_surface);
   ExpectSameFarblingSurface(default_surface, container_a_second_surface);
 
-  const std::string default_header =
-      accept_language_headers_by_url_["/simple.html?farbling-container=default"];
+  const std::string default_header = accept_language_headers_by_url_
+      ["/simple.html?farbling-container=default"];
   ASSERT_FALSE(default_header.empty());
   EXPECT_EQ(
       default_header,
@@ -2214,9 +2212,8 @@ IN_PROC_BROWSER_TEST_F(ContainersBrowserTest,
   EXPECT_EQ(
       default_header,
       accept_language_headers_by_url_["/simple.html?farbling-container=b"]);
-  EXPECT_EQ(default_header,
-            accept_language_headers_by_url_
-                ["/simple.html?farbling-container=a-second"]);
+  EXPECT_EQ(default_header, accept_language_headers_by_url_
+                                ["/simple.html?farbling-container=a-second"]);
 }
 
 // Test suite to verify behavior when containers feature is disabled after

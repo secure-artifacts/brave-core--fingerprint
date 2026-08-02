@@ -15,6 +15,7 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/test/thread_test_helper.h"
 #include "base/version.h"
 #include "brave/browser/brave_content_browser_client.h"
@@ -48,6 +49,7 @@
 #include "content/public/test/content_mock_cert_verifier.h"
 #include "content/public/test/simple_url_loader_test_helper.h"
 #include "extensions/buildflags/buildflags.h"
+#include "media/base/media_switches.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
@@ -486,6 +488,8 @@ class BraveNavigatorUserAgentFarblingBrowserTest : public InProcessBrowserTest {
         absl::StrFormat("MAP *:443 127.0.0.1:%d", https_server_->port()));
     command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
                                     "FontAccess");
+    command_line->AppendSwitch(switches::kUseFakeDeviceForMediaStream);
+    command_line->AppendSwitch(switches::kUseFakeUIForMediaStream);
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     command_line->AppendSwitch(extensions::switches::kOffscreenDocumentTesting);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -1309,6 +1313,28 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
       });
 
       const devices = await navigator.mediaDevices.enumerateDevices();
+      const openedInputKinds = [];
+      let mediaDeviceRoundTrip = true;
+      for (const device of devices.filter(
+          device => device.kind === 'audioinput' ||
+              device.kind === 'videoinput')) {
+        try {
+          const constraints = device.kind === 'audioinput'
+              ? {audio: {
+                  deviceId: {exact: device.deviceId},
+                  groupId: {exact: device.groupId},
+                }}
+              : {video: {
+                  deviceId: {exact: device.deviceId},
+                  groupId: {exact: device.groupId},
+                }};
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          openedInputKinds.push(...stream.getTracks().map(track => track.kind));
+          stream.getTracks().forEach(track => track.stop());
+        } catch (error) {
+          mediaDeviceRoundTrip = false;
+        }
+      }
       const voices = await summarizeVoices();
       let fontAccessStatus = 'unavailable';
       let fontFamilies = [];
@@ -1332,6 +1358,23 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
                 .join('|'))
             .join('\n'),
         mediaLabels: devices.map(device => device.label).join('\n'),
+        mediaDeviceRoundTrip,
+        openedInputKinds: openedInputKinds.sort().join(','),
+        pluginCore: Array.from(navigator.plugins)
+            .map(plugin => [
+              plugin.name,
+              plugin.filename,
+              plugin.description,
+              Array.from(plugin)
+                  .map(mime => [mime.type, mime.description, mime.suffixes]
+                      .join('|'))
+                  .join(';'),
+            ].join('|'))
+            .join('\n'),
+        mimeCore: Array.from(navigator.mimeTypes)
+            .map(mime => [mime.type, mime.description, mime.suffixes].join('|'))
+            .sort()
+            .join('\n'),
         speechVoices: voices
             .map(voice => [
               voice.name,
@@ -1374,21 +1417,52 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
                       voice.is_default ? "true" : "false"});
   }
 
+  std::string expected_plugins;
+  for (size_t i = 0; i < persona->plugins.size(); ++i) {
+    const auto& plugin = persona->plugins[i];
+    if (i > 0) {
+      expected_plugins += "\n";
+    }
+    expected_plugins += base::StrCat(
+        {plugin.name, "|", plugin.filename, "|", plugin.description, "|"});
+    for (size_t j = 0; j < plugin.mime_types.size(); ++j) {
+      if (j > 0) {
+        expected_plugins += ";";
+      }
+      const auto& mime = plugin.mime_types[j];
+      expected_plugins += base::StrCat({mime.type, "|", mime.description, "|",
+                                        base::JoinString(mime.suffixes, ",")});
+    }
+  }
+  const std::string expected_mimes =
+      "application/pdf|Portable Document Format|pdf\n"
+      "text/pdf|Portable Document Format|pdf";
+
   const std::string* media_core = values.FindString("mediaCore");
   const std::string* media_labels = values.FindString("mediaLabels");
   const std::string* speech_voices = values.FindString("speechVoices");
   const std::string* font_access_status = values.FindString("fontAccessStatus");
   const std::string* font_families = values.FindString("fontFamilies");
+  const std::string* opened_input_kinds = values.FindString("openedInputKinds");
+  const std::string* plugin_core = values.FindString("pluginCore");
+  const std::string* mime_core = values.FindString("mimeCore");
   ASSERT_TRUE(media_core);
   ASSERT_TRUE(media_labels);
   ASSERT_TRUE(speech_voices);
   ASSERT_TRUE(font_access_status);
   ASSERT_TRUE(font_families);
+  ASSERT_TRUE(opened_input_kinds);
+  ASSERT_TRUE(plugin_core);
+  ASSERT_TRUE(mime_core);
   EXPECT_EQ(expected_media_core, *media_core);
   EXPECT_TRUE(*media_labels == expected_empty_media_labels ||
               *media_labels == expected_media_labels)
       << *media_labels;
   EXPECT_EQ(expected_speech_voices, *speech_voices);
+  ExpectDictBool(values, "mediaDeviceRoundTrip", true);
+  EXPECT_EQ("audio,video", *opened_input_kinds);
+  EXPECT_EQ(expected_plugins, *plugin_core);
+  EXPECT_EQ(expected_mimes, *mime_core);
   ASSERT_EQ("ok", *font_access_status);
 
   for (const auto& family :

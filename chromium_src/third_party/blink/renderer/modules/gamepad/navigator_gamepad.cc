@@ -7,12 +7,6 @@
 
 #include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
 
-#define getGamepads getGamepads_ChromiumImpl
-#define SampleAndCompareGamepadState SampleAndCompareGamepadState_ChromiumImpl
-#include <third_party/blink/renderer/modules/gamepad/navigator_gamepad.cc>
-#undef SampleAndCompareGamepadState
-#undef getGamepads
-
 namespace blink {
 
 namespace {
@@ -25,41 +19,25 @@ bool ShouldUsePersonaGamepad(ExecutionContext* context) {
          brave::BraveSessionCache::From(*context).HasPersonaL1();
 }
 
-HeapVector<Member<Gamepad>> EmptyGamepads() {
-  HeapVector<Member<Gamepad>> result;
-  result.resize(device::Gamepads::kItemsLengthCap);
-  return result;
+void SanitizePersonaGamepads(ExecutionContext* context,
+                             HeapVector<Member<Gamepad>>& gamepads) {
+  if (!ShouldUsePersonaGamepad(context)) {
+    return;
+  }
+  for (auto& gamepad : gamepads) {
+    if (gamepad) {
+      gamepad->SetId("Standard Gamepad");
+    }
+  }
 }
 
 }  // namespace
 
-HeapVector<Member<Gamepad>> NavigatorGamepad::getGamepads(
-    Navigator& navigator,
-    ExceptionState& exception_state) {
-  LocalDOMWindow* window = navigator.DomWindow();
-  if (!ShouldUsePersonaGamepad(window)) {
-    return getGamepads_ChromiumImpl(navigator, exception_state);
-  }
-
-  ExecutionContext* context = window;
-  if (!context->IsFeatureEnabled(
-          network::mojom::PermissionsPolicyFeature::kGamepad)) {
-    exception_state.ThrowSecurityError(kFeaturePolicyBlocked);
-    return EmptyGamepads();
-  }
-
-  return EmptyGamepads();
-}
-
-void NavigatorGamepad::SampleAndCompareGamepadState() {
-  if (!ShouldUsePersonaGamepad(GetExecutionContext())) {
-    SampleAndCompareGamepadState_ChromiumImpl();
-    return;
-  }
-
-  gamepads_.clear();
-  gamepads_.resize(device::Gamepads::kItemsLengthCap);
-  gamepads_back_.clear();
-}
-
 }  // namespace blink
+
+#define BRAVE_NAVIGATOR_GAMEPAD_DID_SAMPLE(gamepads) \
+  blink::SanitizePersonaGamepads(GetExecutionContext(), gamepads);
+
+#include <third_party/blink/renderer/modules/gamepad/navigator_gamepad.cc>
+
+#undef BRAVE_NAVIGATOR_GAMEPAD_DID_SAMPLE

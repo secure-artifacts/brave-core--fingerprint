@@ -33,6 +33,7 @@ constexpr char kAudioNoiseSeedKey[] = "audio_noise_seed";
 constexpr char kFontsKey[] = "fonts";
 constexpr char kMediaDevicesKey[] = "media_devices";
 constexpr char kSpeechVoicesKey[] = "speech_voices";
+constexpr char kPluginsKey[] = "plugins";
 
 constexpr char kBrandKey[] = "brand";
 constexpr char kVersionKey[] = "version";
@@ -65,9 +66,13 @@ constexpr char kGroupIdKey[] = "group_id";
 
 constexpr char kVoiceUriKey[] = "voice_uri";
 constexpr char kNameKey[] = "name";
+constexpr char kFilenameKey[] = "filename";
 constexpr char kLangKey[] = "lang";
 constexpr char kLocalServiceKey[] = "local_service";
 constexpr char kIsDefaultKey[] = "is_default";
+constexpr char kTypeKey[] = "type";
+constexpr char kSuffixesKey[] = "suffixes";
+constexpr char kMimeTypesKey[] = "mime_types";
 
 base::ListValue StringListToValue(const std::vector<std::string>& strings) {
   base::ListValue list;
@@ -343,6 +348,88 @@ std::optional<std::vector<SpeechVoicePersona>> SpeechVoicesFromValue(
   return voices;
 }
 
+base::ListValue MimeTypesToValue(
+    const std::vector<MimeTypePersona>& mime_types) {
+  base::ListValue list;
+  for (const auto& mime_type : mime_types) {
+    base::DictValue value;
+    value.Set(kTypeKey, mime_type.type);
+    value.Set(kDescriptionKey, mime_type.description);
+    value.Set(kSuffixesKey, StringListToValue(mime_type.suffixes));
+    list.Append(std::move(value));
+  }
+  return list;
+}
+
+std::optional<std::vector<MimeTypePersona>> MimeTypesFromValue(
+    const base::DictValue& dict,
+    std::string_view key) {
+  const auto* list = dict.FindList(key);
+  if (!list) {
+    return std::nullopt;
+  }
+
+  std::vector<MimeTypePersona> mime_types;
+  mime_types.reserve(list->size());
+  for (const auto& value : *list) {
+    if (!value.is_dict()) {
+      return std::nullopt;
+    }
+    const auto& mime_dict = value.GetDict();
+    const auto* type = mime_dict.FindString(kTypeKey);
+    const auto* description = mime_dict.FindString(kDescriptionKey);
+    auto suffixes = StringListFromValue(mime_dict, kSuffixesKey);
+    if (!type || type->empty() || !description || description->empty() ||
+        !suffixes || suffixes->empty()) {
+      return std::nullopt;
+    }
+    mime_types.push_back({*type, *description, std::move(*suffixes)});
+  }
+  return mime_types;
+}
+
+base::ListValue PluginsToValue(const std::vector<PluginPersona>& plugins) {
+  base::ListValue list;
+  for (const auto& plugin : plugins) {
+    base::DictValue value;
+    value.Set(kNameKey, plugin.name);
+    value.Set(kFilenameKey, plugin.filename);
+    value.Set(kDescriptionKey, plugin.description);
+    value.Set(kMimeTypesKey, MimeTypesToValue(plugin.mime_types));
+    list.Append(std::move(value));
+  }
+  return list;
+}
+
+std::optional<std::vector<PluginPersona>> PluginsFromValue(
+    const base::DictValue& dict,
+    std::string_view key) {
+  const auto* list = dict.FindList(key);
+  if (!list) {
+    return std::nullopt;
+  }
+
+  std::vector<PluginPersona> plugins;
+  plugins.reserve(list->size());
+  for (const auto& value : *list) {
+    if (!value.is_dict()) {
+      return std::nullopt;
+    }
+    const auto& plugin_dict = value.GetDict();
+    const auto* name = plugin_dict.FindString(kNameKey);
+    const auto* filename = plugin_dict.FindString(kFilenameKey);
+    const auto* description = plugin_dict.FindString(kDescriptionKey);
+    auto mime_types = MimeTypesFromValue(plugin_dict, kMimeTypesKey);
+    if (!name || name->empty() || !filename || filename->empty() ||
+        !description || description->empty() || !mime_types ||
+        mime_types->empty()) {
+      return std::nullopt;
+    }
+    plugins.push_back({*name, *filename, *description, std::move(*mime_types)});
+  }
+  return plugins;
+}
+
 bool ContainsString(std::string_view haystack, std::string_view needle) {
   return haystack.find(needle) != std::string_view::npos;
 }
@@ -416,6 +503,7 @@ base::DictValue PersonaToValue(const Persona& persona) {
   value.Set(kFontsKey, StringListToValue(persona.fonts));
   value.Set(kMediaDevicesKey, MediaDevicesToValue(persona.media_devices));
   value.Set(kSpeechVoicesKey, SpeechVoicesToValue(persona.speech_voices));
+  value.Set(kPluginsKey, PluginsToValue(persona.plugins));
   return value;
 }
 
@@ -446,6 +534,7 @@ std::optional<Persona> PersonaFromValue(const base::DictValue& value) {
   auto fonts = StringListFromValue(value, kFontsKey);
   auto media_devices = MediaDevicesFromValue(value, kMediaDevicesKey);
   auto speech_voices = SpeechVoicesFromValue(value, kSpeechVoicesKey);
+  auto plugins = PluginsFromValue(value, kPluginsKey);
 
   if (!persona_id || persona_id->empty() || !os || os->empty() || !locale ||
       locale->empty() || !languages || !accept_language ||
@@ -454,7 +543,8 @@ std::optional<Persona> PersonaFromValue(const base::DictValue& value) {
       !hardware_concurrency || !device_memory || !max_touch_points ||
       !screen_dict || !webgl_dict || !webgpu_dict || !canvas_noise_seed ||
       canvas_noise_seed->empty() || !audio_noise_seed ||
-      audio_noise_seed->empty() || !fonts || !media_devices || !speech_voices) {
+      audio_noise_seed->empty() || !fonts || !media_devices || !speech_voices ||
+      !plugins) {
     return std::nullopt;
   }
 
@@ -486,6 +576,7 @@ std::optional<Persona> PersonaFromValue(const base::DictValue& value) {
   persona.fonts = std::move(*fonts);
   persona.media_devices = std::move(*media_devices);
   persona.speech_voices = std::move(*speech_voices);
+  persona.plugins = std::move(*plugins);
 
   if (!IsPersonaValid(persona)) {
     return std::nullopt;
@@ -514,7 +605,8 @@ bool IsPersonaValid(const Persona& persona) {
       persona.webgpu.architecture.empty() || persona.webgpu.device.empty() ||
       persona.webgpu.description.empty() || persona.canvas_noise_seed.empty() ||
       persona.audio_noise_seed.empty() || persona.fonts.empty() ||
-      persona.media_devices.empty() || persona.speech_voices.empty()) {
+      persona.media_devices.empty() || persona.speech_voices.empty() ||
+      persona.plugins.empty()) {
     return false;
   }
 
@@ -545,6 +637,19 @@ bool IsPersonaValid(const Persona& persona) {
   }
   if (default_voice_count != 1) {
     return false;
+  }
+
+  for (const auto& plugin : persona.plugins) {
+    if (plugin.name.empty() || plugin.filename.empty() ||
+        plugin.description.empty() || plugin.mime_types.empty()) {
+      return false;
+    }
+    for (const auto& mime_type : plugin.mime_types) {
+      if (mime_type.type.empty() || mime_type.description.empty() ||
+          mime_type.suffixes.empty()) {
+        return false;
+      }
+    }
   }
 
   switch (persona.os) {

@@ -84,10 +84,12 @@ base::Token CreateProfileLevelFarblingToken() {
 BraveShieldsSettingsService::BraveShieldsSettingsService(
     HostContentSettingsMap& host_content_settings_map,
     PrefService* local_state,
-    PrefService* profile_prefs)
+    PrefService* profile_prefs,
+    base::RepeatingCallback<base::Token()> persona_token_provider)
     : host_content_settings_map_(host_content_settings_map),
       local_state_(local_state),
-      profile_prefs_(profile_prefs) {
+      profile_prefs_(profile_prefs),
+      persona_token_provider_(std::move(persona_token_provider)) {
   CHECK(profile_prefs_);
 }
 
@@ -400,6 +402,13 @@ void BraveShieldsSettingsService::RegisterProfilePrefs(
 base::Token BraveShieldsSettingsService::GetFarblingToken(
     const GURL& url,
     base::span<const uint8_t> additional_entropy) {
+  if (persona_token_provider_) {
+    const base::Token persona_token = persona_token_provider_.Run();
+    if (!persona_token.is_zero()) {
+      return persona_token;
+    }
+  }
+
   base::Token token;
   if (!url.SchemeIsHTTPOrHTTPS()) {
     return token;
