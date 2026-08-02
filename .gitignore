@@ -50,6 +50,7 @@ patches/**/*.patchinfo
 /third_party/ast-grep-intermediate/
 /third_party/ast-grep-src/
 /third_party/ast-grep/ast-grep-*
+/third_party/updater/mac/
 *.xcodeproj
 !/ios/brave-ios/App/*.xcodeproj
 *.swp
@@ -107,5 +108,10 @@ xcuserdata
 .claude/settings.local.json
 .claude/CLAUDE.md
 .claude/worktrees/
+
+# Generated agent-skill discovery dirs. Source of truth is agents/skills/;
+# these are populated with symlinks by agents/skills/setup.py on every sync.
+.claude/skills/
+.agents/
 
 /.ignore/

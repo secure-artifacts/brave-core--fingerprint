@@ -117,6 +117,10 @@
     *** initCommandLine(...);
 }
 
+-keep class org.chromium.chrome.browser.settings.MainSettings {
+    *** openSearchResult(...);
+}
+
 -keep class org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils {
     *** isInNarrowWindowOnLff(...);
     *** isNtpThemeCustomizationEnabled(...);
@@ -551,10 +555,6 @@
 
 -keep class org.chromium.chrome.browser.omnibox.suggestions.BraveAutocompleteMediator {
     <init>(...);
-}
-
--keep class org.chromium.chrome.browser.omnibox.suggestions.BraveAutocompleteMediatorBase {
-    public <init>(...);
 }
 
 -keep class org.chromium.chrome.browser.multiwindow.MultiInstanceManagerApi31 {
@@ -1209,4 +1209,12 @@
 
 -keep class org.chromium.chrome.browser.tabbed_mode.BraveTabbedAdaptiveToolbarBehavior {
     <init>(...);
+}
+
+-keep class com.google.android.material.color.DynamicColors {
+    *** applyToActivityIfAvailable(...);
+}
+
+-keep class org.chromium.chrome.browser.theme.BraveDynamicColors {
+    *** applyToActivityIfAvailable(...);
 }

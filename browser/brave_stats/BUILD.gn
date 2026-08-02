@@ -4,7 +4,6 @@
 # You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import("//brave/browser/brave_stats/buildflags.gni")
-import("//brave/components/brave_ads/buildflags/buildflags.gni")
 import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
 import("//build/buildflag_header.gni")
 
@@ -16,14 +15,26 @@ buildflag_header("buildflags") {
   ]
 }
 
+source_set("first_run_util") {
+  sources = [
+    "//brave/browser/brave_stats/first_run_util.cc",
+    "//brave/browser/brave_stats/first_run_util.h",
+  ]
+
+  deps = [
+    "//base",
+    "//brave/components/constants",
+    "//chrome/browser/first_run",
+    "//components/prefs",
+  ]
+}
+
 source_set("brave_stats") {
   sources = [
     "//brave/browser/brave_stats/brave_stats_updater_params.cc",
     "//brave/browser/brave_stats/brave_stats_updater_params.h",
     "//brave/browser/brave_stats/features.cc",
     "//brave/browser/brave_stats/features.h",
-    "//brave/browser/brave_stats/first_run_util.cc",
-    "//brave/browser/brave_stats/first_run_util.h",
     "//brave/browser/brave_stats/switches.h",
   ]
 
@@ -36,6 +47,7 @@ source_set("brave_stats") {
 
   public_deps = [
     "//brave/browser/brave_stats:buildflags",
+    "//brave/browser/brave_stats:first_run_util",
     "//brave/components/brave_stats/browser",
   ]
 
@@ -45,7 +57,6 @@ source_set("brave_stats") {
     "//brave/browser/misc_metrics",
     "//brave/browser/serp_metrics",
     "//brave/common",
-    "//brave/components/brave_ads/buildflags",
     "//brave/components/brave_origin",
     "//brave/components/brave_policy:brave_policy_observer",
     "//brave/components/brave_referrals/common",
@@ -68,10 +79,6 @@ source_set("brave_stats") {
     "//net",
     "//services/network/public/cpp",
   ]
-
-  if (enable_brave_ads) {
-    deps += [ "//brave/components/brave_ads/core" ]
-  }
 
   if (enable_brave_wallet) {
     deps += [
@@ -117,7 +124,6 @@ source_set("unit_tests") {
     "//brave/browser/brave_stats",
     "//brave/browser/serp_metrics",
     "//brave/browser/serp_metrics:test_support",
-    "//brave/components/brave_ads/buildflags",
     "//brave/components/brave_referrals/browser",
     "//brave/components/brave_stats/browser",
     "//brave/components/brave_wallet/common/buildflags",
@@ -129,13 +135,6 @@ source_set("unit_tests") {
     "//chrome/test:test_support",
     "//components/prefs",
   ]
-
-  if (enable_brave_ads) {
-    deps += [
-      "//brave/browser/brave_ads",
-      "//brave/components/brave_ads/core",
-    ]
-  }
 
   if (enable_brave_wallet) {
     deps += [

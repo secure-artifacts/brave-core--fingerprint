@@ -1,8 +1,8 @@
 diff --git a/content/browser/web_contents/web_contents_impl.cc b/content/browser/web_contents/web_contents_impl.cc
-index 646327bee417d1988e31a9bc89cb6b6fa281a73b..89c7b8cef497aa4a34d0a66ef4e73e344a16730b 100644
+index 7edad76e875c081e4e8d7de917658d006624de91..89c7b8cef497aa4a34d0a66ef4e73e344a16730b 100644
 --- a/content/browser/web_contents/web_contents_impl.cc
 +++ b/content/browser/web_contents/web_contents_impl.cc
-@@ -1628,6 +1628,17 @@ std::vector<raw_ptr<WebContentsImpl>> WebContentsImpl::GetAllWebContents() {
+@@ -1637,6 +1637,17 @@ std::vector<raw_ptr<WebContentsImpl>> WebContentsImpl::GetAllWebContents() {
    return result;
  }
 
@@ -20,7 +20,7 @@ index 646327bee417d1988e31a9bc89cb6b6fa281a73b..89c7b8cef497aa4a34d0a66ef4e73e34
  // static
  WebContentsImpl* WebContentsImpl::FromFrameTreeNode(
      const FrameTreeNode* frame_tree_node) {
-@@ -5545,6 +5556,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
+@@ -5560,6 +5571,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
    // SiteInstance is created in a new BrowsingInstance.
    scoped_refptr<SiteInstance> site_instance;
    if (params.opener_suppressed) {
@@ -28,8 +28,8 @@ index 646327bee417d1988e31a9bc89cb6b6fa281a73b..89c7b8cef497aa4a34d0a66ef4e73e34
      if (is_guest) {
        // For guests, noopener windows can be created in a new BrowsingInstance
        // as long as they preserve the guest's StoragePartition.
-@@ -5642,7 +5654,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
-
+@@ -5657,7 +5669,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
+ 
    // Save the window for later if we're not suppressing the opener (since it
    // will be shown immediately).
 -  if (!params.opener_suppressed) {
@@ -37,7 +37,7 @@ index 646327bee417d1988e31a9bc89cb6b6fa281a73b..89c7b8cef497aa4a34d0a66ef4e73e34
      if (!is_guest) {
        WebContentsView* new_view = new_contents_impl->view_.get();
 
-@@ -9629,6 +9641,8 @@ const blink::RendererPreferences& WebContentsImpl::GetRendererPrefs(
+@@ -9672,6 +9684,8 @@ const blink::RendererPreferences& WebContentsImpl::GetRendererPrefs(
      return guest->GetRendererPrefs();
    }
    RenderViewHostImpl::GetPlatformSpecificPrefs(&renderer_preferences_);
@@ -45,4 +45,4 @@ index 646327bee417d1988e31a9bc89cb6b6fa281a73b..89c7b8cef497aa4a34d0a66ef4e73e34
 +      GetBrowserContext(), &renderer_preferences_);
    return renderer_preferences_;
  }
-
+ 

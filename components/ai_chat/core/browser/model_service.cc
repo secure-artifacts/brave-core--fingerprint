@@ -182,33 +182,6 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
 
     {
       auto options = mojom::LeoModelOptions::New();
-      options->display_maker = "Meta";
-      options->name = "llama-3-8b-instruct";
-      options->category = mojom::ModelCategory::CHAT;
-      options->access = features::kFreemiumAvailable.Get()
-                            ? mojom::ModelAccess::BASIC_AND_PREMIUM
-                            : mojom::ModelAccess::BASIC;
-      options->max_associated_content_length = 64000;
-      options->long_conversation_warning_character_limit = 9700;
-
-      auto model = mojom::Model::New();
-      model->key = "chat-basic";
-      model->display_name = "Llama 3.1 8B";
-      model->vision_support = false;
-      model->supports_tools = false;
-      model->supported_capabilities = {
-          mojom::ConversationCapability::CHAT,
-          mojom::ConversationCapability::DEEP_RESEARCH};
-      model->is_suggested_model = false;
-      model->is_near_model = false;
-      model->options =
-          mojom::ModelOptions::NewLeoModelOptions(std::move(options));
-
-      models.push_back(std::move(model));
-    }
-
-    {
-      auto options = mojom::LeoModelOptions::New();
       options->display_maker = "Alibaba Cloud";
       options->name = "qwen-14b-instruct";
       options->category = mojom::ModelCategory::CHAT;
@@ -220,7 +193,7 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
 
       auto model = mojom::Model::New();
       model->key = "chat-qwen";
-      model->display_name = "Qwen VL 30B";
+      model->display_name = "Qwen 3.5 35B";
       model->vision_support = true;
       model->supports_tools = false;
       model->supported_capabilities = {
@@ -262,21 +235,47 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
       models.push_back(std::move(model));
     }
 
-    // Llama 4 Maverick
+    // Nemotron Nano 3 30B
     {
       auto options = mojom::LeoModelOptions::New();
-      options->display_maker = "Meta";
-      options->name = "llama-4-maverick";
+      options->display_maker = "NVIDIA";
+      options->name = "nemotron-nano-3-30b";
       options->category = mojom::ModelCategory::CHAT;
       options->access = features::kFreemiumAvailable.Get()
                             ? mojom::ModelAccess::BASIC_AND_PREMIUM
                             : mojom::ModelAccess::BASIC;
-      options->max_associated_content_length = 64000;
+      options->max_associated_content_length = 128000;
       options->long_conversation_warning_character_limit = 9700;
 
       auto model = mojom::Model::New();
-      model->key = "chat-llama-4-maverick";
-      model->display_name = "Llama 4 Maverick";
+      model->key = "chat-nemotron-nano-3-30b";
+      model->display_name = "Nemotron Nano 3 30B";
+      model->vision_support = false;
+      model->supports_tools = false;
+      model->supported_capabilities = {
+          mojom::ConversationCapability::CHAT,
+          mojom::ConversationCapability::DEEP_RESEARCH};
+      model->is_suggested_model = false;
+      model->is_near_model = false;
+      model->options =
+          mojom::ModelOptions::NewLeoModelOptions(std::move(options));
+
+      models.push_back(std::move(model));
+    }
+
+    // GPT 5.4
+    {
+      auto options = mojom::LeoModelOptions::New();
+      options->display_maker = "OpenAI";
+      options->name = "bedrock-openai.gpt-5.4";
+      options->category = mojom::ModelCategory::CHAT;
+      options->access = mojom::ModelAccess::PREMIUM;
+      options->max_associated_content_length = 1088000;
+      options->long_conversation_warning_character_limit = 870400;
+
+      auto model = mojom::Model::New();
+      model->key = "chat-gpt-5-4-bedrock";
+      model->display_name = "GPT 5.4";
       model->vision_support = true;
       model->supports_tools = false;
       model->supported_capabilities = {
@@ -290,48 +289,20 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
       models.push_back(std::move(model));
     }
 
-    // GPT OSS 20B
+    // Grok 4.3
     {
       auto options = mojom::LeoModelOptions::New();
-      options->display_maker = "OpenAI";
-      options->name = "gpt-oss-20b";
-      options->category = mojom::ModelCategory::CHAT;
-      options->access = features::kFreemiumAvailable.Get()
-                            ? mojom::ModelAccess::BASIC_AND_PREMIUM
-                            : mojom::ModelAccess::BASIC;
-      options->max_associated_content_length = 64000;
-      options->long_conversation_warning_character_limit = 9700;
-
-      auto model = mojom::Model::New();
-      model->key = "chat-gpt-oss-20b";
-      model->display_name = "GPT OSS 20B";
-      model->vision_support = false;
-      model->supports_tools = false;
-      model->supported_capabilities = {
-          mojom::ConversationCapability::CHAT,
-          mojom::ConversationCapability::DEEP_RESEARCH};
-      model->is_suggested_model = false;
-      model->is_near_model = false;
-      model->options =
-          mojom::ModelOptions::NewLeoModelOptions(std::move(options));
-
-      models.push_back(std::move(model));
-    }
-
-    // GPT OSS 120B
-    {
-      auto options = mojom::LeoModelOptions::New();
-      options->display_maker = "OpenAI";
-      options->name = "gpt-oss-120b";
+      options->display_maker = "xAI";
+      options->name = "bedrock-xai.grok-4.3";
       options->category = mojom::ModelCategory::CHAT;
       options->access = mojom::ModelAccess::PREMIUM;
-      options->max_associated_content_length = 64000;
-      options->long_conversation_warning_character_limit = 9700;
+      options->max_associated_content_length = 1088000;
+      options->long_conversation_warning_character_limit = 870400;
 
       auto model = mojom::Model::New();
-      model->key = "chat-gpt-oss-120b";
-      model->display_name = "GPT OSS 120B";
-      model->vision_support = false;
+      model->key = "chat-grok-4-3-bedrock";
+      model->display_name = "Grok 4.3";
+      model->vision_support = true;
       model->supports_tools = false;
       model->supported_capabilities = {
           mojom::ConversationCapability::CHAT,
@@ -344,7 +315,7 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
       models.push_back(std::move(model));
     }
 
-    // Mistral Large
+    // Mistral Large 3
     {
       auto options = mojom::LeoModelOptions::New();
       options->display_maker = "Mistral";
@@ -356,7 +327,7 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
 
       auto model = mojom::Model::New();
       model->key = "chat-mistral-large";
-      model->display_name = "Mistral Large";
+      model->display_name = "Mistral Large 3";
       model->vision_support = true;
       model->supports_tools = false;
       model->supported_capabilities = {
@@ -396,7 +367,7 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
       models.push_back(std::move(model));
     }
 
-    // Qwen VL 235B
+    // Qwen 3.5 122B
     {
       auto options = mojom::LeoModelOptions::New();
       options->display_maker = "Alibaba Cloud";
@@ -408,7 +379,7 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
 
       auto model = mojom::Model::New();
       model->key = "chat-qwen-3-235b";
-      model->display_name = "Qwen VL 235B";
+      model->display_name = "Qwen 3.5 122B";
       model->vision_support = true;
       model->supports_tools = false;
       model->supported_capabilities = {
@@ -435,32 +406,6 @@ const std::vector<mojom::ModelPtr>& GetLeoModels() {
       auto model = mojom::Model::New();
       model->key = "chat-deepseek-v3-2";
       model->display_name = "Deepseek V3.2";
-      model->vision_support = false;
-      model->supports_tools = false;
-      model->supported_capabilities = {
-          mojom::ConversationCapability::CHAT,
-          mojom::ConversationCapability::DEEP_RESEARCH};
-      model->is_suggested_model = false;
-      model->is_near_model = false;
-      model->options =
-          mojom::ModelOptions::NewLeoModelOptions(std::move(options));
-
-      models.push_back(std::move(model));
-    }
-
-    // Qwen 3 Coder 480B
-    {
-      auto options = mojom::LeoModelOptions::New();
-      options->display_maker = "Alibaba Cloud";
-      options->name = "qwen-3-coder-480b";
-      options->category = mojom::ModelCategory::CHAT;
-      options->access = mojom::ModelAccess::PREMIUM;
-      options->max_associated_content_length = 64000;
-      options->long_conversation_warning_character_limit = 9700;
-
-      auto model = mojom::Model::New();
-      model->key = "chat-qwen-3-coder-480b";
-      model->display_name = "Qwen 3 Coder 480B";
       model->vision_support = false;
       model->supports_tools = false;
       model->supported_capabilities = {
@@ -727,7 +672,7 @@ void ModelService::MigrateProfilePrefs(PrefService* profile_prefs) {
     profile_prefs->ClearPref(prefs::kObseleteBraveChatAutoGenerateQuestions);
 
     // Migrate old model keys to "chat-automatic"
-    constexpr std::array<const char*, 7> kOldModelKeys = {
+    constexpr std::array<const char*, 12> kOldModelKeys = {
         // Added: June 6, 2024. Checks can be removed eventually
         "chat-default",
         // Added: May 28, 2025. Checks can be removed eventually
@@ -739,6 +684,13 @@ void ModelService::MigrateProfilePrefs(PrefService* profile_prefs) {
         "chat-pixtral-large",
         "chat-deepseek-v3-1",
         "chat-near-deepseek-v3-1",
+        // Added: Jun 2, 2026. Checks can be removed eventually
+        "chat-llama-4-maverick",
+        "chat-gpt-oss-20b",
+        "chat-gpt-oss-120b",
+        "chat-qwen-3-coder-480b",
+        // Added: July 22, 2026. Checks can be removed eventually
+        "chat-basic",
     };
 
     if (auto* default_model_value =
@@ -892,10 +844,7 @@ ModelService::GetModelsWithSubtitles() {
     model_with_subtitle->model = model->Clone();
 
     if (model->options->is_leo_model_options()) {
-      if (model->key == "chat-basic") {
-        model_with_subtitle->subtitle =
-            l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_BASIC_SUBTITLE);
-      } else if (model->key == "chat-claude-instant") {
+      if (model->key == "chat-claude-instant") {
         model_with_subtitle->subtitle =
             l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_CLAUDE_INSTANT_SUBTITLE);
       } else if (model->key == "chat-claude-haiku") {
@@ -919,15 +868,15 @@ ModelService::GetModelsWithSubtitles() {
       } else if (model->key == "chat-glm-4-7-flash") {
         model_with_subtitle->subtitle =
             l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_GLM_4_7_FLASH_SUBTITLE);
-      } else if (model->key == "chat-llama-4-maverick") {
+      } else if (model->key == "chat-gpt-5-4-bedrock") {
+        model_with_subtitle->subtitle =
+            l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_GPT_5_4_BEDROCK_SUBTITLE);
+      } else if (model->key == "chat-grok-4-3-bedrock") {
         model_with_subtitle->subtitle = l10n_util::GetStringUTF8(
-            IDS_CHAT_UI_CHAT_LLAMA_4_MAVERICK_SUBTITLE);
-      } else if (model->key == "chat-gpt-oss-20b") {
-        model_with_subtitle->subtitle =
-            l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_GPT_OSS_20B_SUBTITLE);
-      } else if (model->key == "chat-gpt-oss-120b") {
-        model_with_subtitle->subtitle =
-            l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_GPT_OSS_120B_SUBTITLE);
+            IDS_CHAT_UI_CHAT_GROK_4_3_BEDROCK_SUBTITLE);
+      } else if (model->key == "chat-nemotron-nano-3-30b") {
+        model_with_subtitle->subtitle = l10n_util::GetStringUTF8(
+            IDS_CHAT_UI_CHAT_NEMOTRON_NANO_3_30B_SUBTITLE);
       } else if (model->key == "chat-mistral-large") {
         model_with_subtitle->subtitle =
             l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_MISTRAL_LARGE_SUBTITLE);
@@ -940,9 +889,6 @@ ModelService::GetModelsWithSubtitles() {
       } else if (model->key == "chat-deepseek-v3-2") {
         model_with_subtitle->subtitle =
             l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_DEEPSEEK_V3_2_SUBTITLE);
-      } else if (model->key == "chat-qwen-3-coder-480b") {
-        model_with_subtitle->subtitle = l10n_util::GetStringUTF8(
-            IDS_CHAT_UI_CHAT_QWEN_3_CODER_480B_SUBTITLE);
       } else if (model->key == "chat-claude-opus") {
         model_with_subtitle->subtitle =
             l10n_util::GetStringUTF8(IDS_CHAT_UI_CHAT_CLAUDE_OPUS_SUBTITLE);

@@ -109,11 +109,6 @@ export function isPersistableSessionRoute(
      */
     || route.includes(WalletRoutes.Market + '/')
     /**
-     * Web3 route uses a query param to determine the
-     * dappCategory and can not be exact matched.
-     */
-    || route.includes(WalletRoutes.Web3)
-    /**
      * Insure that the Connections route is an exact match.
      */
     || routePath === WalletRoutes.Connections
@@ -276,8 +271,11 @@ export const makeSendRoute = (
     : tokenIdQueryParams
 
   const params = new URLSearchParams(
-    asset.isShielded
-      ? { ...recipientQueryParams, isShielded: 'true' }
+    asset.zcashTokenType !== BraveWallet.ZCashTokenType.kNone
+      ? {
+          ...recipientQueryParams,
+          zcashTokenType: String(asset.zcashTokenType),
+        }
       : recipientQueryParams,
   )
 
@@ -328,13 +326,21 @@ export const makeSwapOrBridgeRoute = ({
       }
     : toAccountIdParams
 
-  const fromShieldedParams = fromToken.isShielded
-    ? { ...toTokenParams, fromIsShielded: 'true' }
-    : toTokenParams
+  const fromShieldedParams =
+    fromToken.zcashTokenType !== BraveWallet.ZCashTokenType.kNone
+      ? {
+          ...toTokenParams,
+          fromZcashTokenType: String(fromToken.zcashTokenType),
+        }
+      : toTokenParams
 
-  const allParams = toToken?.isShielded
-    ? { ...fromShieldedParams, toIsShielded: 'true' }
-    : fromShieldedParams
+  const allParams =
+    toToken && toToken.zcashTokenType !== BraveWallet.ZCashTokenType.kNone
+      ? {
+          ...fromShieldedParams,
+          toZcashTokenType: String(toToken.zcashTokenType),
+        }
+      : fromShieldedParams
 
   const params = new URLSearchParams(allParams)
 

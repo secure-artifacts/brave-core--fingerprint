@@ -107,20 +107,19 @@ AdBlockEngine::~AdBlockEngine() = default;
 adblock::BlockerResult AdBlockEngine::ShouldStartRequest(
     const GURL& url,
     blink::mojom::ResourceType resource_type,
-    const std::string& tab_host,
+    const url::Origin& request_initiator,
+    const std::string& method,
     bool previously_matched_rule,
     bool previously_matched_exception,
     bool previously_matched_important) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Determine third-party here so the library doesn't need to figure it out.
-  // CreateFromNormalizedTuple is needed because SameDomainOrHost needs
-  // a URL or origin and not a string to a host name.
-  bool is_third_party = !SameDomainOrHost(
-      url, url::Origin::CreateFromNormalizedTuple("https", tab_host, 80),
-      INCLUDE_PRIVATE_REGISTRIES);
+  bool is_third_party =
+      !SameDomainOrHost(url, request_initiator, INCLUDE_PRIVATE_REGISTRIES);
+  const auto initiator_hostname = request_initiator.host();
   return ad_block_client_->matches(
-      url.spec(), std::string(url.host()), tab_host,
-      ResourceTypeToString(resource_type), is_third_party,
+      url.spec(), std::string(url.host()), initiator_hostname,
+      ResourceTypeToString(resource_type), is_third_party, method,
       // Checking normal rules is skipped if a normal rule or exception rule was
       // found previously
       previously_matched_rule || previously_matched_exception,
@@ -131,7 +130,8 @@ adblock::BlockerResult AdBlockEngine::ShouldStartRequest(
 std::optional<std::string> AdBlockEngine::GetCspDirectives(
     const GURL& url,
     blink::mojom::ResourceType resource_type,
-    const std::string& tab_host) {
+    const std::string& tab_host,
+    const std::string& method) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Determine third-party here so the library doesn't need to figure it out.
   // CreateFromNormalizedTuple is needed because SameDomainOrHost needs
@@ -141,7 +141,7 @@ std::optional<std::string> AdBlockEngine::GetCspDirectives(
       INCLUDE_PRIVATE_REGISTRIES);
   auto result = ad_block_client_->get_csp_directives(
       url.spec(), std::string(url.host()), tab_host,
-      ResourceTypeToString(resource_type), is_third_party);
+      ResourceTypeToString(resource_type), is_third_party, method);
 
   if (result.empty()) {
     return std::nullopt;
@@ -175,6 +175,30 @@ base::DictValue AdBlockEngine::GetDebugInfo() {
   result.Set("flatbuffer_size",
              static_cast<int>(debug_info_struct.flatbuffer_size));
   result.Set("regex_data", std::move(regex_list));
+
+  base::ListValue source_info;
+  for (const auto& item : debug_info_struct.source_info) {
+    base::DictValue source_info_dict;
+    source_info_dict.Set("title", std::string(item.title.value));
+    source_info_dict.Set("homepage", std::string(item.homepage.value));
+    source_info_dict.Set("network_filter_count",
+                         static_cast<int>(item.network_filter_count));
+    source_info_dict.Set("cosmetic_filter_count",
+                         static_cast<int>(item.cosmetic_filter_count));
+    source_info_dict.Set("parse_error_count",
+                         static_cast<int>(item.parse_error));
+    std::string invalid_lines_concatenated;
+    for (const auto& invalid_line : item.invalid_lines) {
+      invalid_lines_concatenated.append(
+          std::string_view(invalid_line.data(), invalid_line.size()));
+      invalid_lines_concatenated.append("\n");
+    }
+    source_info_dict.Set("invalid_lines",
+                         std::move(invalid_lines_concatenated));
+
+    source_info.Append(std::move(source_info_dict));
+  }
+  result.Set("source_info", std::move(source_info));
   return result;
 }
 

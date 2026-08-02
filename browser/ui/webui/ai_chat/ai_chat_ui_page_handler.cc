@@ -387,6 +387,16 @@ void AIChatUIPageHandler::OpenConversationFullPage(
   if (ai_chat_metrics_) {
     ai_chat_metrics_->RecordFullPageSwitch();
   }
+
+  // If this conversation is the live AI Chat hosted in the (global) side panel,
+  // move that live `WebContents` into a full-page tab, preserving its state,
+  // instead of navigating a fresh one. No-op unless the feature is enabled and
+  // the side panel is the standalone global AI Chat; otherwise fall through to
+  // the fresh full-page tab navigation.
+  if (ai_chat::MaybeMoveSidePanelChatToTab(owner_web_contents_)) {
+    return;
+  }
+
   NavigateParams params(profile_, ConversationUrl(conversation_uuid),
                         ui::PAGE_TRANSITION_TYPED);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
@@ -413,6 +423,18 @@ void AIChatUIPageHandler::OpenURL(const GURL& url) {
     return;
   }
 
+  // A link in the AI Chat UI was clicked. If AI Chat is a full browser tab,
+  // move the live conversation into the side panel and open the link in a tab
+  // in its place. No-op unless the feature is enabled and AI Chat is a full
+  // tab. Neither the links AI Chat opens itself (`GoPremium` and friends, which
+  // use OpenURLInNewTab directly) nor the anchors a conversation renders (which
+  // the browser opens, and `AIChatFullPageLinkObserver` moves for) reach here.
+  ai_chat::MaybeMoveFullPageChatToSidePanel(owner_web_contents_);
+
+  OpenURLInNewTab(url);
+}
+
+void AIChatUIPageHandler::OpenURLInNewTab(const GURL& url) {
 #if BUILDFLAG(IS_ANDROID)
   owner_web_contents_->OpenURL(
       {url, content::Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
@@ -427,31 +449,31 @@ void AIChatUIPageHandler::OpenURL(const GURL& url) {
 }
 
 void AIChatUIPageHandler::OpenStorageSupportUrl() {
-  OpenURL(GURL(kLeoStorageSupportUrl));
+  OpenURLInNewTab(GURL(kLeoStorageSupportUrl));
 }
 
 void AIChatUIPageHandler::GoPremium() {
 #if !BUILDFLAG(IS_ANDROID)
-  OpenURL(GURL(kLeoGoPremiumUrl));
+  OpenURLInNewTab(GURL(kLeoGoPremiumUrl));
 #else
   ai_chat::GoPremium(owner_web_contents_.get());
 #endif
 }
 
 void AIChatUIPageHandler::RefreshPremiumSession() {
-  OpenURL(GURL(kLeoRefreshPremiumSessionUrl));
+  OpenURLInNewTab(GURL(kLeoRefreshPremiumSessionUrl));
 }
 
 void AIChatUIPageHandler::ManagePremium() {
 #if !BUILDFLAG(IS_ANDROID)
-  OpenURL(GURL(kURLManagePremium));
+  OpenURLInNewTab(GURL(kURLManagePremium));
 #else
   ai_chat::ManagePremium(owner_web_contents_.get());
 #endif
 }
 
 void AIChatUIPageHandler::OpenModelSupportUrl() {
-  OpenURL(GURL(kLeoModelSupportUrl));
+  OpenURLInNewTab(GURL(kLeoModelSupportUrl));
 }
 
 void AIChatUIPageHandler::ChatContextObserver::WebContentsDestroyed() {
@@ -673,6 +695,13 @@ void AIChatUIPageHandler::BindParentUIFrameFromChildFrame(
     return;
   }
   chat_ui_->OnChildFrameBound(std::move(receiver));
+}
+
+void AIChatUIPageHandler::SetDisplayMode(bool is_standalone) {
+  if (!chat_ui_.is_bound()) {
+    return;
+  }
+  chat_ui_->OnDisplayModeChanged(is_standalone);
 }
 
 }  // namespace ai_chat

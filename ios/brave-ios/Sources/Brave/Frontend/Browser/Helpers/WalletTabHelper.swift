@@ -10,7 +10,7 @@ import Foundation
 import Growth
 import Preferences
 import Shared
-import Web
+@_spi(ChromiumWebViewAccess) import Web
 import os.log
 
 extension TabDataValues {
@@ -33,16 +33,21 @@ protocol WalletTabHelperDelegate: AnyObject {
 
 /// Encapsulates the wallet (dapp provider) state associated with a tab, acting as the delegate,
 /// events listener and keyring observer for the tab's Ethereum, Solana and keyring services.
-class WalletTabHelper: NSObject {
+class WalletTabHelper: NSObject, TabObserver {
   private(set) weak var tab: (any TabState)?
   weak var delegate: WalletTabHelperDelegate?
+  private let braveWalletAPI: BraveWalletAPI?
 
-  init(tab: some TabState) {
+  init(tab: some TabState, braveWalletAPI: BraveWalletAPI?) {
     self.tab = tab
+    self.braveWalletAPI = braveWalletAPI
     super.init()
+    tab.addObserver(self)
   }
 
   deinit {
+    tab?.removeObserver(self)
+
     // A number of mojo-powered core objects have to be deconstructed on the same
     // thread they were constructed
     var mojoObjects: [Any?] = [
@@ -58,6 +63,76 @@ class WalletTabHelper: NSObject {
     }
   }
 
+  // MARK: - TabObserver
+
+  func tabDidCreateWebView(_ tab: some TabState) {
+    if FeatureList.kUseProfileWebViewConfiguration.enabled {
+      BraveWebView.from(tab: tab)?.walletProviderDelegate = self
+    }
+  }
+
+  func tabDidCommitNavigation(_ tab: some TabState) {
+    clearSolanaConnectedAccounts()
+    createProviders()
+  }
+
+  func tabDidFinishNavigation(_ tab: some TabState) {
+    Task {
+      await updateEthereumProperties()
+      await updateSolanaProperties()
+    }
+
+    if walletEthProvider != nil {
+      emitEthereumEvent(.connect)
+    }
+  }
+
+  func tabWillBeDestroyed(_ tab: some TabState) {
+    tab.removeObserver(self)
+  }
+
+  // MARK: -
+
+  private func createProviders() {
+    guard let tab, let braveWalletAPI, braveWalletAPI.isAllowed,
+      !FeatureList.kUseProfileWebViewConfiguration.enabled
+    else {
+      return
+    }
+    // Providers need re-initialized when changing origin to align with desktop in
+    // `BraveContentBrowserClient::RegisterBrowserInterfaceBindersForFrame`
+    // https://github.com/brave/brave-core/blob/1.52.x/browser/brave_content_browser_client.cc#L608
+    let committedOrigin = tab.lastCommittedURL?.origin
+    if let provider = braveWalletAPI.ethereumProvider(
+      with: self,
+      origin: committedOrigin,
+      isPrivateBrowsing: tab.isPrivate
+    ) {
+      // The Ethereum provider will fetch allowed accounts from it's delegate (the tab)
+      // on initialization. Fetching allowed accounts requires the origin; so we need to
+      // initialize after `commitedURL` / `url` are updated above
+      walletEthProvider = provider
+      walletEthProvider?.initialize(eventsListener: self)
+    }
+    if let provider = braveWalletAPI.solanaProvider(
+      with: self,
+      origin: committedOrigin,
+      isPrivateBrowsing: tab.isPrivate
+    ) {
+      walletSolProvider = provider
+      walletSolProvider?.initialize(eventsListener: self)
+    }
+    if WalletConstants.isCardanoDAppSupportEnabled,
+      let provider = braveWalletAPI.cardanoProvider(
+        with: self,
+        origin: committedOrigin,
+        isPrivateBrowsing: tab.isPrivate
+      )
+    {
+      walletCardanoProvider = provider
+    }
+  }
+
   private var _walletEthProvider: BraveWalletEthereumProvider?
   private var _walletSolProvider: BraveWalletSolanaProvider?
   private var _walletKeyringService: BraveWalletKeyringService? {
@@ -65,6 +140,8 @@ class WalletTabHelper: NSObject {
       _walletKeyringService?.addObserver(self)
     }
   }
+  private(set) var walletCardanoProvider: BraveWalletCardanoProvider?
+  var walletCardanoApi: BraveWalletCardanoApi?
 
   weak var walletEthProvider: BraveWalletEthereumProvider? {
     get { _walletEthProvider }
@@ -223,7 +300,9 @@ extension WalletTabHelper: BraveWalletProviderDelegate {
   }
 
   func walletInteractionDetected() {
-    // No usage for iOS
+    if FeatureList.kUseProfileWebViewConfiguration.enabled {
+      isWalletIconVisible = true
+    }
   }
 
   func showWalletBackup() {
@@ -316,6 +395,7 @@ extension WalletTabHelper: BraveWalletProviderDelegate {
 extension WalletTabHelper: BraveWalletEventsListener {
   func emitEthereumEvent(_ event: Web3ProviderEvent) {
     guard let tab, !tab.isPrivate,
+      !FeatureList.kUseProfileWebViewConfiguration.enabled,
       tab.profile.prefs.integer(forPath: kDefaultEthereumWallet)
         != BraveWallet.DefaultWallet.none.rawValue,
       tab.isWebViewCreated
@@ -369,6 +449,7 @@ extension WalletTabHelper: BraveWalletEventsListener {
   @MainActor
   func updateEthereumProperties() async {
     guard let tab, !tab.isPrivate,
+      !FeatureList.kUseProfileWebViewConfiguration.enabled,
       let keyringService = BraveWallet.KeyringServiceFactory.get(privateMode: false),
       tab.profile.prefs.integer(forPath: kDefaultEthereumWallet)
         != BraveWallet.DefaultWallet.none.rawValue
@@ -376,17 +457,17 @@ extension WalletTabHelper: BraveWalletEventsListener {
       return
     }
 
-    // Turn an optional value into a string (or quoted string in case of the value being a string) or
-    // return `undefined`
-    func valueOrUndefined<T>(_ value: T?) -> String {
-      switch value {
-      case .some(let string as String):
-        return "\"\(string)\""
-      case .some(let value):
-        return "\(value)"
-      case .none:
+    // Turn an optional value into a JavaScript literal (JSON encoded so that any value coming
+    // from the provider cannot escape the assignment and execute arbitrary script), or return
+    // `undefined` when there is no value or it cannot be encoded
+    func valueOrUndefined(_ value: Any?) -> String {
+      guard let value,
+        let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]),
+        let literal = String(data: data, encoding: .utf8)
+      else {
         return "undefined"
       }
+      return literal
     }
     guard tab.isWebViewCreated, let provider = walletEthProvider else {
       return
@@ -394,14 +475,16 @@ extension WalletTabHelper: BraveWalletEventsListener {
 
     let chainId = await provider.chainId()
     _ = try? await tab.evaluateJavaScript(
-      functionName: "window.ethereum.chainId = \"\(chainId)\"",
+      functionName: "window.ethereum.chainId = \(valueOrUndefined(chainId))",
       contentWorld: EthereumProviderScriptHandler.scriptSandbox,
       asFunction: false
     )
 
-    let networkVersion = valueOrUndefined(Int(chainId.removingHexPrefix, radix: 16))
+    let networkVersion = valueOrUndefined(
+      Int(chainId.removingHexPrefix, radix: 16).map { String($0) }
+    )
     _ = try? await tab.evaluateJavaScript(
-      functionName: "window.ethereum.networkVersion = \"\(networkVersion)\"",
+      functionName: "window.ethereum.networkVersion = \(networkVersion)",
       contentWorld: EthereumProviderScriptHandler.scriptSandbox,
       asFunction: false
     )
@@ -411,7 +494,7 @@ extension WalletTabHelper: BraveWalletEventsListener {
     if isKeyringLocked {
       // Check for locked status before assigning account address.
       // `getAllowedAccounts` is not async, can't check locked status.
-      selectedAccount = valueOrUndefined(Optional<String>.none)
+      selectedAccount = valueOrUndefined(nil)
     } else {
       let allAccounts = await keyringService.allAccounts()
       let allEthAccounts = allAccounts.accounts.filter { $0.coin == .eth }
@@ -423,7 +506,7 @@ extension WalletTabHelper: BraveWalletEventsListener {
         )
         selectedAccount = valueOrUndefined(filteredAllowedAccounts.first)
       } else {
-        selectedAccount = valueOrUndefined(Optional<String>.none)
+        selectedAccount = valueOrUndefined(nil)
       }
     }
     _ = try? await tab.evaluateJavaScript(
@@ -473,6 +556,7 @@ extension WalletTabHelper: BraveWalletSolanaEventsListener {
 
   func emitSolanaEvent(_ event: Web3ProviderEvent) {
     guard let tab, tab.isWebViewCreated,
+      !FeatureList.kUseProfileWebViewConfiguration.enabled,
       tab.profile.prefs.integer(forPath: kDefaultSolanaWallet)
         != BraveWallet.DefaultWallet.none.rawValue
     else {
@@ -493,6 +577,7 @@ extension WalletTabHelper: BraveWalletSolanaEventsListener {
 
   @MainActor func updateSolanaProperties() async {
     guard let tab,
+      !FeatureList.kUseProfileWebViewConfiguration.enabled,
       tab.profile.prefs.integer(forPath: kDefaultSolanaWallet)
         != BraveWallet.DefaultWallet.none.rawValue,
       tab.isWebViewCreated,

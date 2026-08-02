@@ -886,11 +886,8 @@ This file contains all "about" strings.  It is set to NOT be translated, in tran
       <message name="IDS_SEND_P3A_TITLE" desc="Title for sending anonymous product insight during onboarding phase">
         Private product insights
       </message>
-      <message name="IDS_SHIELD_ONBOARDING" desc="Text for shield tooltip onboarding">
-        Tap to view Brave Shields
-      </message>
       <message name="IDS_SHIELD_TOOLTIP_DESC" desc="Text for shield tooltip description onboarding">
-        See all the bad stuff Brave blocked, on every page, with Shields.
+        See all the bad stuff Brave blocked on every page with Shields. Tap to view
       </message>
       <message name="IDS_SHIELD_TRACKER_BLOCKED" desc="Text for shield tracker blocked tooltip onboarding">
         <ph name="TRACKER_COUNT">%1$s<ex>1</ex></ph> ads &amp; trackers blocked
@@ -1688,6 +1685,12 @@ Are you sure you want to do this?
       </message>
       <message name="IDS_NIGHT_MODE_SUMMARY" desc="Summary for Night Mode, which forces web content into dark mode.">
         Force dark mode for web content
+      </message>
+      <message name="IDS_BRAVE_ANDROID_DYNAMIC_COLORS_TITLE" desc="Title for the Android Appearance preference that enables dynamic colors.">
+        Dynamic colors
+      </message>
+      <message name="IDS_BRAVE_ANDROID_DYNAMIC_COLORS_SUMMARY" desc="Summary for the Android Appearance preference that enables dynamic colors.">
+        App theme matches wallpaper colors
       </message>
       <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_SEARCH_ACCELERATOR" desc="Content description for the search accelerator button">
         Search
@@ -2645,6 +2648,15 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     </message>
     <message name="IDS_TAB_GROUPS_ENABLE_TITLE" desc="Title for a setting that enables or disables tab groups.">
       Enable tab groups
+    </message>
+    <message name="IDS_TAB_GROUPS_DISABLE_DIALOG_TITLE" desc="Title of the dialog that asks the user to confirm turning off the tab groups setting.">
+      Disable tab groups?
+    </message>
+    <message name="IDS_TAB_GROUPS_DISABLE_DIALOG_MESSAGE" desc="Body of the dialog that asks the user to confirm turning off the tab groups setting. It explains that the existing tab groups are removed and their tabs stay open on their own.">
+      Any existing groups will be deleted, and the tabs within those groups will become open, ungrouped tabs in your browser window. Are you sure you want to continue?
+    </message>
+    <message name="IDS_TAB_GROUPS_DISABLE_DIALOG_CONFIRM_BUTTON" desc="Label of the button that confirms turning off the tab groups setting.">
+      Disable
     </message>
     <message name="IDS_TAB_GROUPS_BAR_TITLE" desc="Title for a setting that enables the tab groups bottom bar.">
       Tab groups bar

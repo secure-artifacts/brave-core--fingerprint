@@ -14,9 +14,12 @@ it deployed more generic, and reusable for other cases.
 from __future__ import annotations
 
 import argparse
+import ast
 from collections.abc import Mapping
+from io import StringIO
 import logging
 import sys
+import tokenize
 from pathlib import Path
 
 # `src/` directory (this script lives at src/brave/tools/cr/).
@@ -34,7 +37,8 @@ import gclient_eval  # pylint: disable=wrong-import-position,import-error
 import gclient_paths  # pylint: disable=wrong-import-position,import-error
 import gclient_utils  # pylint: disable=wrong-import-position,import-error
 
-from extra_deps import EXTRA_DEPS  # pylint: disable=wrong-import-position
+from extra_deps import (  # pylint: disable=wrong-import-position
+    EXTRA_DEPS, EXTRA_DEPS_FILE)
 from tarball_installer import (  # pylint: disable=wrong-import-position
     TarballInstaller)
 
@@ -62,6 +66,149 @@ def _select_object(objects: list[dict],
         raise RuntimeError('Multiple objects match the resolved variables: ' +
                            ', '.join(obj['object_name'] for obj in matches))
     return matches[0]
+
+
+# The optional per-object overlay-base key our own EXTRA_DEPS schema adds on
+# top of upstream's GCS-dep object schema (see the module docstring).
+# `gclient_eval.SetGCS` only knows about upstream's own keys (`object_name`,
+# `sha256sum`, `size_bytes`, `generation`), so `setdep` rewrites this one
+# itself, the same way SetGCS rewrites its own.
+_OVERLAYED_ON_KEY = 'overlayed_on'
+
+# Object keys `setdep` can rewrite: the plain GCS-object triple, always
+# required, plus the optional overlay base.
+_SETDEP_REQUIRED_KEYS = ('object_name', 'sha256sum', 'size_bytes')
+_SETDEP_OBJECT_KEYS = _SETDEP_REQUIRED_KEYS + (_OVERLAYED_ON_KEY, )
+
+
+def _parse_object_spec(spec: str) -> dict[str, str]:
+    """Parse one `object_name,sha256sum,size_bytes[,overlayed_on]` setdep arg.
+    """
+    fields = [field.strip() for field in spec.split(',')]
+    if (len(fields)
+            not in (len(_SETDEP_REQUIRED_KEYS), len(_SETDEP_OBJECT_KEYS))
+            or not all(fields)):
+        raise ValueError(
+            f'Object {spec!r} must be `{",".join(_SETDEP_REQUIRED_KEYS)}`, '
+            f'optionally followed by `{_OVERLAYED_ON_KEY}` (no field may be '
+            f'empty).')
+    obj = dict(zip(_SETDEP_OBJECT_KEYS, fields))
+    if not obj['size_bytes'].isdigit():
+        raise ValueError(f'size_bytes must be a non-negative integer, got '
+                         f'{obj["size_bytes"]!r}.')
+    return obj
+
+
+def format_setdep_revision(path: str, objects: list[dict]) -> str:
+    """Build one `setdep`/`-r` argument from `path`'s current EXTRA_DEPS.
+
+    Renders each object as `object_name,sha256sum,size_bytes`, plus
+    `overlayed_on` when the object has one, joined with `?` in order -- the
+    inverse of `_parse_object_spec`.
+    """
+
+    def render(obj: dict) -> str:
+        keys = (_SETDEP_OBJECT_KEYS
+                if _OVERLAYED_ON_KEY in obj else _SETDEP_REQUIRED_KEYS)
+        return ','.join(str(obj[key]) for key in keys)
+
+    return f'{path}@' + '?'.join(render(obj) for obj in objects)
+
+
+def _load_editable_extra_deps(extra_deps_file: Path) -> gclient_eval._NodeDict:
+    """Parse `extra_deps_file` into gclient's token-aware, editable form.
+
+    We drive the tokeniser, capturing every comment, blank line, and quote
+    style.
+
+    gclient's in-place editor (`SetGCS`) and renderer key off a top-level
+    `deps` mapping, so the table is also exposed under `deps` (sharing the very
+    same nodes and tokens) to drive that machinery unchanged.
+    """
+    content = extra_deps_file.read_text(encoding='utf-8')
+    filename = str(extra_deps_file)
+
+    # pylint: disable=protected-access
+    tokens = {
+        token[2]: list(token)
+        for token in tokenize.generate_tokens(StringIO(content).readline)
+    }
+    scope = gclient_eval._NodeDict({}, tokens)
+    for statement in ast.parse(content, filename=filename).body:
+        if (not isinstance(statement, ast.Assign)
+                or len(statement.targets) != 1
+                or not isinstance(statement.targets[0], ast.Name)):
+            raise ValueError(
+                f'{filename}: only simple `name = ...` assignments are '
+                f'supported.')
+        scope.SetNode(statement.targets[0].id,
+                      gclient_eval._gclient_eval(statement.value, filename),
+                      statement.value)
+
+    if 'extra_deps' not in scope:
+        raise ValueError(f'{filename}: no `extra_deps` assignment found.')
+    scope.SetNode('deps', scope['extra_deps'], scope.GetNode('extra_deps'))
+    return scope
+
+
+def _set_objects(scope: gclient_eval._NodeDict, path: str,
+                 new_objects: list[dict[str, str]]) -> None:
+    """Rewrite one EXTRA_DEPS entry's objects in place, in `scope`'s tokens.
+
+    Delegates `object_name`/`sha256sum`/`size_bytes` to `gclient_eval.SetGCS`,
+    which also enforces the object-count match, then separately rewrites
+    `overlayed_on` for the objects that specify it, since `SetGCS` only knows
+    about upstream's own GCS-dep keys.
+    """
+    gclient_eval.SetGCS(scope, path, new_objects)
+
+    tokens = scope.tokens
+    objects_node = scope['deps'][path].GetNode('objects')
+    for index, object_node in enumerate(objects_node.elts):
+        overlayed_on = new_objects[index].get(_OVERLAYED_ON_KEY)
+        if overlayed_on is None:
+            continue
+        for key, value in zip(object_node.keys, object_node.values):
+            if key.value == _OVERLAYED_ON_KEY:
+                # pylint: disable-next=protected-access
+                gclient_eval._UpdateAstString(tokens, value, overlayed_on)
+                break
+        else:
+            raise ValueError(f'Object {index} of {path!r} has no '
+                             f'{_OVERLAYED_ON_KEY!r} key to update.')
+
+
+def setdep(revisions: list[str], extra_deps_file: Path | None = None) -> None:
+    """Repin one or more EXTRA_DEPS entries in place, preserving formatting.
+
+    Each `revisions` element is a `DEP@object[?object...]` string (as
+    `gclient setdep -r` takes), where every object is an
+    `object_name,sha256sum,size_bytes` triple, optionally followed by
+    `overlayed_on`. The number of objects must match the entry's current
+    object count, and their order is preserved.
+    """
+    extra_deps_file = extra_deps_file or EXTRA_DEPS_FILE
+    scope = _load_editable_extra_deps(extra_deps_file)
+    for revision in revisions:
+        path, separator, objects_spec = revision.partition('@')
+        if not separator or not path or not objects_spec:
+            raise ValueError(
+                f'Revision {revision!r} must be of the form `DEP@object,...`.')
+        if path not in scope['extra_deps']:
+            raise ValueError(f'Unknown EXTRA_DEPS entry {path!r}. Known '
+                             f'entries: {sorted(scope["extra_deps"])}.')
+        new_objects = [
+            _parse_object_spec(obj) for obj in objects_spec.split('?')
+        ]
+        _set_objects(scope, path, new_objects)
+        _LOG.info('Repinned %s', path)
+
+    # `RenderDEPSFile` untokenizes the (now-mutated) tokens back to source, so
+    # everything the edit did not touch is byte-for-byte preserved. `newline=''`
+    # keeps the file's `\n` line endings intact on every platform.
+    extra_deps_file.write_text(gclient_eval.RenderDEPSFile(scope),
+                               encoding='utf-8',
+                               newline='')
 
 
 class ExtraDepsRunner:
@@ -193,11 +340,8 @@ class ExtraDepsRunner:
             return
 
         overlayed_on = obj.get('overlayed_on')
-        installer = TarballInstaller(dest_dir=_SRC_DIR.parent / path,
-                                     url=spec['bucket'] + obj['object_name'],
-                                     object_name=obj['object_name'],
-                                     sha256sum=obj['sha256sum'],
-                                     owns_dest=not overlayed_on)
+        installer = TarballInstaller.for_object(_SRC_DIR.parent / path,
+                                                spec['bucket'], obj)
 
         # An overlay must sit on the base it was built against: validate it
         # still matches DEPS before touching the destination. No `overlayed_on`
@@ -221,7 +365,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description='Download and install the bucket-hosted archive(s) for the '
         'given EXTRA_DEPS entries.')
-    parser.add_argument(
+    subparsers = parser.add_subparsers(dest='command', required=True)
+
+    sync_parser = subparsers.add_parser(
+        'sync',
+        help='Download and install the bucket-hosted archive(s) for the given '
+        'EXTRA_DEPS entries.')
+    sync_parser.add_argument(
         'deps',
         nargs='+',
         choices=sorted(EXTRA_DEPS),
@@ -229,7 +379,30 @@ def main() -> int:
         help='One or more path keys in EXTRA_DEPS identifying the entries to '
         'install. Entries whose condition is false on this host are skipped, '
         'so a single invocation may list every per-platform variant.')
+
+    setdep_parser = subparsers.add_parser(
+        'setdep',
+        help='Repin EXTRA_DEPS entries in place, preserving comments and '
+        'formatting (like `gclient setdep`).')
+    setdep_parser.add_argument(
+        '-r',
+        '--revision',
+        action='append',
+        dest='revisions',
+        required=True,
+        metavar='DEP@object_name,sha256sum,size_bytes[,overlayed_on][?...]',
+        help='Repin the EXTRA_DEPS entry DEP to the given object(s). Each '
+        'object is an `object_name,sha256sum,size_bytes` triple, optionally '
+        'followed by `overlayed_on`. Join multiple objects with `?`, in the '
+        'entry\'s existing order. The object count must match the entry\'s '
+        'current count. May be repeated to repin several entries in one '
+        'invocation.')
+
     args = parser.parse_args()
+
+    if args.command == 'setdep':
+        setdep(args.revisions)
+        return 0
 
     runner = ExtraDepsRunner.from_checkout()
     for dep in args.deps:

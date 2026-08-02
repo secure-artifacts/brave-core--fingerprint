@@ -32,16 +32,17 @@ import {
 } from '../components/extension/public_encryption_key_panels/decrypt_message_request_panel'
 
 import { LongWrapper, ConnectWithSiteWrapper } from '../stories/style'
-import { PanelWrapper, WelcomePanelWrapper } from './style'
+import { PanelWrapper } from './style'
 import { FullScreenWrapper } from '../page/screens/page-screen.styles'
 
 import { TransactionStatus } from '../components/extension/post-confirmation'
 import {
   useSafePanelSelector,
+  useSafeUISelector,
   useSafeWalletSelector,
   useUnsafePanelSelector,
 } from '../common/hooks/use-safe-selector'
-import { WalletSelectors } from '../common/selectors'
+import { UISelectors, WalletSelectors } from '../common/selectors'
 import { PanelSelectors } from './selectors'
 import {
   useGetPendingAddChainRequestQuery,
@@ -85,6 +86,9 @@ function Container() {
   const hasInitialized = useSafeWalletSelector(WalletSelectors.hasInitialized)
   const isWalletCreated = useSafeWalletSelector(WalletSelectors.isWalletCreated)
   const isWalletLocked = useSafeWalletSelector(WalletSelectors.isWalletLocked)
+
+  // ui selectors (safe)
+  const isSidePanel = useSafeUISelector(UISelectors.isSidePanel)
 
   // panel selectors (safe)
   const selectedPanel = useSafePanelSelector(PanelSelectors.selectedPanel)
@@ -150,8 +154,8 @@ function Container() {
   if (!hasInitialized || isLoadingPendingActions) {
     return (
       <PanelWrapper
-        width={390}
         height={650}
+        isSidePanel={isSidePanel}
       >
         <FullScreenWrapper>
           <ProgressRing mode='indeterminate' />
@@ -162,19 +166,20 @@ function Container() {
 
   if (!isWalletCreated) {
     return (
-      <WelcomePanelWrapper>
-        <LongWrapper>
-          <WelcomePanel />
-        </LongWrapper>
-      </WelcomePanelWrapper>
+      <PanelWrapper
+        height={650}
+        isSidePanel={isSidePanel}
+      >
+        <WelcomePanel />
+      </PanelWrapper>
     )
   }
 
   if (isWalletLocked) {
     return (
       <PanelWrapper
-        width={390}
         height={650}
+        isSidePanel={isSidePanel}
       >
         <PageContainer />
       </PanelWrapper>
@@ -190,10 +195,7 @@ function Container() {
       }
     })
     return (
-      <PanelWrapper
-        width={390}
-        height={600}
-      >
+      <PanelWrapper height={600}>
         <ConnectWithSiteWrapper>
           <ConnectWithSite
             originInfo={connectToSiteOrigin}
@@ -211,10 +213,7 @@ function Container() {
       || signSolTransactionsRequests?.length)
   ) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <ConnectHardwareWalletPanel hardwareWalletCode={hardwareWalletCode} />
       </PanelWrapper>
     )
@@ -222,10 +221,7 @@ function Container() {
 
   if (addChainRequest) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <AllowAddChangeNetworkPanel addChainRequest={addChainRequest} />
       </PanelWrapper>
     )
@@ -233,10 +229,7 @@ function Container() {
 
   if (switchChainRequest) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <AllowAddChangeNetworkPanel switchChainRequest={switchChainRequest} />
       </PanelWrapper>
     )
@@ -244,10 +237,7 @@ function Container() {
 
   if (signMessageErrorData?.length) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <SignInWithEthereumError />
       </PanelWrapper>
     )
@@ -255,10 +245,7 @@ function Container() {
 
   if (signMessageData?.length && signMessageData[0].signData.ethSiweData) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <SignInWithEthereum data={signMessageData[0]} />
       </PanelWrapper>
     )
@@ -266,10 +253,7 @@ function Container() {
 
   if (getEncryptionPublicKeyRequest) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <ProvidePublicEncryptionKeyPanel
           payload={getEncryptionPublicKeyRequest}
         />
@@ -279,10 +263,7 @@ function Container() {
 
   if (decryptRequest) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <DecryptMessageRequestPanel payload={decryptRequest} />
       </PanelWrapper>
     )
@@ -304,10 +285,7 @@ function Container() {
 
   if (addTokenRequests.length) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <AddSuggestedTokenPanel />
       </PanelWrapper>
     )
@@ -319,10 +297,7 @@ function Container() {
     && !submittingTransaction
   ) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <LongWrapper padding='0px'>
           <TransactionStatus transactionLookup={selectedTransactionId} />
         </LongWrapper>
@@ -335,10 +310,7 @@ function Container() {
 
   if (pendingOrConfirmingTransaction) {
     return (
-      <PanelWrapper
-        width={390}
-        height={650}
-      >
+      <PanelWrapper height={650}>
         <PendingTransactionPanel
           selectedPendingTransaction={pendingOrConfirmingTransaction}
         />
@@ -368,8 +340,8 @@ function Container() {
 
   return (
     <PanelWrapper
-      width={390}
       height={650}
+      isSidePanel={isSidePanel}
     >
       <PageContainer />
     </PanelWrapper>

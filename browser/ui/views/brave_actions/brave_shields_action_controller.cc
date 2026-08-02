@@ -18,6 +18,7 @@
 #include "brave/components/constants/webui_url_constants.h"
 #include "brave/components/speedreader/common/buildflags/buildflags.h"
 #include "brave/components/vector_icons/vector_icons.h"
+#include "brave/ui/color/nala/nala_color_id.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
@@ -47,8 +48,6 @@
 #endif
 
 namespace {
-constexpr SkColor kBadgeBg = SkColorSetRGB(0x63, 0x64, 0x72);
-
 // Returns the color provider for |web_contents|, falling back to the native UI
 // color provider when there is no active web contents.
 const ui::ColorProvider* GetColorProviderForWebContents(
@@ -182,12 +181,14 @@ BraveShieldsActionController::GetImageSource(
       badge_text = count > 99 ? "99+" : base::NumberToString(count);
     }
 
-    is_enabled = shields_data_controller->GetBraveShieldsEnabled() &&
+    is_enabled = shields_data_controller->IsBraveShieldsEnabled() &&
                  !IsPageInReaderMode(web_contents);
 
     if (!badge_text.empty()) {
       badge = std::make_unique<IconWithBadgeImageSource::Badge>(
-          badge_text, SK_ColorWHITE, kBadgeBg);
+          badge_text, SK_ColorWHITE,
+          GetColorProviderForWebContents(web_contents)
+              ->GetColor(nala::kColorPrimitiveNeutral40));
     }
   }
 
@@ -238,8 +239,7 @@ bool BraveShieldsActionController::IsPageInReaderMode(
 #if BUILDFLAG(ENABLE_SPEEDREADER)
   if (auto* speedreader_tab_helper =
           speedreader::SpeedreaderTabHelper::FromWebContents(web_contents)) {
-    return speedreader::DistillStates::IsDistilled(
-        speedreader_tab_helper->PageDistillState());
+    return speedreader::IsDistilled(speedreader_tab_helper->PageDistillState());
   }
 #endif
   return false;

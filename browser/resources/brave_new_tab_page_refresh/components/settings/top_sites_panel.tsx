@@ -13,6 +13,7 @@ import {
   useTopSitesActions,
 } from '../../context/top_sites_context'
 import { getString } from '../../lib/strings'
+import { SettingsPanel } from './settings_panel'
 import classNames from '$web-common/classnames'
 
 import { style } from './top_sites_panel.style'
@@ -21,6 +22,7 @@ export function TopSitesPanel() {
   const actions = useTopSitesActions()
 
   const showTopSites = useTopSitesState((s) => s.showTopSites)
+  const showSponsoredSites = useTopSitesState((s) => s.showSponsoredSites)
   const listKind = useTopSitesState((s) => s.topSitesListKind)
 
   function renderSelectedMarker(kind: TopSitesListKind) {
@@ -35,7 +37,10 @@ export function TopSitesPanel() {
   }
 
   return (
-    <div data-css-scope={style.scope}>
+    <SettingsPanel
+      cssScope={style.scope}
+      title={getString(S.NEW_TAB_TOP_SITES_SETTINGS_TITLE)}
+    >
       <Toggle
         className='toggle-row'
         size='small'
@@ -48,6 +53,20 @@ export function TopSitesPanel() {
           {getString(S.NEW_TAB_SHOW_TOP_SITES_LABEL)}
         </span>
       </Toggle>
+      {showTopSites && (
+        <Toggle
+          className='toggle-row'
+          size='small'
+          checked={showSponsoredSites}
+          onChange={({ checked }) => {
+            actions.setShowSponsoredSites(checked)
+          }}
+        >
+          <span className='label'>
+            {getString(S.NEW_TAB_SHOW_SPONSORED_SITES_LABEL)}
+          </span>
+        </Toggle>
+      )}
       {showTopSites && (
         <div className='list-view-options'>
           <button
@@ -82,6 +101,6 @@ export function TopSitesPanel() {
           </button>
         </div>
       )}
-    </div>
+    </SettingsPanel>
   )
 }

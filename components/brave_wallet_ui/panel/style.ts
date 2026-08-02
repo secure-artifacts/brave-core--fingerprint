@@ -9,22 +9,19 @@ export const PanelWrapper = styled.div<{
   isLonger?: boolean
   width?: number
   height?: number
+  isSidePanel?: boolean
 }>`
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: ${(p) => (p.width ? p.width : 320)}px;
+  width: ${(p) => (p.width ? p.width : 390)}px;
   height: ${(p) => (p.height ? p.height : p.isLonger ? 540 : 400)}px;
   background-color: ${leo.color.page.background};
-`
-
-export const WelcomePanelWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 320px;
-  height: 250px;
+  /* Cr151+ bubble autosize uses document scrollWidth; clip overflow so
+     absolute/fixed children cannot inflate the panel beyond its set size. */
+  overflow: ${(p) => (p.isSidePanel ? 'unset' : 'hidden')};
+  contain: ${(p) => (p.isSidePanel ? 'unset' : 'layout')};
 `
 
 export const SendWrapper = styled.div`

@@ -8,11 +8,13 @@
 #include "base/metrics/histogram_macros.h"
 #include "brave/browser/brave_browser_process.h"
 #include "brave/browser/brave_stats/first_run_util.h"
+#include "brave/browser/misc_metrics/media_session_metrics_impl.h"
 #include "brave/browser/misc_metrics/process_misc_metrics.h"
 #include "brave/browser/misc_metrics/profile_new_tab_metrics.h"
 #include "brave/browser/misc_metrics/theme_metrics.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_shields/core/common/pref_names.h"
+#include "brave/components/constants/pref_names.h"
 #include "brave/components/misc_metrics/autofill_metrics.h"
 #include "brave/components/misc_metrics/language_metrics.h"
 #include "brave/components/misc_metrics/page_metrics.h"
@@ -39,8 +41,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "brave/browser/misc_metrics/misc_android_metrics.h"
 #include "brave/browser/search_engines/search_engine_tracker.h"
-#include "brave/components/misc_metrics/brave_search_metrics.h"
-#include "brave/components/misc_metrics/navigation_source_metrics.h"
 #else
 #include "brave/browser/misc_metrics/extension_metrics.h"
 #include "extensions/browser/extension_registry_factory.h"
@@ -83,24 +83,17 @@ ProfileMiscMetricsService::ProfileMiscMetricsService(
   if (history_service && host_content_settings_map && process_misc_metrics) {
     page_metrics_ = std::make_unique<PageMetrics>(
         local_state, profile_prefs_, host_content_settings_map, history_service,
-        bookmark_model,
-        g_brave_browser_process->process_misc_metrics()
-            ->default_browser_monitor(),
-        template_url_service,
+        bookmark_model, process_misc_metrics->default_browser_monitor(),
+        process_misc_metrics->media_session_metrics(), template_url_service,
         base::BindRepeating(&brave_stats::GetFirstRunTime,
                             base::Unretained(local_state)));
   }
 #if BUILDFLAG(IS_ANDROID)
   auto* search_engine_tracker =
       SearchEngineTrackerFactory::GetInstance()->GetForBrowserContext(context);
-  BraveSearchMetrics* brave_search_metrics =
-      page_metrics_ ? &page_metrics_->brave_search_metrics() : nullptr;
-  NavigationSourceMetrics* navigation_source_metrics =
-      page_metrics_ ? &page_metrics_->navigation_source_metrics() : nullptr;
   misc_android_metrics_ = std::make_unique<MiscAndroidMetrics>(
       local_state, g_brave_browser_process->process_misc_metrics(),
-      search_engine_tracker, template_url_service, brave_search_metrics,
-      navigation_source_metrics);
+      search_engine_tracker, template_url_service, page_metrics_.get());
 #else
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistryFactory::GetForBrowserContext(context);
@@ -115,6 +108,10 @@ ProfileMiscMetricsService::ProfileMiscMetricsService(
     new_tab_metrics_ = std::make_unique<ProfileNewTabMetrics>(profile_prefs_);
     pref_change_registrar_.Add(
         prefs::kSearchSuggestEnabled,
+        base::BindRepeating(&ProfileMiscMetricsService::ReportSimpleMetrics,
+                            base::Unretained(this)));
+    pref_change_registrar_.Add(
+        kNewTabPageShowSponsoredSites,
         base::BindRepeating(&ProfileMiscMetricsService::ReportSimpleMetrics,
                             base::Unretained(this)));
   }
@@ -169,6 +166,10 @@ void ProfileMiscMetricsService::ReportSimpleMetrics() {
       profile_prefs_->GetBoolean(brave_shields::prefs::kAdBlockDeveloperMode);
   UMA_HISTOGRAM_EXACT_LINEAR(kShieldsDevModeEnabledHistogramName,
                              shields_dev_mode_enabled ? 1 : INT_MAX - 1, 2);
+  bool show_sponsored_sites =
+      profile_prefs_->GetBoolean(kNewTabPageShowSponsoredSites);
+  UMA_HISTOGRAM_EXACT_LINEAR(kNewTabPageShowSponsoredSitesHistogramName,
+                             show_sponsored_sites ? INT_MAX - 1 : 0, 2);
 }
 
 #if BUILDFLAG(ENABLE_AI_CHAT)

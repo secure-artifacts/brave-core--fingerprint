@@ -13,10 +13,13 @@ Holds everything needed to run a recipe with zero real side effects:
     read/mutate it instead of the real machine.
   * `SubprocessStepRunner` / `SimulationStepRunner`: the two `step`
     back-ends. Production shells out (with the Windows resolution that used to
-    live in `StepApi`); simulation records an ordered step list and returns
-    canned results.
+    live in `StepApi`) and redirects the step's std handles at the files its
+    placeholders rendered to; simulation records an ordered step list, runs
+    nothing, and hands back the canned retcode. Both also answer the `step`
+    module's request for a step's simulated data -- production with a
+    `DisabledTestData`, so placeholders know they are running for real.
   * expectation helpers: `stabilize` (machine paths -> `[WORKSPACE]`/`[HOME]`
-    tokens), `serialize_steps`, and `apply_post_process`.
+    tokens), `build_steps`, and `apply_post_process`.
 
 Deliberately never imports `engine` (the engine imports this), so there is no
 cycle: the test runner in `engine.py` drives a recipe, then hands the recorded
@@ -25,15 +28,20 @@ steps here for post-processing and serialization.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections import Counter
+from collections.abc import Callable, Iterable
 import copy
+import inspect
 from pathlib import Path, PurePosixPath
 import subprocess
+import sys
 from typing import Any
 
+from check import Check, Checker, PostProcessError, VerifySubset
 from engine_env import merge_envs
 import post_process as pp
-from recipe_test_api import StepTestData, TestData
+from recipe_test_api import (DisabledTestData, PostprocessHookContext,
+                             StepTestData, TestData)
 
 # Fixed synthetic locations used in test mode. They are never touched on disk;
 # they exist only so module-derived paths are deterministic, and are rewritten
@@ -43,6 +51,18 @@ SIM_HOME = PurePosixPath('/b/home')
 
 WORKSPACE_TOKEN = '[WORKSPACE]'
 HOME_TOKEN = '[HOME]'
+
+# This engine's own root (`tools/recipes/`), for stabilizing commands that
+# reference a resource file living next to a recipe module (e.g. `file`'s
+# `resources/fileutil.py`) via a real `Path(__file__).resolve()`-derived
+# path -- unlike `SIM_WORKSPACE`/`SIM_HOME`, this is a real machine path even
+# in test mode, so it varies by checkout location unless stabilized here too.
+# Computed independently of (but always equal to) `engine.RECIPES_ROOT`,
+# since both are `Path(__file__).resolve().parent` of a sibling file in this
+# same directory; this module deliberately never imports `engine` (see the
+# module docstring).
+RECIPES_ROOT = Path(__file__).resolve().parent
+RECIPES_ROOT_TOKEN = '[RECIPES_ROOT]'
 
 
 def _norm(path: str | Path) -> str:
@@ -95,9 +115,18 @@ class SubprocessStepRunner:
     `StepApi.__call__`, so the API layer no longer touches the OS directly.
     """
 
-    def run(self, step: dict, *, check: bool,
-            capture_output: bool) -> subprocess.CompletedProcess:
-        import os  # Local imports: only the prod path needs these.
+    def step_test_data(
+        self, name: str, step_test_data_fn: Callable[[], StepTestData] | None
+    ) -> DisabledTestData:
+        """Nothing is simulated here: every lookup answers "not simulated"."""
+        del name, step_test_data_fn
+        return DisabledTestData()
+
+    def run(
+        self, step: dict, handles: dict[str, str | None]
+    ) -> int:  # pragma: no cover - production step backend.
+        import contextlib  # Local imports: only the prod path needs these.
+        import os
         import platform
         import shutil
 
@@ -120,38 +149,66 @@ class SubprocessStepRunner:
         if overrides or prefixes or suffixes:
             env = merge_envs(os.environ, overrides or {}, prefixes or {},
                              suffixes or {}, os.pathsep)
-        return subprocess.run(cmd,
-                              cwd=step.get('cwd'),
-                              env=env,
-                              check=check,
-                              capture_output=capture_output,
-                              text=True)
+
+        # Point the child's std handles at the files the step's placeholders
+        # rendered to. A handle with no placeholder is left inherited, so a
+        # step's output still reaches the build log by default.
+        with contextlib.ExitStack() as stack:
+
+            def _open(handle: str, mode: str):
+                path = handles.get(handle)
+                if path is None:
+                    return None
+                return stack.enter_context(open(path, mode))
+
+            return subprocess.run(cmd,
+                                  cwd=step.get('cwd'),
+                                  env=env,
+                                  check=False,
+                                  stdin=_open('stdin', 'rb'),
+                                  stdout=_open('stdout', 'wb'),
+                                  stderr=_open('stderr', 'wb')).returncode
 
 
 class SimulationStepRunner:
-    """Simulation step back-end: record the step, return canned data.
+    """Simulation step back-end: record the step, return the canned retcode.
 
     No subprocess ever runs. Each `run` appends a step dict to `recorded_steps`
-    (the ordered stream the expectation is built from) and returns a
-    `CompletedProcess` seeded from the step's `StepTestData`. When the step is
-    `check`ed and its seeded retcode is non-zero, it raises the genuine
-    `subprocess.CalledProcessError` so module `except CalledProcessError` arms
-    and the recipe's failure path behave exactly as in production.
+    (the ordered stream the expectation is built from). The step's simulated
+    data -- its retcode and its placeholders' contents -- is handed to the
+    `step` module by `step_test_data`, which merges what the test case seeded
+    for the step on top of the step's own `step_test_data=` default.
     """
 
-    def __init__(self,
-                 step_data: dict[str, StepTestData] | None = None) -> None:
-        self._step_data = step_data or {}
+    def __init__(self, test_data: TestData | None = None) -> None:
+        self._test_data = test_data if test_data is not None else TestData()
+        # step name -> the data handed out for it, so `run` can read back the
+        # retcode the case seeded without the `step` module passing it along.
+        self._used_steps: dict[str, StepTestData] = {}
         self.recorded_steps: list[dict] = []
 
-    def run(self, step: dict, *, check: bool,
-            capture_output: bool) -> subprocess.CompletedProcess:
-        data = self._step_data.get(step['name'], StepTestData())
-        cmd = [str(arg) for arg in step['cmd']]
+    def step_test_data(
+            self, name: str, step_test_data_fn: Callable[[], StepTestData]
+        | None) -> StepTestData:
+        """The simulated data for the step named *name*."""
+        data = self._test_data.get_step_test_data(
+            name, step_test_data_fn or StepTestData)
+        self._used_steps[name] = data
+        return data
 
-        record: dict[str, Any] = {'name': step['name'], 'cmd': cmd}
+    def run(self, step: dict, handles: dict[str, str | None]) -> int:
+        # The std handles' backing files are of no interest to the expectation
+        # (they are temporary, and their contents come from the test data),
+        # except for stdin: what a step is fed is worth recording.
+        del handles
+        record: dict[str, Any] = {
+            'name': step['name'],
+            'cmd': [str(arg) for arg in step['cmd']],
+        }
         if step.get('cwd'):
             record['cwd'] = str(step['cwd'])
+        if step.get('stdin') is not None:
+            record['stdin'] = str(step['stdin'])
         if step.get('env'):
             # A `None` value means "remove this variable"; preserve it (rather
             # than stringifying to 'None') so it renders as null.
@@ -165,25 +222,11 @@ class SimulationStepRunner:
                     k: [str(v) for v in values]
                     for k, values in step[affix].items()
                 }
-        if data.retcode:
-            record['retcode'] = data.retcode
+        retcode = self._used_steps[step['name']].retcode
+        if retcode:
+            record['retcode'] = retcode
         self.recorded_steps.append(record)
-
-        # Mirror subprocess: captured output is only available when the caller
-        # asked to capture it; otherwise the child inherited the parent streams
-        # and `stdout`/`stderr` come back as None.
-        stdout = data.stdout if capture_output else None
-        stderr = data.stderr if capture_output else None
-
-        if check and data.retcode != 0:
-            raise subprocess.CalledProcessError(data.retcode,
-                                                cmd,
-                                                output=stdout,
-                                                stderr=stderr)
-        return subprocess.CompletedProcess(cmd,
-                                           data.retcode,
-                                           stdout=stdout,
-                                           stderr=stderr)
+        return retcode
 
 
 class TestContext:
@@ -197,13 +240,16 @@ class TestContext:
                  dirs: Iterable[str | Path] = (),
                  which_map: dict[str, str] | None = None,
                  home: str | Path = SIM_HOME,
-                 step_data: dict[str, StepTestData] | None = None) -> None:
+                 test_data: TestData | None = None) -> None:
         self.platform = platform
         self.env = dict(env or {})
         self.fs = SimFS(files, dirs)
         self.which_map = dict(which_map or {})
         self.home = Path(str(home))
-        self.step_runner = SimulationStepRunner(step_data)
+        # Per-prefix counter behind `api.path.mkdtemp`, so a run's temporary
+        # directories get stable, ordered names instead of random ones.
+        self.temp_counter: Counter[str] = Counter()
+        self.step_runner = SimulationStepRunner(test_data)
 
     @classmethod
     def from_test_data(cls, test_data: TestData) -> TestContext:
@@ -223,7 +269,7 @@ class TestContext:
             which_map=dict(env_seed.get('which', {})),
             files=[_resolve_seed(p) for p in path_seed.get('files', [])],
             dirs=[_resolve_seed(p) for p in path_seed.get('dirs', [])],
-            step_data=test_data.step_data,
+            test_data=test_data,
         )
 
 
@@ -235,17 +281,21 @@ def _resolve_seed(path: str) -> str:
 
 def stabilize(value: str, context: TestContext | None = None) -> str:
     """Rewrite machine-specific path prefixes to stable tokens."""
+    value = value.replace(str(RECIPES_ROOT), RECIPES_ROOT_TOKEN)
     value = value.replace(str(SIM_WORKSPACE), WORKSPACE_TOKEN)
     home = str(context.home) if context is not None else str(SIM_HOME)
     return value.replace(home, HOME_TOKEN)
 
 
-def build_steps(runner: SimulationStepRunner, status: str, reason: str | None,
+def build_steps(runner: SimulationStepRunner, failure: dict | None,
                 context: TestContext) -> dict[str, dict]:
     """Assemble the ordered `{name: step}` map (+ `$result`) for post-process.
 
-    Paths are stabilized here so post-process checks and the written
-    expectation see the same tokenized commands.
+    Paths are stabilized here so post-process checks and the written expectation
+    see the same tokenized commands. `failure` is `None` for a successful run,
+    otherwise it is the terminal result's `failure` payload. A non-infra failure
+    carries an inner `{'failure': {}}`, which an infra failure does not. Any
+    machine paths in its `humanReason` are stabilized too.
     """
     steps: dict[str, dict] = {}
     for step in runner.recorded_steps:
@@ -255,6 +305,8 @@ def build_steps(runner: SimulationStepRunner, status: str, reason: str | None,
         }
         if 'cwd' in step:
             entry['cwd'] = stabilize(step['cwd'], context)
+        if 'stdin' in step:
+            entry['stdin'] = stabilize(step['stdin'], context)
         if 'env' in step:
             entry['env'] = {
                 k: (None if v is None else stabilize(v, context))
@@ -270,34 +322,67 @@ def build_steps(runner: SimulationStepRunner, status: str, reason: str | None,
             entry['retcode'] = step['retcode']
         steps[step['name']] = entry
 
-    result: dict[str, Any] = {'name': pp.RESULT_STEP, 'status': status}
-    if reason is not None:
-        result['reason'] = reason
+    result: dict[str, Any] = {'name': pp.RESULT_STEP}
+    if failure is not None:
+        if 'humanReason' in failure:
+            failure = {
+                **failure,
+                'humanReason': stabilize(failure['humanReason'], context),
+            }
+        result['failure'] = failure
     steps[pp.RESULT_STEP] = result
     return steps
 
 
 def apply_post_process(
-        hooks, steps: dict[str,
-                           dict]) -> tuple[dict[str, dict] | None, list[str]]:
-    """Run post-process hooks; return (filtered steps or None, failures).
+        hooks: list[PostprocessHookContext],
+        steps: dict[str, dict]) -> tuple[dict[str, dict] | None, list[Check]]:
+    """Run post-process hooks.
 
-    Each hook gets its own `Checker` and a deep copy of the current steps. A
-    hook that returns a mapping replaces the steps for later hooks and for the
-    written expectation; an empty mapping drops the expectation (returns None).
+    Each hook gets its own `Checker` and a deep copy of the current steps (the
+    checker MUST be a local so its stack walk can find the frames to blame). A
+    `KeyError` from a hook (e.g. indexing a step that didn't run) is rendered as
+    a failed check rather than aborting the case. A hook that returns a mapping
+    filters the steps for later hooks and for the written expectation, but only
+    after `VerifySubset` confirms it introduced no new keys / reordering /
+    changed values, otherwise a `PostProcessError` is raised. An empty mapping
+    drops the expectation (returns `None`).
     """
-    failures: list[str] = []
+    failed_checks: list[Check] = []
     for hook in hooks:
-        check = pp.Checker(hook.context)
         working = copy.deepcopy(steps)
+        # Kept in a local named `check`: `Checker._call_impl` walks the stack for
+        # the frame in which the checker is a local variable.
+        check = Checker(hook, working)
         try:
             result = hook.func(check, working, *hook.args, **hook.kwargs)
-        except Exception as exc:  # pylint: disable=broad-except
-            failures.append(f'{hook.context}: hook raised {exc!r}')
+        except KeyError:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            try:
+                failed_checks.append(
+                    Check.create(
+                        '',
+                        hook,
+                        inspect.getinnerframes(exc_traceback)[1:],
+                        False,
+                        check._ignore_set,  # pylint: disable=protected-access
+                        {
+                            'raised exception': '%s: %s' %
+                            (exc_type.__name__, exc_value)
+                        },
+                    ))
+            finally:
+                # avoid reference cycle as suggested by inspect docs.
+                del exc_traceback
             continue
-        failures.extend(check.failures)
+        failed_checks += check.failed_checks
         if result is not None:
-            if not result:
-                return None, failures  # DropExpectation.
+            msg = VerifySubset(result, steps)
+            if msg:
+                raise PostProcessError('post process: steps' + msg)
+            # Restore 'name' if a filter dropped it.
+            for name, step in result.items():
+                step['name'] = name
             steps = result
-    return steps, failures
+    # An empty mapping means drop the expectation.
+    return (steps if steps else None), failed_checks

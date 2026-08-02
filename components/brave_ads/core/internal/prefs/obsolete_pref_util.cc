@@ -7,7 +7,6 @@
 
 #include <string_view>
 
-#include "brave/components/brave_ads/core/public/prefs/pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 
@@ -15,9 +14,8 @@ namespace brave_ads {
 
 namespace {
 
-constexpr std::string_view kObsoleteShouldShowSearchResultAdClickedInfoBar =
-    "brave.brave_ads.should_show_search_result_ad_clicked_infobar";
-
+constexpr std::string_view kObsoleteHasMigratedClientStateV7 =
+    "brave.brave_ads.state.has_migrated.client.v7";
 constexpr std::string_view kObsoleteHasMigratedConfirmationStateV8 =
     "brave.brave_ads.state.has_migrated.confirmations.v8";
 constexpr std::string_view kObsoleteHasMigratedStateV2 =
@@ -30,71 +28,14 @@ constexpr std::string_view kObsoleteNotificationAdLastNormalizedCoordinateY =
 constexpr std::string_view kObsoleteNotificationAdDidFallbackToCustom =
     "brave.brave_ads.ad_notification.did_fallback_to_custom";
 
-constexpr const char* kObsoleteP2APrefPaths[] = {
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.architecture)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.artsentertainment)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.automotive)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.business)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.careers)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.cellphones)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.crypto)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.education)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.familyparenting)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.fashion)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.folklore)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.fooddrink)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.gaming)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.healthfitness)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.history)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.hobbiesinterests)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.home)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.law)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.military)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.other)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.personalfinance)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.pets)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.realestate)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.science)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.sports)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.technologycomputing)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.travel)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.untargeted)",
-    R"(brave.weekly_storage.Brave.P2A.ad_notification.opportunities_per_segment.weather)",
-    R"(brave.weekly_storage.Brave.P2A.inline_content_ad.opportunities)",
-    R"(brave.weekly_storage.Brave.P2A.new_tab_page_ad.opportunities)"};
-
-constexpr std::string_view kNewTabPageEventCountDictPref =
-    "brave.brave_ads.p3a.ntp_event_count";
 constexpr std::string_view kNewTabPageEventCountConstellationDictPref =
     "brave.brave_ads.p3a.ntp_event_count_constellation";
 constexpr std::string_view kNewTabPageKnownCampaignsDictPref =
     "brave.brave_ads.p3a.ntp_known_campaigns";
 
-void MaybeMigrateShouldShowSearchResultAdClickedInfoBarProfilePref(
-    PrefService* const prefs) {
-  if (!prefs->HasPrefPath(kObsoleteShouldShowSearchResultAdClickedInfoBar)) {
-    return;
-  }
-
-  prefs->SetBoolean(
-      prefs::kShouldShowSearchResultAdClickedInfoBar,
-      prefs->GetBoolean(kObsoleteShouldShowSearchResultAdClickedInfoBar));
-  prefs->ClearPref(kObsoleteShouldShowSearchResultAdClickedInfoBar);
-}
-
 }  // namespace
 
 void RegisterProfilePrefsForMigration(PrefRegistrySimple* const registry) {
-  // Added 05/2025.
-  registry->RegisterBooleanPref(kObsoleteShouldShowSearchResultAdClickedInfoBar,
-                                false);
-
-  // Added 06/2025.
-  for (const auto* path : kObsoleteP2APrefPaths) {
-    registry->RegisterListPref(path);
-  }
-
   // Added 03/2026.
   registry->RegisterDoublePref(kObsoleteNotificationAdLastNormalizedCoordinateX,
                                0.0);
@@ -106,17 +47,12 @@ void RegisterProfilePrefsForMigration(PrefRegistrySimple* const registry) {
   // Added 04/2026.
   registry->RegisterBooleanPref(kObsoleteHasMigratedConfirmationStateV8, false);
   registry->RegisterBooleanPref(kObsoleteHasMigratedStateV2, false);
+
+  // Added 07/2026.
+  registry->RegisterBooleanPref(kObsoleteHasMigratedClientStateV7, false);
 }
 
 void MigrateObsoleteProfilePrefs(PrefService* const prefs) {
-  // Added 05/2025.
-  MaybeMigrateShouldShowSearchResultAdClickedInfoBarProfilePref(prefs);
-
-  // Added 06/2025.
-  for (const auto* path : kObsoleteP2APrefPaths) {
-    prefs->ClearPref(path);
-  }
-
   // Added 03/2026.
   prefs->ClearPref(kObsoleteNotificationAdLastNormalizedCoordinateX);
   prefs->ClearPref(kObsoleteNotificationAdLastNormalizedCoordinateY);
@@ -125,21 +61,18 @@ void MigrateObsoleteProfilePrefs(PrefService* const prefs) {
   // Added 04/2026.
   prefs->ClearPref(kObsoleteHasMigratedConfirmationStateV8);
   prefs->ClearPref(kObsoleteHasMigratedStateV2);
+
+  // Added 07/2026.
+  prefs->ClearPref(kObsoleteHasMigratedClientStateV7);
 }
 
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
-  // Added 06/2025
-  registry->RegisterDictionaryPref(kNewTabPageEventCountDictPref);
-
   // Added 10/2025
   registry->RegisterDictionaryPref(kNewTabPageEventCountConstellationDictPref);
   registry->RegisterDictionaryPref(kNewTabPageKnownCampaignsDictPref);
 }
 
 void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
-  // Added 06/2025
-  local_state->ClearPref(kNewTabPageEventCountDictPref);
-
   // Added 10/2025
   local_state->ClearPref(kNewTabPageEventCountConstellationDictPref);
   local_state->ClearPref(kNewTabPageKnownCampaignsDictPref);

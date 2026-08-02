@@ -19,11 +19,12 @@ import ConversationsList from '../conversations_list'
 import DeleteConversationModal from '../delete_conversation_modal'
 import { ConversationHeader } from '../header'
 import InputBox, { type InputBoxHandle } from '../input_box'
-import OpenExternalLinkModal from '../open_external_link_modal'
+import ImageLightbox from '../image_lightbox'
 import RateMessagePrivacyModal from '../rate_message_privacy_modal'
 import SkillModal from '../skill_modal/skill_modal'
 import PrivacyMessage from '../privacy_message'
 import FeedbackForm from '../feedback_form'
+import ShareConversationModal from '../share_conversation_modal'
 import ToolsMenu, {
   ExtendedActionEntry,
   getIsSkill,
@@ -41,6 +42,7 @@ function Main() {
   const conversationContext = useConversation()
   const [isConversationListOpen, setIsConversationsListOpen] =
     React.useState(false)
+  const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false)
   const { isDragActive, isDragOver } = conversationContext
 
   const showAttachments = !!conversationContext.attachmentsDialog
@@ -146,7 +148,9 @@ function Main() {
 
   return (
     <main
-      data-testid='main'
+      data-testid={
+        aiChatContext.isStandalone ? 'standalone-main' : 'sidepanel-main'
+      }
       className={classnames({
         [styles.main]: true,
         [styles.mainPanel]: !aiChatContext.isStandalone,
@@ -182,6 +186,7 @@ function Main() {
       <ConversationHeader
         ref={headerElement}
         setIsConversationsListOpen={setIsConversationsListOpen}
+        startSharingConversation={() => setIsShareDialogOpen(true)}
       />
       <AlertCenter
         position='top-center'
@@ -202,6 +207,12 @@ function Main() {
             className={styles.conversationContainer}
           />
         </>
+      )}
+      {aiChatContext.isConversationShareEnabled && (
+        <ShareConversationModal
+          isOpen={isShareDialogOpen}
+          onClose={() => setIsShareDialogOpen(false)}
+        />
       )}
       {showAttachments && (
         <Dialog
@@ -237,7 +248,10 @@ function Main() {
         />
       </div>
       <DeleteConversationModal />
-      <OpenExternalLinkModal />
+      <ImageLightbox
+        file={conversationContext.previewUploadedFile}
+        onClose={() => conversationContext.setPreviewUploadedFile(null)}
+      />
       <RateMessagePrivacyModal />
       <FeedbackForm />
       {aiChatContext.skillDialog && <SkillModal />}

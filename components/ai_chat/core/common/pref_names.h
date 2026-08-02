@@ -123,6 +123,9 @@ inline constexpr char kBraveAIChatTabOrganizationEnabled[] =
 inline constexpr char kBraveAIChatTabOrganizationModelKey[] =
     "brave.ai_chat.tab_organization_model_key";
 
+inline constexpr char kNtpInputDayZeroEnabled[] =
+    "brave.ai_chat.ntp_input_day_zero_enabled";
+
 inline constexpr char kBraveAIChatUserCustomizationEnabled[] =
     "brave.ai_chat.user_customization_enabled";
 inline constexpr char kBraveAIChatUserCustomizations[] =
@@ -136,6 +139,10 @@ inline constexpr char kBraveAIChatUserMemories[] =
 inline constexpr char kBraveAIChatSkills[] = "brave.ai_chat.smart_modes";
 inline constexpr char kBraveAIChatOllamaFetchEnabled[] =
     "brave.ai_chat.ollama_fetch_enabled";
+// Stores the time at which the remote model list was last successfully fetched
+// and cached to disk. Used for TTL checks without reading the cache file.
+inline constexpr char kRemoteModelsCachedAt[] =
+    "brave.ai_chat.remote_models_cached_at";
 
 COMPONENT_EXPORT(AI_CHAT_COMMON)
 void RegisterProfilePrefs(PrefRegistrySimple* registry);

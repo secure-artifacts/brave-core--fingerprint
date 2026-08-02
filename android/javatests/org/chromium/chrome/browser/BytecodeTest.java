@@ -36,6 +36,8 @@ import androidx.preference.PreferenceViewHolder;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.SmallTest;
 
+import com.google.android.material.color.DynamicColorsOptions;
+
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -275,6 +277,8 @@ public class BytecodeTest {
     @SmallTest
     public void testClassesExist() throws Exception {
         Assert.assertTrue(classExists("org/chromium/chrome/browser/ChromeApplicationImpl"));
+        Assert.assertTrue(classExists("com/google/android/material/color/DynamicColors"));
+        Assert.assertTrue(classExists("org/chromium/chrome/browser/theme/BraveDynamicColors"));
         Assert.assertTrue(classExists("org/chromium/chrome/browser/settings/MainSettings"));
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -498,6 +502,36 @@ public class BytecodeTest {
     public void testMethodsExist() throws Exception {
         Assert.assertTrue(
                 methodExists(
+                        "com/google/android/material/color/DynamicColors",
+                        "applyToActivityIfAvailable",
+                        MethodModifier.STATIC,
+                        void.class,
+                        Activity.class));
+        Assert.assertTrue(
+                methodExists(
+                        "com/google/android/material/color/DynamicColors",
+                        "applyToActivityIfAvailable",
+                        MethodModifier.STATIC,
+                        void.class,
+                        Activity.class,
+                        DynamicColorsOptions.class));
+        Assert.assertTrue(
+                methodExists(
+                        "org/chromium/chrome/browser/theme/BraveDynamicColors",
+                        "applyToActivityIfAvailable",
+                        MethodModifier.STATIC,
+                        void.class,
+                        Activity.class));
+        Assert.assertTrue(
+                methodExists(
+                        "org/chromium/chrome/browser/theme/BraveDynamicColors",
+                        "applyToActivityIfAvailable",
+                        MethodModifier.STATIC,
+                        void.class,
+                        Activity.class,
+                        DynamicColorsOptions.class));
+        Assert.assertTrue(
+                methodExists(
                         "org/chromium/chrome/browser/LaunchIntentDispatcher",
                         "isCustomTabIntent",
                         MethodModifier.STATIC,
@@ -573,6 +607,17 @@ public class BytecodeTest {
                         void.class,
                         String.class,
                         Supplier.class));
+        Assert.assertTrue(
+                methodExists(
+                        "org/chromium/chrome/browser/settings/MainSettings",
+                        "openSearchResult",
+                        MethodModifier.STATIC,
+                        boolean.class,
+                        Context.class,
+                        Profile.class,
+                        String.class,
+                        Bundle.class,
+                        ModalDialogManager.class));
 
         Assert.assertTrue(
                 methodExists(
@@ -2980,10 +3025,6 @@ public class BytecodeTest {
                 checkSuperName(
                         "org/chromium/chrome/browser/download/DownloadMessageUiControllerImpl",
                         "org/chromium/chrome/browser/download/BraveDownloadMessageUiControllerImpl")); // presubmit: ignore-long-line
-        Assert.assertTrue(
-                checkSuperName(
-                        "org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator",
-                        "org/chromium/chrome/browser/omnibox/suggestions/BraveAutocompleteMediatorBase")); // presubmit: ignore-long-line
         Assert.assertTrue(
                 checkSuperName(
                         "org/chromium/chrome/browser/autofill/settings/AutofillPaymentMethodsFragment", // presubmit: ignore-long-line

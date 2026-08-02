@@ -12,11 +12,10 @@ import Col from './styles/Col'
 import styled from 'styled-components'
 import {
   AliasesUpdate,
-  AuthState,
-  AuthenticationStatus,
   EmailAliasesMetricsRemote,
   EmailAliasesServiceInterface,
 } from 'gen/brave/components/email_aliases/email_aliases.mojom.m'
+import { useBraveAccountState, isAccountLoggedIn } from './use_email_aliases'
 
 const PageCol = styled(Col)`
   font: ${font.default.regular};
@@ -35,35 +34,47 @@ const BraveAccountSignIn = () => {
   })
 }
 
-export const SignInPage = () => (
-  <PageCol>
-    <Introduction />
-    <BraveAccountSignIn />
-  </PageCol>
-)
+export const SignInPage = ({
+  onLoggedInChange,
+}: {
+  onLoggedInChange?: (loggedIn: boolean) => void
+} = {}) => {
+  const accountState = useBraveAccountState()
+  const loggedIn = isAccountLoggedIn(accountState)
+
+  React.useEffect(() => {
+    onLoggedInChange?.(loggedIn)
+  }, [loggedIn, onLoggedInChange])
+
+  return (
+    <PageCol>
+      <Introduction />
+      <BraveAccountSignIn />
+    </PageCol>
+  )
+}
 
 export const ManagePage = ({
   aliasesUpdate,
-  authState,
+  authEmail,
   emailAliasesService,
   metrics,
 }: {
   aliasesUpdate: AliasesUpdate
-  authState: AuthState
+  authEmail: string
   emailAliasesService: EmailAliasesServiceInterface
   metrics?: EmailAliasesMetricsRemote
 }) => (
   <PageCol>
-    {authState.status === AuthenticationStatus.kAuthenticated
-      && (aliasesUpdate.error ? (
-        <Alert type='error'>{aliasesUpdate.error}</Alert>
-      ) : (
-        <AliasList
-          aliases={aliasesUpdate.aliases!}
-          authEmail={authState.email}
-          emailAliasesService={emailAliasesService}
-          metrics={metrics}
-        />
-      ))}
+    {aliasesUpdate.error ? (
+      <Alert type='error'>{aliasesUpdate.error}</Alert>
+    ) : (
+      <AliasList
+        aliases={aliasesUpdate.aliases!}
+        authEmail={authEmail}
+        emailAliasesService={emailAliasesService}
+        metrics={metrics}
+      />
+    )}
   </PageCol>
 )

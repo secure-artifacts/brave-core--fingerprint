@@ -13,6 +13,7 @@
 #include "brave/components/playlist/core/common/buildflags/buildflags.h"
 #include "brave/components/psst/buildflags/buildflags.h"
 #include "brave/components/tor/buildflags/buildflags.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "content/public/browser/page_navigator.h"
@@ -44,6 +45,11 @@ void NewOffTheRecordWindowTor(Browser* browser);
 void NewOffTheRecordWindowTor(Profile* profile);
 void NewTorConnectionForSite(BrowserWindowInterface*);
 #endif
+
+// Toggles the given side panel entry: closes the sidebar if the entry is
+// already showing, switches to the entry if the sidebar is open on a different
+// entry, or opens the sidebar on the entry if it's closed.
+void ToggleSidePanel(Browser* browser, SidePanelEntryId id);
 
 void ToggleAIChat(Browser* browser);
 
@@ -80,6 +86,12 @@ void ToggleFocusMode(BrowserWindowInterface* browser);
 void ToggleShieldsEnabled(Browser* browser);
 void ToggleJavascriptEnabled(Browser* browser);
 
+// Launches the element picker ("Block elements") for the browser's active tab,
+// if the page and Shields settings support it. Backs IDC_BLOCK_ELEMENTS so
+// users can assign a custom keyboard shortcut. Implemented in the cosmetic
+// filters layer (which can't be depended on from here) to reach the picker.
+void LaunchContentPicker(BrowserWindowInterface* browser);
+
 #if BUILDFLAG(ENABLE_COMMANDER)
 void ToggleCommander(Browser* browser);
 #endif
@@ -115,9 +127,10 @@ void CloseGroup(Browser* browser);
 bool CanBringAllTabs(Browser* browser);
 void BringAllTabs(Browser* browser);
 
-bool HasDuplicateTabs(Browser* browser);
-void CloseDuplicateTabs(Browser* browser);
-
+bool HasDuplicatesOfActiveTab(Browser* browser);
+void CloseDuplicatesOfActiveTab(Browser* browser);
+bool HasAnyDuplicateTabs(Browser* browser);
+void CloseAllDuplicateTabs(Browser* browser);
 bool CanCloseTabsToLeft(Browser* browser);
 void CloseTabsToLeft(Browser* browser);
 

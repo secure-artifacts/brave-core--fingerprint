@@ -5,14 +5,19 @@
 
 import * as React from 'react'
 
+import { useWelcomeApi } from '../api/welcome_api_context'
 import { useStepList } from './use_step_list'
 import { whenStepRendered } from './use_step_transition'
 import { WelcomeStep } from './welcome_step'
 import { ImportStep } from './import_step'
+import { AppearanceStep } from './appearance_step'
+import { FeaturesStep } from './features_step'
+import { MetricsStep } from './metrics_step'
 
 import { style } from './app.style'
 
 export function App() {
+  const api = useWelcomeApi()
   const [stepIndex, setStepIndex] = React.useState(0)
   const steps = useStepList()
 
@@ -33,6 +38,11 @@ export function App() {
         : Math.max(0, stepIndex - 1)
 
     if (index === stepIndex) {
+      if (dir === 'forward') {
+        api.getWelcomeCompleteURL.fetch().then((url) => {
+          window.open(url, '_self', 'noopener')
+        })
+      }
       return
     }
 
@@ -54,12 +64,15 @@ export function App() {
   }
 
   function renderStep() {
+    const isLastStep = stepIndex >= steps.length - 1
+
     switch (currentStep) {
       case 'welcome':
         return (
           <WelcomeStep
             onNext={stepForward}
             onBack={stepBack}
+            isLastStep={isLastStep}
           />
         )
       case 'import':
@@ -67,6 +80,31 @@ export function App() {
           <ImportStep
             onNext={stepForward}
             onBack={stepBack}
+            isLastStep={isLastStep}
+          />
+        )
+      case 'appearance':
+        return (
+          <AppearanceStep
+            onNext={stepForward}
+            onBack={stepBack}
+            isLastStep={isLastStep}
+          />
+        )
+      case 'features':
+        return (
+          <FeaturesStep
+            onNext={stepForward}
+            onBack={stepBack}
+            isLastStep={isLastStep}
+          />
+        )
+      case 'metrics':
+        return (
+          <MetricsStep
+            onNext={stepForward}
+            onBack={stepBack}
+            isLastStep={isLastStep}
           />
         )
     }

@@ -6,12 +6,15 @@
 use std::time::Duration;
 
 use crate::ffi::{
-    BlockerResult, DebugInfo, FilterListMetadata, OptionalString, OptionalU16, RegexDebugEntry,
-    RegexManagerDiscardPolicy,
+    AddedFiltersRecord, BlockerResult, DebugInfo, FilterListMetadata, OptionalString, OptionalU16,
+    RegexDebugEntry, RegexManagerDiscardPolicy, SourceInfo,
 };
 use adblock::blocker::BlockerResult as InnerBlockerResult;
-use adblock::engine::EngineDebugInfo as InnerEngineDebugInfo;
-use adblock::lists::{ExpiresInterval, FilterListMetadata as InnerFilterListMetadata};
+use adblock::engine::{EngineDebugInfo as InnerEngineDebugInfo, SourceInfo as InnerSourceInfo};
+use adblock::lists::{
+    AddedFiltersRecord as InnerAddedFiltersRecord, ExpiresInterval,
+    FilterListMetadata as InnerFilterListMetadata,
+};
 
 use adblock::regex_manager::{
     RegexDebugEntry as InnerRegexDebugEntry,
@@ -47,12 +50,26 @@ impl From<InnerRegexDebugEntry> for RegexDebugEntry {
     }
 }
 
+impl From<InnerSourceInfo> for SourceInfo {
+    fn from(info: InnerSourceInfo) -> Self {
+        Self {
+            title: OptionalString::from(info.title),
+            homepage: OptionalString::from(info.homepage),
+            network_filter_count: info.network_filter_count as usize,
+            cosmetic_filter_count: info.cosmetic_filter_count as usize,
+            parse_error: info.parse_error as usize,
+            invalid_lines: info.invalid_lines,
+        }
+    }
+}
+
 impl From<InnerEngineDebugInfo> for DebugInfo {
     fn from(info: InnerEngineDebugInfo) -> Self {
         Self {
             regex_data: info.regex_debug_info.regex_data.into_iter().map(|e| e.into()).collect(),
             compiled_regex_count: info.regex_debug_info.compiled_regex_count,
             flatbuffer_size: info.flatbuffer_size,
+            source_info: info.source_info.into_iter().map(|e| e.into()).collect(),
         }
     }
 }
@@ -60,7 +77,7 @@ impl From<InnerEngineDebugInfo> for DebugInfo {
 impl From<InnerBlockerResult> for BlockerResult {
     fn from(result: InnerBlockerResult) -> Self {
         Self {
-            matched: result.matched,
+            matched: result.should_block(),
             important: result.important,
             has_exception: result.exception.is_some(),
             redirect: result.redirect.into(),
@@ -85,5 +102,11 @@ impl From<InnerFilterListMetadata> for FilterListMetadata {
             ExpiresInterval::Days(days) => days as u16 * 24,
         }));
         Self { homepage: metadata.homepage.into(), title: metadata.title.into(), expires_hours }
+    }
+}
+
+impl From<InnerAddedFiltersRecord> for AddedFiltersRecord {
+    fn from(record: InnerAddedFiltersRecord) -> Self {
+        Self { source_index: record.source_index, metadata: record.metadata.into() }
     }
 }

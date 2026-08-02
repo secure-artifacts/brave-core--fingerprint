@@ -88,10 +88,19 @@ extension BrowserViewController: TabPolicyDecider {
     let isPrivateBrowsing = privateBrowsingManager.isPrivateBrowsing
 
     if tab.isExternalAppAlertPresented == true {
+      // Some external-app schemes may fire the same request back-to-back.
+      // Don't tear down and re-present the alert for a request that matches
+      // the one it's already asking about, otherwise it can dismiss and
+      // presents repeatedly.
+      if tab.externalAppURL == requestURL {
+        return .cancel
+      }
       tab.externalAppPopup?.dismissWithType(dismissType: .noAnimation)
       tab.externalAppPopupContinuation?.resume(with: .success(false))
       tab.externalAppPopupContinuation = nil
       tab.externalAppPopup = nil
+      tab.externalAppURL = nil
+      tab.isExternalAppAlertPresented = false
     }
 
     // Handle internal:// urls
@@ -477,7 +486,10 @@ extension BrowserViewController {
     // Only redirect for main frames
     guard let requestURL = request.url, isMainFrame else { return nil }
 
-    if FeatureList.kShouldCancelRequestsForUserAgentChange.enabled,
+    // WebKit bug resolved on iOS 27+
+    // https://bugs.webkit.org/show_bug.cgi?id=313542
+    if #unavailable(iOS 27.0),
+      FeatureList.kShouldCancelRequestsForUserAgentChange.enabled,
       let headerUserAgent = request.allHTTPHeaderFields?["User-Agent"],
       case let userAgentForType = userAgent(
         for: request,
@@ -741,6 +753,7 @@ extension BrowserViewController {
 
       view.endEditing(true)
       tab.isExternalAppAlertPresented = true
+      tab.externalAppURL = url
 
       let popup = AlertPopupView(
         imageView: nil,
@@ -765,6 +778,7 @@ extension BrowserViewController {
           openedURLCompletionHandler(false)
           removeTabIfEmpty()
           tab?.isExternalAppAlertPresented = false
+          tab?.externalAppURL = nil
           return .flyDown
         }
       }
@@ -775,6 +789,7 @@ extension BrowserViewController {
         }
         removeTabIfEmpty()
         tab?.isExternalAppAlertPresented = false
+        tab?.externalAppURL = nil
         return .flyDown
       }
       popup.showWithType(showType: .flyUp)

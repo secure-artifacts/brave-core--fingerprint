@@ -24,9 +24,11 @@ const ifdefLoaderPath = path.join(dirName, 'plugins', 'ifdef-loader.ts')
 export function cssRules({
   isDevMode,
   test = /\.s?css$/,
+  styleLoaderOptions = {},
 }: {
   isDevMode: boolean
   test?: RegExp
+  styleLoaderOptions?: Record<string, any>
 }): RuleSetRule[] {
   return [
     {
@@ -42,7 +44,7 @@ export function cssRules({
       exclude: [/\.global\./, /node_modules/],
       use: [
         // Injects the result into the DOM as a style block.
-        { loader: 'style-loader' },
+        { loader: 'style-loader', options: styleLoaderOptions },
         // Converts the resulting CSS to Javascript to be bundled (modules:true to
         // rename CSS classes in output to cryptic identifiers, except if wrapped
         // in a :global(...) pseudo class).
@@ -117,6 +119,43 @@ export function fileLoaderRule(): RuleSetRule {
       `\\.(${['ttf', 'woff2', 'eot', 'ico', 'svg', 'png', 'jpg', 'jpeg', 'gif', 'webp'].join('|')})(\\?v=[0-9]\\.[0-9]\\.[0-9])?$`,
     ),
     loader: 'file-loader',
+  }
+}
+
+/**
+ * Emits onnxruntime-web's worker glue script as a served asset instead of
+ * inlining it into the bundle. A Worker downloads its own script from a URL, so
+ * it must be served separately from the bundle. `dependency: 'url'` scopes this
+ * rule to ORT's own `new URL()` reference and leaves our own import of the same
+ * file alone. The `.mjs` is renamed to `.js` so it serves as
+ * application/javascript.
+ *
+ * TODO(https://github.com/brave/brave-browser/issues/57166): this rule is
+ * specific to a dependency (onnxruntime-web). Figure out how to make it more
+ * generic in the future.
+ */
+export function onnxRuntimeWorkerJsRule(): RuleSetRule {
+  return {
+    test: /\.mjs$/,
+    include: /onnxruntime-web/,
+    dependency: 'url',
+    type: 'asset/resource',
+    generator: { filename: '[name].[contenthash].js' },
+  }
+}
+
+/**
+ * Emits onnxruntime-web's `.wasm` as a served asset so the import resolves to a
+ * URL rather than an instantiated module. Scoped to onnxruntime-web by path: a
+ * blanket `.wasm` rule would also catch wasm-bindgen crates (e.g. opaque_ke)
+ * that import their `.wasm` as a module and rely on its named exports.
+ */
+export function onnxRuntimeWasmRule(): RuleSetRule {
+  return {
+    test: /\.wasm$/,
+    include: /onnxruntime-web/,
+    type: 'asset/resource',
+    generator: { filename: '[name].[contenthash][ext]' },
   }
 }
 
