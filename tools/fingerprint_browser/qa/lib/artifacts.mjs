@@ -9,7 +9,7 @@ import path from 'node:path'
 
 import { pathExists, run, sha256 } from './system.mjs'
 
-const SOURCE_GROUPS = {
+export const SOURCE_GROUPS = {
   native: [
     '../chrome/browser/net/proxy_config_monitor.cc',
     '../chrome/browser/net/profile_network_context_service.cc',
@@ -24,12 +24,15 @@ const SOURCE_GROUPS = {
     '../third_party/blink/renderer/core/timezone/timezone_controller.h',
     '../third_party/blink/renderer/core/workers/shared_worker_content_settings_proxy.cc',
     '../third_party/blink/renderer/modules/service_worker/service_worker_content_settings_proxy.cc',
+    '../third_party/blink/renderer/modules/plugins/dom_plugin_array.cc',
     '../third_party/blink/renderer/modules/speech/speech_synthesis.cc',
     '../third_party/blink/renderer/modules/speech/speech_synthesis.h',
     '../third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc',
+    '../third_party/blink/renderer/platform/fonts/font_fallback_list.cc',
     'browser/brave_content_browser_client.cc',
     'browser/brave_content_browser_client.h',
     'browser/brave_shields/brave_shields_settings_service_factory.cc',
+    'browser/brave_shields/brave_shields_web_contents_observer.cc',
     'browser/farbling',
     'browser/fingerprint_browser',
     'browser/ui/views/toolbar/brave_toolbar_view.cc',
@@ -60,6 +63,8 @@ const SOURCE_GROUPS = {
     'chromium_src/third_party/blink/renderer/modules/mediastream/user_media_request.cc',
     'chromium_src/third_party/blink/renderer/modules/speech',
     'chromium_src/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc',
+    'chromium_src/third_party/blink/renderer/platform/fonts/font_fallback_list.cc',
+    'components/brave_shields/core/common/shields_settings.mojom',
     'components/content_settings/renderer/brave_content_settings_agent_impl.cc',
     'components/brave_shields/core/browser/brave_shields_settings_service.cc',
     'components/brave_shields/core/browser/brave_shields_settings_service.h',
@@ -85,6 +90,8 @@ const SOURCE_GROUPS = {
     'patches/third_party-blink-renderer-modules-plugins-dom_plugin_array.cc.patch',
     'patches/third_party-blink-renderer-modules-webgl-webgl_rendering_context_base.cc.patch',
     'third_party/blink/renderer/core/farbling/brave_session_cache.cc',
+    'third_party/blink/renderer/core/farbling/brave_session_cache.h',
+    'third_party/blink/renderer/BUILD.gn',
     'third_party/blink/renderer/modules/mediastream/persona_media_device_map.h',
     'third_party/libmaxminddb/include/maxminddb_config.h',
   ],
@@ -101,7 +108,10 @@ const SOURCE_GROUPS = {
   braveResources: [
     'app/brave_settings_strings.grdp',
     'browser/resources/settings/fingerprint_profile_proxy_page',
+    'browser/resources/settings/br/privacy_page.ts',
     'browser/resources/settings/br/privacy_page_index.ts',
+    'browser/resources/settings/br/settings_menu.ts',
+    'browser/resources/settings/brave_routes.ts',
     'components/fingerprint_browser/resources',
   ],
   localeResources: ['app/brave_settings_strings.grdp'],

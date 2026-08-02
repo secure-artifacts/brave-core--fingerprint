@@ -8,7 +8,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { runTestBinary } from '../scenarios/code_tests.mjs'
+import { latestTestSource, runTestBinary } from '../scenarios/code_tests.mjs'
 
 test('runTestBinary rejects a filter that matches no tests', async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'fingerprint-qa-tests-'))
@@ -61,4 +61,21 @@ test('runTestBinary forwards explicit test-only switches', async (t) => {
     await fs.readFile(argsFile, 'utf8'),
     /--disable-fingerprint-browser-persona-for-testing/,
   )
+})
+
+test('latestTestSource ignores newer runtime resources', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-code-source-'))
+  t.after(() => fs.rm(root, { force: true, recursive: true }))
+
+  const sourceDir = path.join(root, 'component')
+  await fs.mkdir(sourceDir)
+  const nativeSource = path.join(sourceDir, 'feature.cc')
+  const runtimeResource = path.join(sourceDir, 'feature.html')
+  await fs.writeFile(nativeSource, 'void Feature() {}\n')
+  await fs.writeFile(runtimeResource, '<!doctype html>\n')
+  await fs.utimes(nativeSource, new Date(1000), new Date(1000))
+  await fs.utimes(runtimeResource, new Date(2000), new Date(2000))
+
+  const latest = await latestTestSource(root, ['component'])
+  assert.equal(latest.file, nativeSource)
 })

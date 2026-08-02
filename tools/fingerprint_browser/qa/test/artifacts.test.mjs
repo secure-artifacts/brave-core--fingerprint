@@ -8,7 +8,28 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { unsignedMachOSha256 } from '../lib/artifacts.mjs'
+import { SOURCE_GROUPS, unsignedMachOSha256 } from '../lib/artifacts.mjs'
+
+test('artifact source groups cover fingerprint browser compiled inputs', () => {
+  for (const source of [
+    '../third_party/blink/renderer/modules/plugins/dom_plugin_array.cc',
+    '../third_party/blink/renderer/platform/fonts/font_fallback_list.cc',
+    'browser/brave_shields/brave_shields_web_contents_observer.cc',
+    'chromium_src/third_party/blink/renderer/platform/fonts/font_fallback_list.cc',
+    'components/brave_shields/core/common/shields_settings.mojom',
+    'third_party/blink/renderer/BUILD.gn',
+    'third_party/blink/renderer/core/farbling/brave_session_cache.h',
+  ]) {
+    assert.ok(SOURCE_GROUPS.native.includes(source), source)
+  }
+  for (const source of [
+    'browser/resources/settings/br/privacy_page.ts',
+    'browser/resources/settings/br/settings_menu.ts',
+    'browser/resources/settings/brave_routes.ts',
+  ]) {
+    assert.ok(SOURCE_GROUPS.braveResources.includes(source), source)
+  }
+})
 
 function fakeSignedMachO(signature) {
   const header = Buffer.alloc(32)

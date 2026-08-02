@@ -13,7 +13,7 @@ import {
   loadHumanVisualReview,
   writeVisualReviewBundle,
 } from '../lib/visual.mjs'
-import { run } from '../lib/system.mjs'
+import { run, sha256 } from '../lib/system.mjs'
 
 test('analyzeScreenshot records SSIM and pixel comparison for approved baseline', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-visual-'))
@@ -76,6 +76,7 @@ test('analyzeScreenshot rejects a connected pure-red UI component', async () => 
 test('loadHumanVisualReview requires artifact-bound PASS/FAIL reasons', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-review-'))
   const manifestFile = path.join(directory, 'review.json')
+  const screenshot = path.join(directory, 'toolbar.png')
   const artifacts = {
     libchrome: { source: { sha256: 'lib' } },
     resources: {
@@ -83,8 +84,9 @@ test('loadHumanVisualReview requires artifact-bound PASS/FAIL reasons', async ()
       source: { sha256: 'resources' },
     },
   }
-  const analyses = [{ baselineKey: 'native/toolbar.png' }]
+  const analyses = [{ actual: screenshot, baselineKey: 'native/toolbar.png' }]
   try {
+    await fs.writeFile(screenshot, 'approved screenshot')
     await fs.writeFile(
       manifestFile,
       JSON.stringify({
@@ -94,6 +96,7 @@ test('loadHumanVisualReview requires artifact-bound PASS/FAIL reasons', async ()
         reviews: {
           'native/toolbar.png': {
             reason: 'Icons are legible and correctly colored',
+            screenshotSha256: await sha256(screenshot),
             status: 'PASS',
           },
         },
@@ -109,6 +112,50 @@ test('loadHumanVisualReview requires artifact-bound PASS/FAIL reasons', async ()
       result.reviews[0].reason,
       'Icons are legible and correctly colored',
     )
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('loadHumanVisualReview rejects approval for changed screenshot bytes', async () => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'fp-qa-review-stale-'),
+  )
+  const manifestFile = path.join(directory, 'review.json')
+  const screenshot = path.join(directory, 'toolbar.png')
+  const artifacts = {
+    libchrome: { source: { sha256: 'lib' } },
+    resources: {
+      chromiumSource: { sha256: 'chromium-resources' },
+      source: { sha256: 'resources' },
+    },
+  }
+  const analyses = [{ actual: screenshot, baselineKey: 'native/toolbar.png' }]
+  try {
+    await fs.writeFile(screenshot, 'approved screenshot')
+    await fs.writeFile(
+      manifestFile,
+      JSON.stringify({
+        chromiumResourcesSha256: 'chromium-resources',
+        libchromeSha256: 'lib',
+        resourcesSha256: 'resources',
+        reviews: {
+          'native/toolbar.png': {
+            reason: 'Approved before recapture',
+            screenshotSha256: await sha256(screenshot),
+            status: 'PASS',
+          },
+        },
+      }),
+    )
+    await fs.writeFile(screenshot, 'recaptured screenshot')
+    const result = await loadHumanVisualReview({
+      analyses,
+      artifacts,
+      manifestFile,
+    })
+    assert.equal(result.status, 'BLOCKED')
+    assert.match(result.reason, /screenshot hashes do not match/)
   } finally {
     await fs.rm(directory, { recursive: true, force: true })
   }
@@ -145,6 +192,7 @@ test('writeVisualReviewBundle creates artifact-bound candidates and review files
     assert.equal(manifest.libchromeSha256, 'lib')
     assert.deepEqual(manifest.reviews['native/toolbar.png'], {
       reason: '',
+      screenshotSha256: await sha256(screenshot),
       status: '',
     })
     assert.equal(
