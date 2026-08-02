@@ -199,7 +199,8 @@
       <div class="label">$i18n{profileProxySchemeLabel}</div>
       <div class="secondary">$i18n{profileProxySchemeDesc}</div>
     </div>
-    <select id="scheme" class="md-select" on-change="onSchemeChanged_">
+    <select id="scheme" class="md-select" on-change="onSchemeChanged_"
+        disabled="[[isBusy_]]">
       <option value="http" selected="[[schemeEqual_('http', scheme_)]]">
         $i18n{profileProxyHttp}
       </option>
@@ -220,6 +221,7 @@
           spellcheck="false"
           invalid="[[isNonEmpty_(hostError_)]]"
           error-message="[[hostError_]]"
+          disabled="[[isBusy_]]"
           on-input="onInputChanged_">
       </cr-input>
       <cr-input id="port"
@@ -230,6 +232,7 @@
           max="65535"
           invalid="[[isNonEmpty_(portError_)]]"
           error-message="[[portError_]]"
+          disabled="[[isBusy_]]"
           on-input="onInputChanged_">
       </cr-input>
       <cr-input id="username"
@@ -237,6 +240,7 @@
           label="$i18n{profileProxyUsernameLabel}"
           value="{{username_::input}}"
           spellcheck="false"
+          disabled="[[isBusy_]]"
           on-input="onInputChanged_">
       </cr-input>
       <cr-input id="password"
@@ -245,6 +249,7 @@
           value="{{password_::input}}"
           type="password"
           placeholder="[[passwordHint_(hasSavedPassword_)]]"
+          disabled="[[isBusy_]]"
           on-input="onInputChanged_">
       </cr-input>
     </div>

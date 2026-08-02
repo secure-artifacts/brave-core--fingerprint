@@ -94,12 +94,10 @@ bool DraftsEqual(const ProfileProxyDraft& left,
 
 bool DraftMatchesSavedProxyIdentity(const ProfileProxyDraft& draft,
                                     const PrefService& pref_service) {
-  return draft.scheme ==
-             pref_service.GetString(prefs::kProfileProxyScheme) &&
+  return draft.scheme == pref_service.GetString(prefs::kProfileProxyScheme) &&
          draft.host == pref_service.GetString(prefs::kProfileProxyHost) &&
          draft.port == pref_service.GetInteger(prefs::kProfileProxyPort) &&
-         draft.username ==
-             pref_service.GetString(prefs::kProfileProxyUsername);
+         draft.username == pref_service.GetString(prefs::kProfileProxyUsername);
 }
 
 bool HasSavedProxyPassword(const PrefService& pref_service) {
@@ -160,8 +158,7 @@ FingerprintProxyService::FingerprintProxyService(Profile* profile)
   content::GetNetworkConnectionTracker()->AddNetworkConnectionObserver(this);
   proxy_control_pref_change_registrar_.Init(prefs_);
   const auto proxy_control_changed = base::BindRepeating(
-      &FingerprintProxyService::OnProxyControlChanged,
-      base::Unretained(this));
+      &FingerprintProxyService::OnProxyControlChanged, base::Unretained(this));
   proxy_control_pref_change_registrar_.Add(proxy_config::prefs::kProxy,
                                            proxy_control_changed);
   proxy_control_pref_change_registrar_.Add(
@@ -172,6 +169,8 @@ FingerprintProxyService::FingerprintProxyService(Profile* profile)
   const ProfileProxyConfigConflict conflict =
       GetProfileProxyConfigConflict(*prefs_);
   if (conflict != ProfileProxyConfigConflict::kNone) {
+    SyncProfileProxyWebRTCPolicy(*prefs_);
+    ClearVerifiedProfileProxyGeo(*prefs_);
     SetState(kProxyStateConflict, ProfileProxyConfigConflictWarning(conflict));
   } else if (prefs_->GetBoolean(prefs::kProfileProxyEnabled)) {
     SetState(kProxyStateStale, "Proxy is waiting for verification.");
@@ -279,28 +278,46 @@ void FingerprintProxyService::ApplyVerified(std::string verification_id,
     return;
   }
 
-  PendingVerification pending = std::move(*pending_verification_);
-  pending_verification_.reset();
-  if (!StorePassword(pending.draft.password)) {
-    SetState(kProxyStateError, "Proxy credentials could not be encrypted.");
+  if (!BuildProfileProxyServer(pending_verification_->draft)) {
+    result.error = "Verified proxy configuration is no longer valid.";
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+  const std::optional<std::string> encrypted_password =
+      EncryptPassword(pending_verification_->draft.password);
+  if (!encrypted_password) {
     result.error = "Proxy credentials could not be encrypted.";
     std::move(callback).Run(std::move(result));
     return;
   }
 
+  PendingVerification pending = std::move(*pending_verification_);
+  pending_verification_.reset();
+  apply_in_progress_ = true;
+
+  if (encrypted_password->empty()) {
+    prefs_->ClearPref(prefs::kProfileProxyEncryptedPassword);
+  } else {
+    prefs_->SetString(prefs::kProfileProxyEncryptedPassword,
+                      *encrypted_password);
+  }
   prefs_->SetString(prefs::kProfileProxyScheme, pending.draft.scheme);
   prefs_->SetString(prefs::kProfileProxyHost, pending.draft.host);
   prefs_->SetInteger(prefs::kProfileProxyPort, pending.draft.port);
   prefs_->SetString(prefs::kProfileProxyUsername, pending.draft.username);
   prefs_->ClearPref(prefs::kProfileProxyPassword);
-  prefs_->SetBoolean(prefs::kProfileProxyEnabled, true);
 
   ClearProfileProxyLastError(*prefs_);
-  ApplyLookup(pending.lookup, pending.geo, false);
-  SyncProfileProxyWebRTCPolicy(*prefs_);
+  const std::string change_warning =
+      StoreLookupResult(pending.lookup, pending.geo, false);
+  PrepareVerifiedProfileProxyDerivedPrefs(*prefs_, pending.geo);
+  credential_failure_ = false;
+  prefs_->SetBoolean(prefs::kProfileProxyEnabled, true);
+  apply_in_progress_ = false;
   prefs_->SetInteger(
       prefs::kProfileProxyCredentialGeneration,
       prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
+  SetState(kProxyStateActive, "Proxy is active.", change_warning);
   content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
   ScheduleRevalidation();
 
@@ -356,6 +373,9 @@ void FingerprintProxyService::Disable(DisableCallback callback) {
 
 std::optional<net::ProxyServer> FingerprintProxyService::GetProxyServer()
     const {
+  if (apply_in_progress_) {
+    return BlockingProxyServer();
+  }
   if (!prefs_->GetBoolean(prefs::kProfileProxyEnabled) ||
       GetProfileProxyConfigConflict(*prefs_) !=
           ProfileProxyConfigConflict::kNone) {
@@ -390,7 +410,7 @@ void FingerprintProxyService::RemoveObserver(Observer* observer) {
 }
 
 // static
-void FingerprintProxyService::SetGeoProviderUrlsForTesting(
+void FingerprintProxyService::SetGeoProviderUrlsForTesting(  // IN-TEST
     const GURL& free_ip_api_url,
     const GURL& ip_who_is_url) {
   FreeIpApiUrl() = free_ip_api_url;
@@ -490,23 +510,34 @@ std::optional<std::string> FingerprintProxyService::GetSavedPassword() const {
 }
 
 bool FingerprintProxyService::StorePassword(std::string_view password) {
-  if (password.empty()) {
+  const std::optional<std::string> encoded = EncryptPassword(password);
+  if (!encoded) {
+    return false;
+  }
+  if (encoded->empty()) {
     prefs_->ClearPref(prefs::kProfileProxyEncryptedPassword);
     credential_failure_ = false;
     return true;
   }
+  prefs_->SetString(prefs::kProfileProxyEncryptedPassword, *encoded);
+  credential_failure_ = false;
+  return true;
+}
+
+std::optional<std::string> FingerprintProxyService::EncryptPassword(
+    std::string_view password) const {
+  if (password.empty()) {
+    return std::string();
+  }
   if (!encryptor_) {
-    return false;
+    return std::nullopt;
   }
 
   std::string encrypted;
   if (!encryptor_->EncryptString(std::string(password), &encrypted)) {
-    return false;
+    return std::nullopt;
   }
-  prefs_->SetString(prefs::kProfileProxyEncryptedPassword,
-                    base::Base64Encode(encrypted));
-  credential_failure_ = false;
-  return true;
+  return base::Base64Encode(encrypted);
 }
 
 void FingerprintProxyService::StartVerification(ProfileProxyDraft draft,
@@ -725,9 +756,10 @@ ProfileProxyDraft FingerprintProxyService::GetAppliedDraft() const {
   return draft;
 }
 
-void FingerprintProxyService::ApplyLookup(const ProxyGeoLookupResult& lookup,
-                                          const ProfileProxyGeo& geo,
-                                          bool show_change_warning) {
+std::string FingerprintProxyService::StoreLookupResult(
+    const ProxyGeoLookupResult& lookup,
+    const ProfileProxyGeo& geo,
+    bool show_change_warning) {
   std::string change_warning;
   if (show_change_warning) {
     const std::string& previous_ip =
@@ -744,14 +776,21 @@ void FingerprintProxyService::ApplyLookup(const ProxyGeoLookupResult& lookup,
     }
   }
 
-  ApplyVerifiedProfileProxyGeo(*prefs_, geo);
   prefs_->SetString(prefs::kProfileProxyEgressIp, lookup.ip_address);
   prefs_->SetString(prefs::kProfileProxyGeoProvider,
                     ProxyGeoProviderName(lookup.provider));
   WriteTimePref(*prefs_, prefs::kProfileProxyLastVerifiedTime,
                 base::Time::Now());
+  return change_warning;
+}
+
+void FingerprintProxyService::ApplyLookup(const ProxyGeoLookupResult& lookup,
+                                          const ProfileProxyGeo& geo,
+                                          bool show_change_warning) {
+  const std::string change_warning =
+      StoreLookupResult(lookup, geo, show_change_warning);
+  PrepareVerifiedProfileProxyDerivedPrefs(*prefs_, geo);
   SetState(kProxyStateActive, "Proxy is active.", change_warning);
-  SyncProfileProxyWebRTCPolicy(*prefs_);
   content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
 }
 
@@ -771,6 +810,9 @@ void FingerprintProxyService::NotifyObservers() {
 }
 
 void FingerprintProxyService::OnProxyControlChanged() {
+  if (apply_in_progress_) {
+    return;
+  }
   const ProfileProxyConfigConflict conflict =
       GetProfileProxyConfigConflict(*prefs_);
   if (conflict != ProfileProxyConfigConflict::kNone) {
@@ -781,7 +823,13 @@ void FingerprintProxyService::OnProxyControlChanged() {
     const bool was_verifying = verification_in_progress_;
     verification_in_progress_ = false;
     revalidation_timer_.Stop();
+    SyncProfileProxyWebRTCPolicy(*prefs_);
+    ClearVerifiedProfileProxyGeo(*prefs_);
+    prefs_->SetInteger(
+        prefs::kProfileProxyCredentialGeneration,
+        prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
     SetState(kProxyStateConflict, ProfileProxyConfigConflictWarning(conflict));
+    content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
     if (was_verifying) {
       ProxyVerificationResult result;
       result.error = std::string(ProfileProxyConfigConflictWarning(conflict));
@@ -791,10 +839,18 @@ void FingerprintProxyService::OnProxyControlChanged() {
   }
 
   if (!prefs_->GetBoolean(prefs::kProfileProxyEnabled)) {
+    SyncProfileProxyWebRTCPolicy(*prefs_);
+    ClearVerifiedProfileProxyGeo(*prefs_);
+    content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
     SetState(kProxyStateUnconfigured, std::string_view());
     return;
   }
 
+  SyncProfileProxyWebRTCPolicy(*prefs_);
+  prefs_->SetInteger(
+      prefs::kProfileProxyCredentialGeneration,
+      prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
+  content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
   SetState(kProxyStateStale, "Proxy control changed. Revalidating.");
   if (encryptor_) {
     Revalidate(VerificationCallback());

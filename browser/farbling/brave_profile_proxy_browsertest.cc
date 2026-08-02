@@ -42,6 +42,7 @@
 #include "content/public/browser/webui_config_map.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_devtools_protocol_client.h"
 #include "net/base/net_errors.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_request_headers.h"
@@ -164,7 +165,9 @@ bool SettingsNoProxyRiskMatches(content::WebContents* web_contents,
 
 }  // namespace
 
-class FingerprintBrowserProfileProxyBrowserTest : public InProcessBrowserTest {
+class FingerprintBrowserProfileProxyBrowserTest
+    : public InProcessBrowserTest,
+      public content::TestDevToolsProtocolClient {
  public:
   FingerprintBrowserProfileProxyBrowserTest() {
     BraveSettingsUI::ShouldExposeElementsForTesting() = true;
@@ -448,9 +451,13 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   Browser* proxied_browser = CreateBrowser(proxied_profile);
   EXPECT_TRUE(ui_test_utils::NavigateToURL(
       proxied_browser, OriginUrl("profile-a.test", "/bad-auth")));
-  base::RunLoop().RunUntilIdle();
 
   PrefService* prefs = proxied_profile->GetPrefs();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return prefs->GetInteger(
+               fingerprint_browser::prefs::kProfileProxyLastErrorCode) ==
+           net::ERR_INVALID_AUTH_CREDENTIALS;
+  }));
   EXPECT_EQ(net::ERR_INVALID_AUTH_CREDENTIALS,
             prefs->GetInteger(
                 fingerprint_browser::prefs::kProfileProxyLastErrorCode));
@@ -528,6 +535,13 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
           ->GetString(
               fingerprint_browser::prefs::kProfileProxyEncryptedPassword)
           .empty());
+  EXPECT_EQ("en-US,en",
+            profile->GetPrefs()->GetString("intl.accept_languages"));
+  EXPECT_EQ("disable_non_proxied_udp",
+            profile->GetPrefs()->GetString("webrtc.ip_handling_policy"));
+  EXPECT_EQ("America/Los_Angeles",
+            profile->GetPrefs()->GetString(
+                fingerprint_browser::prefs::kProfileProxyDerivedGeoTimezone));
 
   const auto duplicate = ApplyVerified(profile, verification.verification_id);
   EXPECT_FALSE(duplicate.success);
@@ -821,6 +835,13 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
 
   Browser* incognito_browser = CreateIncognitoBrowser(profile);
   ASSERT_TRUE(incognito_browser);
+  const auto* regular_persona =
+      fingerprint_browser::GetPersonaForProfile(profile);
+  const auto* incognito_persona =
+      fingerprint_browser::GetPersonaForProfile(incognito_browser->profile());
+  ASSERT_TRUE(regular_persona);
+  ASSERT_TRUE(incognito_persona);
+  EXPECT_EQ(regular_persona->persona_id, incognito_persona->persona_id);
   EXPECT_EQ(regular_service, GetProxyService(incognito_browser->profile()));
   EXPECT_EQ(
       regular_service->GetState().egress_ip,
@@ -943,6 +964,40 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                       web_contents,
                       "new Date('2026-01-15T12:00:00Z').getTimezoneOffset()")
                       .ExtractInt());
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       DevToolsTimezoneTemporarilyOverridesProfileTimezone) {
+  Profile* proxied_profile = CreateTestProfile();
+  ConfigureProfileProxy(proxied_profile);
+  ConfigureProfileProxyManualGeo(proxied_profile, "GB", "Europe/London",
+                                 51.5074, -0.1278);
+
+  Browser* proxied_browser = CreateBrowser(proxied_profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      proxied_browser, OriginUrl("localhost", "/devtools-timezone")));
+  content::WebContents* web_contents =
+      proxied_browser->tab_strip_model()->GetActiveWebContents();
+  constexpr char kTimezoneExpression[] =
+      "Intl.DateTimeFormat().resolvedOptions().timeZone";
+  ASSERT_EQ("Europe/London",
+            content::EvalJs(web_contents, kTimezoneExpression).ExtractString());
+
+  AttachToWebContents(web_contents);
+  base::DictValue override_params;
+  override_params.Set("timezoneId", "America/New_York");
+  ASSERT_TRUE(SendCommandSync("Emulation.setTimezoneOverride",
+                              std::move(override_params)));
+  EXPECT_EQ("America/New_York",
+            content::EvalJs(web_contents, kTimezoneExpression).ExtractString());
+
+  base::DictValue clear_params;
+  clear_params.Set("timezoneId", "");
+  ASSERT_TRUE(SendCommandSync("Emulation.setTimezoneOverride",
+                              std::move(clear_params)));
+  EXPECT_EQ("Europe/London",
+            content::EvalJs(web_contents, kTimezoneExpression).ExtractString());
+  DetachProtocolClient();
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,

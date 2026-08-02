@@ -300,6 +300,12 @@ void ApplyVerifiedProfileProxyGeo(PrefService& prefs,
   ApplyProfileProxyAcceptLanguages(prefs, geo.accept_languages);
 }
 
+void PrepareVerifiedProfileProxyDerivedPrefs(PrefService& prefs,
+                                             const ProfileProxyGeo& geo) {
+  ApplyVerifiedProfileProxyGeo(prefs, geo);
+  ApplyProfileProxyWebRTCPolicy(prefs);
+}
+
 void ClearVerifiedProfileProxyGeo(PrefService& prefs) {
   ClearProfileProxyDerivedGeo(prefs);
   RestoreProfileProxyAcceptLanguages(prefs);

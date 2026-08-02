@@ -1,11 +1,11 @@
 diff --git a/third_party/blink/renderer/core/timezone/timezone_controller.cc b/third_party/blink/renderer/core/timezone/timezone_controller.cc
-index 48eb8d2fbdcf5917401ccf803ac8f4d3df917507..6da5e80e6c90265994b2fa0fc8f72cab58bb1b9f 100644
+index 48eb8d2fbdcf5917401ccf803ac8f4d3df917507..f3c2459ef89fbd73f21dc52ee7e8b868be0c539b 100644
 --- a/third_party/blink/renderer/core/timezone/timezone_controller.cc
 +++ b/third_party/blink/renderer/core/timezone/timezone_controller.cc
 @@ -4,6 +4,7 @@
-
+ 
  #include "third_party/blink/renderer/core/timezone/timezone_controller.h"
-
+ 
 +#include "base/command_line.h"
  #include "base/feature_list.h"
  #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -13,14 +13,32 @@ index 48eb8d2fbdcf5917401ccf803ac8f4d3df917507..6da5e80e6c90265994b2fa0fc8f72cab
 @@ -37,6 +38,9 @@ namespace {
  // no later than January 2025.
  BASE_FEATURE(kLazyBlinkTimezoneInit, base::FEATURE_DISABLED_BY_DEFAULT);
-
+ 
 +constexpr char kFingerprintBrowserTimezoneSwitch[] =
 +    "brave-fingerprint-browser-timezone";
 +
  // Notify V8 that the date/time configuration of the system might have changed.
  void NotifyTimezoneChangeToV8(v8::Isolate* isolate) {
    DCHECK(isolate);
-@@ -109,6 +113,13 @@ void TimeZoneController::Init() {
+@@ -65,9 +69,16 @@ String GetCurrentTimezoneId() {
+   return GetTimezoneId(*timezone.get());
+ }
+ 
++bool IsValidTimezoneId(const String& timezone_id) {
++  std::unique_ptr<icu::TimeZone> timezone(icu::TimeZone::createTimeZone(
++      icu::UnicodeString(timezone_id.Ascii().data(), -1, US_INV)));
++  return timezone && *timezone != icu::TimeZone::getUnknown();
++}
++
+ void DispatchTimeZoneChangeEventToFrames() {
+-  if (!RuntimeEnabledFeatures::TimeZoneChangeEventEnabled())
++  if (!RuntimeEnabledFeatures::TimeZoneChangeEventEnabled()) {
+     return;
++  }
+ 
+   for (const Page* page : Page::OrdinaryPages()) {
+     for (Frame* frame = page->MainFrame(); frame;
+@@ -109,6 +120,13 @@ void TimeZoneController::Init() {
    Platform::Current()->GetBrowserInterfaceBroker()->GetInterface(
        monitor.BindNewPipeAndPassReceiver());
    monitor->AddClient(instance().receiver_.BindNewPipeAndPassRemote());
@@ -32,32 +50,95 @@ index 48eb8d2fbdcf5917401ccf803ac8f4d3df917507..6da5e80e6c90265994b2fa0fc8f72cab
 +    SetFingerprintBrowserTimezoneOverride(String::FromUtf8(timezone_id));
 +  }
  }
-
+ 
  // static
-@@ -178,6 +189,26 @@ const String& TimeZoneController::TimeZoneIdOverride() {
+@@ -153,8 +171,8 @@ TimeZoneController::SetTimeZoneOverride(const String& timezone_id) {
+     return {TimeZoneOverrideStatus::kAlreadyInEffect, nullptr};
+   }
+ 
+-  // Only notify if the override and the host are different.
+-  if (!CanonicalEquals(timezone_id, instance().GetHostTimezoneId())) {
++  // Only notify if the temporary override and the baseline are different.
++  if (!CanonicalEquals(timezone_id, instance().BaselineTimeZoneId())) {
+     if (!SetIcuTimeZoneAndNotifyV8(timezone_id)) {
+       VLOG(1) << "Invalid override timezone id: " << timezone_id;
+       return {TimeZoneOverrideStatus::kInvalidTimezone, nullptr};
+@@ -178,17 +196,47 @@ const String& TimeZoneController::TimeZoneIdOverride() {
    return instance().override_timezone_id_;
  }
-
+ 
 +// static
 +void TimeZoneController::SetFingerprintBrowserTimezoneOverride(
 +    const String& timezone_id) {
++  base::AutoLock locker(instance().lock_);
++
++  const String previous_baseline = instance().BaselineTimeZoneId();
 +  if (timezone_id.empty()) {
-+    instance().fingerprint_browser_timezone_override_.reset();
++    instance().fingerprint_browser_timezone_id_ = String();
++    if (!HasTimeZoneOverride() &&
++        !CanonicalEquals(previous_baseline, instance().GetHostTimezoneId())) {
++      SetIcuTimeZoneAndNotifyV8(instance().GetHostTimezoneId());
++    }
 +    return;
 +  }
 +
-+  if (instance().fingerprint_browser_timezone_override_) {
-+    instance().fingerprint_browser_timezone_override_->change(timezone_id);
++  if (CanonicalEquals(instance().fingerprint_browser_timezone_id_,
++                      timezone_id)) {
 +    return;
 +  }
 +
-+  auto result = SetTimeZoneOverride(timezone_id);
-+  if (result.status == TimeZoneOverrideStatus::kSuccess) {
-+    instance().fingerprint_browser_timezone_override_ =
-+        std::move(result.handle);
++  if (!IsValidTimezoneId(timezone_id)) {
++    VLOG(1) << "Invalid fingerprint browser timezone id: " << timezone_id;
++    return;
 +  }
++  if (!HasTimeZoneOverride() &&
++      !CanonicalEquals(previous_baseline, timezone_id)) {
++    SetIcuTimeZoneAndNotifyV8(timezone_id);
++  }
++  instance().fingerprint_browser_timezone_id_ = timezone_id;
 +}
 +
  // static
  void TimeZoneController::ClearTimeZoneOverride() {
    base::AutoLock locker(instance().lock_);
+ 
+   DCHECK(HasTimeZoneOverride());
+ 
+-  if (!CanonicalEquals(instance().GetHostTimezoneId(),
++  const String baseline_timezone_id = instance().BaselineTimeZoneId();
++  if (!CanonicalEquals(baseline_timezone_id,
+                        instance().override_timezone_id_)) {
+-    // Restore remembered timezone request.
+-    // Only do so if the host timezone is now different.
+-    SetIcuTimeZoneAndNotifyV8(instance().GetHostTimezoneId());
++    SetIcuTimeZoneAndNotifyV8(baseline_timezone_id);
+   }
+   instance().override_timezone_id_ = String();
+ }
+@@ -249,8 +297,10 @@ void TimeZoneController::OnTimeZoneChange(const String& timezone_id) {
+   // override is removed.
+   instance().host_timezone_id_ = timezone_id;
+ 
+-  if (!HasTimeZoneOverride())
++  if (!HasTimeZoneOverride() &&
++      instance().fingerprint_browser_timezone_id_.empty()) {
+     SetIcuTimeZoneAndNotifyV8(timezone_id);
++  }
+ }
+ 
+ const String& TimeZoneController::GetHostTimezoneId() {
+@@ -262,6 +312,14 @@ const String& TimeZoneController::GetHostTimezoneId() {
+   return host_timezone_id_;
+ }
+ 
++const String& TimeZoneController::BaselineTimeZoneId() {
++  lock_.AssertAcquired();
++  if (!fingerprint_browser_timezone_id_.empty()) {
++    return fingerprint_browser_timezone_id_;
++  }
++  return GetHostTimezoneId();
++}
++
+ // static
+ void TimeZoneController::ChangeTimeZoneForTesting(const String& timezone) {
+   instance().OnTimeZoneChange(timezone);
