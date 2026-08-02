@@ -2,7 +2,9 @@
 
 ### Requirement: Persona 由真值池合成
 
-系统 SHALL 从「真值池」（人工维护的、真实存在的候选值集合：真 WebGL renderer 串、各 OS 真屏幕分辨率档、各 OS/locale 真字体集、真 UA + 版本组合等）中合成 persona，MUST NOT 使用随机拼造、真机上不存在的值组合。
+系统 SHALL 从「真值池」（人工维护的、真实存在的候选值集合：真 WebGL
+renderer 串、各 OS 真屏幕分辨率档、各 OS/locale 真字体集、真 UA + 版本组合等）中合成 persona，MUST
+NOT 使用随机拼造、真机上不存在的值组合。
 
 #### Scenario: 生成的 persona 每个字段都来自真值池
 
@@ -18,18 +20,22 @@
 
 ### Requirement: 一致性引擎保证 persona 内部自洽
 
-系统 SHALL 用一致性引擎组装 persona，确保各维度互相兼容（OS ↔ UA ↔ WebGL renderer ↔ 字体集 ↔ 屏幕档 ↔ 时区 ↔ UA-CH platform），MUST NOT 产出真机不可能出现的组合。
+系统 SHALL 用一致性引擎组装 persona，确保各维度互相兼容（OS ↔ UA ↔ WebGL
+renderer ↔ 字体集 ↔ 屏幕档 ↔ 时区 ↔ UA-CH platform），MUST
+NOT 产出真机不可能出现的组合。
 
 #### Scenario: OS 与 GPU 串兼容
 
 - **WHEN** persona 的 OS 维度为 Windows
-- **THEN** WebGL UNMASKED_RENDERER 串 SHALL 是 Windows 平台真实存在的显卡串（如 ANGLE/D3D11 形态）
+- **THEN** WebGL
+  UNMASKED_RENDERER 串 SHALL 是 Windows 平台真实存在的显卡串（如 ANGLE/D3D11 形态）
 - **AND** MUST NOT 出现 "Apple M#" 之类 macOS 专属串
 
 #### Scenario: OS 与 UA-CH platform 一致
 
 - **WHEN** persona 的 OS 维度为 Windows
-- **THEN** navigator.userAgentData.platform 与 UA 字符串中的平台标识 SHALL 均为 Windows
+- **THEN**
+  navigator.userAgentData.platform 与 UA 字符串中的平台标识 SHALL 均为 Windows
 - **AND** navigator.platform SHALL 为对应的 "Win32"/"Win64"
 
 #### Scenario: 字体集与 OS/locale 匹配
@@ -40,7 +46,8 @@
 
 ### Requirement: Persona 为 per-Profile 且持久
 
-系统 SHALL 将 persona 绑定到单个 Chromium Profile 并持久化，使同一 Profile 在跨会话、重启、导航后输出恒定不变的指纹。
+系统 SHALL 将 persona 绑定到单个 Chromium
+Profile 并持久化，使同一 Profile 在跨会话、重启、导航后输出恒定不变的指纹。
 
 #### Scenario: 重启后 persona 不变
 
@@ -55,28 +62,39 @@
 #### Scenario: 同 Profile 跨站点指纹一致
 
 - **WHEN** 同一 Profile 访问不同 eTLD+1 站点
-- **THEN** 指纹值 SHALL 保持一致（区别于 Brave 原生 farbling 的 per-eTLD+1 随机化）
+- **THEN**
+  指纹值 SHALL 保持一致（区别于 Brave 原生 farbling 的 per-eTLD+1 随机化）
 
 #### Scenario: 同 Profile 内跨 Container/分区上下文一致
 
-- **WHEN** 同一 Profile 内在不同 Container 标签页、或分区上下文（fenced frame / credentialless iframe）中读取指纹
-- **THEN** 指纹值 SHALL 仍等于该 Profile 的 persona（token MUST NOT 因 Container id 或 storage-key nonce 分叉）
-- **AND** 这一 Profile 内一致性 SHALL 覆盖 canvas/WebGL/audio/Accept-Language 等所有 token 消费面
+- **WHEN** 同一 Profile 内在不同 Container 标签页、或分区上下文（fenced frame /
+  credentialless iframe）中读取指纹
+- **THEN** 指纹值 SHALL 仍等于该 Profile 的 persona（token MUST NOT 因 Container
+  id 或 storage-key nonce 分叉）
+- **AND**
+  这一 Profile 内一致性 SHALL 覆盖 canvas/WebGL/audio/Accept-Language 等所有 token 消费面
 
 #### Scenario: 同 Profile 内跨 Worker 上下文一致
 
-- **WHEN** 同一 Profile 内在 Dedicated/Shared/Service Worker（含 MV3 扩展 background service worker）中读取指纹（如 OffscreenCanvas、Worker AudioContext）
-- **THEN** 指纹值 SHALL 等于该 Profile 主文档的 persona（Worker 有独立 token 下发路径，须在根部 `GetFarblingToken()` 收敛）
+- **WHEN** 同一 Profile 内在 Dedicated/Shared/Service
+  Worker（含 MV3 扩展 background service
+  worker）中读取指纹（如 OffscreenCanvas、Worker AudioContext）
+- **THEN**
+  指纹值 SHALL 等于该 Profile 主文档的 persona（Worker 有独立 token 下发路径，须在根部
+  `GetFarblingToken()` 收敛）
 - **AND** MUST NOT 出现 Worker 内指纹与主文档不一致
 
 ### Requirement: Persona 覆盖 v1 所需全部字段
 
-Persona SHALL 至少包含 L1（navigator/screen/UA-CH/plugins/mimeTypes）、L2（canvas/audio 噪声种子、webgl/webgpu metadata 串、字体集）所需的全部字段；L3（时区/geo/语言）字段来自代理 IP 推导（见 proxy-geo-consistency），不在 persona 内固化。
+系统 MUST 为 Persona 提供 v1 所需的全部字段。字段至少覆盖 L1（navigator/screen/UA-CH/plugins/mimeTypes）、L2（canvas/audio 噪声种子、webgl/webgpu
+metadata 串、字体集）；L3（时区/geo/语言）字段来自代理 IP 推导（见 proxy-geo-consistency），不在 Persona 内固化。
 
 #### Scenario: persona 字段完整性校验
 
 - **WHEN** 系统完成 persona 生成
-- **THEN** persona SHALL 含 UA、UA-CH（platform/brands/version）、platform、hardwareConcurrency、deviceMemory、languages 基线、屏幕档（width/height/avail/colorDepth/DPR）、maxTouchPoints、plugins/mimeTypes、WebGL vendor/renderer、WebGPU adapter info、canvas/audio 噪声种子、字体集
+- **THEN** persona
+  SHALL 含 UA、UA-CH（platform/brands/version）、platform、hardwareConcurrency、deviceMemory、languages 基线、屏幕档（width/height/avail/colorDepth/DPR）、maxTouchPoints、plugins/mimeTypes、WebGL
+  vendor/renderer、WebGPU adapter info、canvas/audio 噪声种子、字体集
 - **AND** 缺任一字段则视为无效 persona
 
 #### Scenario: schema 原位迁移不更换身份

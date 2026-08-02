@@ -2,7 +2,8 @@
 
 ### Requirement: 1 身份 = 1 Chromium Profile
 
-系统 SHALL 以一个 Chromium Profile 承载一个反检测身份，每个身份拥有独立的存储、NetworkContext、persona、代理配置（ADR-0004）。
+系统 SHALL 以一个 Chromium
+Profile 承载一个反检测身份，每个身份拥有独立的存储、NetworkContext、persona、代理配置（ADR-0004）。
 
 #### Scenario: 身份要素齐备
 
@@ -12,7 +13,8 @@
 
 ### Requirement: 多身份并发运行
 
-系统 SHALL 支持多个 Profile 身份同时在线运行，各自维持独立 persona 与代理，MUST NOT 因并发而串号。
+系统 SHALL 支持多个 Profile 身份同时在线运行，各自维持独立 persona 与代理，MUST
+NOT 因并发而串号。
 
 #### Scenario: 并发身份互不串号
 
@@ -23,17 +25,21 @@
 #### Scenario: 一方泄漏不关联另一方
 
 - **WHEN** 两个并发身份运行在同一台宿主机
-- **THEN** 其中一个身份的可观测指纹/IP SHALL NOT 暴露另一身份的存在或真实宿主标识
+- **THEN** 其中一个身份的可观测指纹/IP SHALL
+  NOT 暴露另一身份的存在或真实宿主标识
 
 #### Scenario: 本地网络发现不绕过代理泄漏
 
-- **WHEN** 一个启用代理的身份 Profile 运行、页面尝试本地网络设备发现（如 Media Router/Cast、mDNS）
+- **WHEN** 一个启用代理的身份 Profile 运行、页面尝试本地网络设备发现（如 Media
+  Router/Cast、mDNS）
 - **THEN** 该发现 SHALL NOT 绕过代理暴露真实本地网络/设备图谱信息
-- **AND** 系统 SHALL 审计 Tor 已有的同类保护（如 Tor 窗口禁用 Media Router）是否需扩展到 per-Profile 代理身份
+- **AND** 系统 SHALL 审计 Tor 已有的同类保护（如 Tor 窗口禁用 Media
+  Router）是否需扩展到 per-Profile 代理身份
 
 ### Requirement: persona ↔ proxy ↔ Profile 绑定生命周期
 
-系统 SHALL 管理 persona 与代理到 Profile 的绑定生命周期：创建时分配，销毁时清理，MUST NOT 残留孤立绑定。
+系统 SHALL 管理 persona 与代理到 Profile 的绑定生命周期：创建时分配，销毁时清理，MUST
+NOT 残留孤立绑定。
 
 #### Scenario: 创建时绑定
 

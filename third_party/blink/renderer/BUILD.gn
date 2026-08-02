@@ -8,6 +8,7 @@ component("renderer") {
     "brave_farbling_constants.h",
     "brave_font_whitelist.cc",
     "brave_font_whitelist.h",
+    "modules/mediastream/persona_media_device_map.h",
   ]
 
   deps = [

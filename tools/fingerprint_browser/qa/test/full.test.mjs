@@ -1,7 +1,11 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import {analyzeThirdPartyScan} from '../scenarios/full.mjs'
+import { analyzeThirdPartyScan } from '../scenarios/full.mjs'
 
 const passing = {
   bodyText: 'Public IP 203.0.113.10',

@@ -25,7 +25,8 @@ FB 多号存活靠 4 根支柱,本项目只覆盖第 1 根:
 
 ### 指纹面分 4 层(难度阶梯)
 
-- **L1 JS/Blink 取值**:`navigator.*`、`screen.*`、UA-CH 等。Easy。Brave 多数已挂钩。
+- **L1
+  JS/Blink 取值**:`navigator.*`、`screen.*`、UA-CH 等。Easy。Brave 多数已挂钩。
 - **L2 渲染/GPU/音频**:Canvas、WebGL、WebGPU、AudioContext、字体。Hard(渲染字节)。Brave 已挂钩。
 - **L3 时区/地理/语言**:Intl
   timezone、geolocation、Accept-Language。Medium,**必做**。Brave **没**挂钩。
