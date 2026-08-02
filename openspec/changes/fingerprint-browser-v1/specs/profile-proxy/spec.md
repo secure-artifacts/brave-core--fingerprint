@@ -2,9 +2,9 @@
 
 ### Requirement: per-Profile 代理配置
 
-系统 SHALL 支持为普通 Profile 配置独立上游代理，作用域为该 Profile 的 NetworkContext，MUST NOT
-影响其他 Profile 或全局。普通隐身窗口 SHALL 继承原 Profile 的代理与状态；Tor 和 Guest SHALL 保持
-原网络行为，不被本功能接管。
+系统 SHALL 支持为普通 Profile 配置独立上游代理，作用域为该 Profile 的 NetworkContext，MUST
+NOT 影响其他 Profile 或全局。普通隐身窗口 SHALL 继承原 Profile 的代理与状态；Tor 和 Guest
+SHALL 保持原网络行为，不被本功能接管。
 
 #### Scenario: 代理仅作用于本 Profile
 
@@ -40,8 +40,8 @@
 
 ### Requirement: 支持 HTTP、HTTPS 与 SOCKS5 认证代理
 
-系统 SHALL 支持 HTTP、HTTPS 与 SOCKS5 代理，均支持用户名/密码认证。认证 MUST NOT 弹出交互式
-登录框。SOCKS5 认证使用 RFC1929；HTTP/HTTPS 自动处理代理认证挑战。
+系统 SHALL 支持 HTTP、HTTPS 与 SOCKS5 代理，均支持用户名/密码认证。认证 MUST
+NOT 弹出交互式登录框。SOCKS5 认证使用 RFC1929；HTTP/HTTPS 自动处理代理认证挑战。
 
 #### Scenario: SOCKS5 带认证连接
 
@@ -64,8 +64,10 @@
 
 ### Requirement: 验证后确认状态机
 
-系统 SHALL 使用 `unconfigured/verifying/awaiting_confirmation/active/stale/error/conflict` 状态。
-用户必须先验证草稿，再使用绑定该草稿的验证令牌确认应用。验证失败 MUST NOT 改变当前已生效代理。
+系统 SHALL 使用
+`unconfigured/verifying/awaiting_confirmation/active/stale/error/conflict`
+状态。用户必须先验证草稿，再使用绑定该草稿的验证令牌确认应用。验证失败 MUST
+NOT 改变当前已生效代理。
 
 #### Scenario: 候选代理隔离验证
 
@@ -102,8 +104,8 @@
 ### Requirement: 代理凭证安全
 
 系统 SHALL 使用 Chromium `OSCryptAsync` 加密持久化密码。WebUI SHALL 只获得
-`hasSavedPassword`，MUST NOT 读取保存的明文密码。日志、崩溃报告和 QA 报告 MUST NOT 记录用户名
-或密码。
+`hasSavedPassword`，MUST NOT 读取保存的明文密码。日志、崩溃报告和 QA 报告 MUST
+NOT 记录用户名或密码。
 
 #### Scenario: 留空密码继续使用已保存密码
 
@@ -125,10 +127,8 @@
 
 ### Requirement: 三阶段设置页
 
-系统 SHALL 在 `brave://settings/fingerprintProfileProxy` 提供“输入代理 → 验证代理 → 查看结果并确认应用”
-三阶段独立页面。隐私设置页 SHALL 提供可见入口，工具栏状态弹窗的配置操作 SHALL 直接进入该页面。
-表单包含协议、host、端口、用户名和密码；结果包含国旗、出口 IP、国家/城市、IANA 时区、坐标、
-语言和 WebRTC 状态。
+系统 SHALL 在 `brave://settings/fingerprintProfileProxy`
+提供“输入代理 → 验证代理 → 查看结果并确认应用”三阶段独立页面。隐私设置页 SHALL 提供可见入口，工具栏状态弹窗的配置操作 SHALL 直接进入该页面。表单包含协议、host、端口、用户名和密码；结果包含国旗、出口 IP、国家/城市、IANA 时区、坐标、语言和 WebRTC 状态。
 
 #### Scenario: 用户验证并确认代理
 
@@ -136,7 +136,8 @@
 - **THEN** 页面 SHALL 显示验证结果但不立即改变当前代理
 - **AND WHEN** 用户点击“确认并应用”
 - **THEN** 系统 SHALL 原子应用代理和派生指纹配置
-- **AND** 配置、凭证、Geo、语言、时区、定位或 WebRTC 任一步准备失败时 SHALL 完整回滚
+- **AND**
+  配置、凭证、Geo、语言、时区、定位或 WebRTC 任一步准备失败时 SHALL 完整回滚
 - **AND** 页面 MUST NOT 观察到半配置状态
 
 #### Scenario: 从设置页和工具栏进入代理页面
@@ -160,8 +161,9 @@
 
 ### Requirement: 浏览器工具栏代理状态
 
-系统 SHALL 在 VPN 后、Profile/App Menu 前提供固定代理按钮，并以语义状态持续显示当前 Profile
-代理健康。国旗 SHALL 来自固定版本本地资源，MUST NOT 加载 API 返回的远程图片。
+系统 SHALL 在 VPN 后、Profile/App
+Menu 前提供固定代理按钮，并以语义状态持续显示当前 Profile 代理健康。国旗 SHALL 来自固定版本本地资源，MUST
+NOT 加载 API 返回的远程图片。
 
 #### Scenario: 未配置和已生效状态
 

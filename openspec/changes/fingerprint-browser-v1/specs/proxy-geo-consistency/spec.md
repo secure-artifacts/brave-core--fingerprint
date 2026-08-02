@@ -2,8 +2,8 @@
 
 ### Requirement: 通过代理出口查询 geo
 
-系统 SHALL 通过候选代理请求 FreeIPAPI；请求超时、限流、网络失败或响应无效时 SHALL 请求
-IPWHOIS.IO。两个 Provider 均须经统一适配层解析。v1 MUST NOT 依赖本地 GeoIP 数据库或其更新分发。
+系统 SHALL 通过候选代理请求 FreeIPAPI；请求超时、限流、网络失败或响应无效时 SHALL 请求 IPWHOIS.IO。两个 Provider 均须经统一适配层解析。v1
+MUST NOT 依赖本地 GeoIP 数据库或其更新分发。
 
 #### Scenario: 主 Provider 成功
 
@@ -35,8 +35,8 @@ IPWHOIS.IO。两个 Provider 均须经统一适配层解析。v1 MUST NOT 依赖
 
 ### Requirement: 确认后原子应用 L3
 
-系统 SHALL 只在用户确认有效验证令牌后，原子应用代理、国家/国旗、IANA 时区、近似坐标、
-按 ICU `und_<国家码>` 推导的主要语言和 Accept-Language，以及 WebRTC
+系统 SHALL 只在用户确认有效验证令牌后，原子应用代理、国家/国旗、IANA 时区、近似坐标、按 ICU
+`und_<国家码>` 推导的主要语言和 Accept-Language，以及 WebRTC
 `disable_non_proxied_udp`。
 
 #### Scenario: 确认前不改变指纹
@@ -74,7 +74,8 @@ IPWHOIS.IO。两个 Provider 均须经统一适配层解析。v1 MUST NOT 依赖
 #### Scenario: Accept-Language 匹配代理国家
 
 - **WHEN** 代理出口定位到德国
-- **THEN** Accept-Language 与 `navigator.languages` SHALL 反映 ICU 推导的德国主要 locale
+- **THEN** Accept-Language 与 `navigator.languages`
+  SHALL 反映 ICU 推导的德国主要 locale
 
 #### Scenario: Strict 指纹保护不覆盖代理语言
 
@@ -95,8 +96,8 @@ IPWHOIS.IO。两个 Provider 均须经统一适配层解析。v1 MUST NOT 依赖
 
 ### Requirement: 强制 WebRTC 防漏
 
-系统 SHALL 在代理启用时强制 WebRTC IP 处理策略为 `disable_non_proxied_udp`。覆盖前 SHALL
-保存用户原值；禁用代理时 SHALL 恢复原值。
+系统 SHALL 在代理启用时强制 WebRTC IP 处理策略为
+`disable_non_proxied_udp`。覆盖前 SHALL 保存用户原值；禁用代理时 SHALL 恢复原值。
 
 #### Scenario: WebRTC 不泄漏真实 IP
 
@@ -111,8 +112,7 @@ IPWHOIS.IO。两个 Provider 均须经统一适配层解析。v1 MUST NOT 依赖
 
 ### Requirement: 定时复检与出口变化
 
-系统 SHALL 每 15 分钟、浏览器启动、网络恢复和代理错误时复检出口；同一 Profile 多窗口 SHALL
-合并并发复检。
+系统 SHALL 每 15 分钟、浏览器启动、网络恢复和代理错误时复检出口；同一 Profile 多窗口 SHALL 合并并发复检。
 
 #### Scenario: 同国家 IP 变化
 
