@@ -31,13 +31,13 @@ void RegisterAllowFontFamilyCallback(AllowFontFamilyCallback callback) {
 // This only runs if the relevant font selector (CSS or offscreen)
 // does NOT find a matching font, because we want to allow web fonts
 // unconditionally.
-#define BRAVE_GET_FONT_DATA                         \
-  if ((!curr_family->FamilyIsGeneric()) &&          \
-      brave::GetAllowFontFamilyCallback() &&        \
+#define BRAVE_GET_FONT_DATA                              \
+  if ((!curr_family->FamilyIsGeneric()) &&               \
+      brave::GetAllowFontFamilyCallback() &&             \
       !brave::GetAllowFontFamilyCallback()->is_null() && \
-      !brave::GetAllowFontFamilyCallback()->Run(    \
-          GetFontSelector()->GetExecutionContext(), \
-          curr_family->FamilyName()))               \
+      !brave::GetAllowFontFamilyCallback()->Run(         \
+          GetFontSelector()->GetExecutionContext(),      \
+          curr_family->FamilyName()))                    \
     result = nullptr;
 
 #include <third_party/blink/renderer/platform/fonts/font_fallback_list.cc>

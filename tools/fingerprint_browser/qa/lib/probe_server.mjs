@@ -1,3 +1,7 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
@@ -46,7 +50,8 @@ export async function startProbeServer(root) {
       response.writeHead(200, {
         'Accept-CH': CLIENT_HINTS,
         'Cache-Control': 'no-store',
-        'Content-Type': CONTENT_TYPES[path.extname(target)] || 'application/octet-stream',
+        'Content-Type':
+          CONTENT_TYPES[path.extname(target)] || 'application/octet-stream',
         'Service-Worker-Allowed': '/',
       })
       response.end(content)
@@ -64,7 +69,8 @@ export async function startProbeServer(root) {
     requests,
     async close() {
       await new Promise((resolve, reject) =>
-        server.close(error => error ? reject(error) : resolve()))
+        server.close((error) => (error ? reject(error) : resolve())),
+      )
     },
   }
 }

@@ -42,9 +42,8 @@ void ApplyBraveHardwareConcurrencyOverride(blink::ExecutionContext* context,
       [[fallthrough]];
     }
     case BraveFarblingLevel::BALANCED: {
-      if (auto persona_value =
-              brave::BraveSessionCache::From(*context)
-                  .PersonaHardwareConcurrency()) {
+      if (auto persona_value = brave::BraveSessionCache::From(*context)
+                                   .PersonaHardwareConcurrency()) {
         *hardware_concurrency = *persona_value;
         return;
       }

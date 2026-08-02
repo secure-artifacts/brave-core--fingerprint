@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc
-index d14048efd8634..84705abd9050a 100644
+index d14048efd86341cec53e7f438380252dde7f5523..84705abd9050a61284dc2024645b555fd6c54188 100644
 --- a/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.cc
 @@ -4,11 +4,55 @@

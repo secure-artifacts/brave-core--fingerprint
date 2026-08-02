@@ -9,12 +9,15 @@ This checkout is a fork (`origin` = `secure-artifacts/brave-core--fingerprint`,
 
 ### Issue tracker
 
-Issues tracked as GitHub Issues on `secure-artifacts/brave-core--fingerprint`; external PRs are not pulled into triage. See `docs/agents/issue-tracker.md`.
+Issues tracked as GitHub Issues on `secure-artifacts/brave-core--fingerprint`;
+external PRs are not pulled into triage. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context layout (one `CONTEXT.md` + `docs/adr/` at repo root). See `docs/agents/domain.md`.
+Single-context layout (one `CONTEXT.md` + `docs/adr/` at repo root). See
+`docs/agents/domain.md`.

@@ -1,5 +1,5 @@
 diff --git a/chrome/app/chrome_main_delegate.cc b/chrome/app/chrome_main_delegate.cc
-index df8f9455d224f..3eb729036b909 100644
+index df8f9455d224f7c15ac89075b37edde07df8ea2e..3eb729036b9092de25b66c39b9c81d88a086d0d0 100644
 --- a/chrome/app/chrome_main_delegate.cc
 +++ b/chrome/app/chrome_main_delegate.cc
 @@ -4,6 +4,8 @@

@@ -106,9 +106,9 @@ TEST(ProfileProxyConfigServiceTest, ReturnsSocks5ProxyWithCredentials) {
 }
 
 TEST(ProfileProxyConfigServiceTest, ReturnsHttpsProxyWithCredentials) {
-  ProfileProxyConfigService service(AuthProxyServer(
-      ProxyServer::SCHEME_HTTPS, "secure-user", "secure-pass",
-      "proxy.example", 8443));
+  ProfileProxyConfigService service(
+      AuthProxyServer(ProxyServer::SCHEME_HTTPS, "secure-user", "secure-pass",
+                      "proxy.example", 8443));
   ProxyConfigWithAnnotation config;
 
   ASSERT_EQ(ProxyConfigService::CONFIG_VALID,
@@ -122,9 +122,9 @@ TEST(ProfileProxyConfigServiceTest, ReturnsHttpsProxyWithCredentials) {
 }
 
 TEST(ProfileProxyConfigServiceTest, CredentialsAreRedactedFromDebugOutput) {
-  const ProxyServer proxy_server = AuthProxyServer(
-      ProxyServer::SCHEME_SOCKS5, "private-user", "private-pass",
-      "proxy.example", 1080);
+  const ProxyServer proxy_server =
+      AuthProxyServer(ProxyServer::SCHEME_SOCKS5, "private-user",
+                      "private-pass", "proxy.example", 1080);
   const ProxyChain proxy_chain(proxy_server);
   ProxyList proxy_list;
   proxy_list.SetSingleProxyServer(proxy_server);
@@ -132,8 +132,8 @@ TEST(ProfileProxyConfigServiceTest, CredentialsAreRedactedFromDebugOutput) {
   stream << proxy_server;
 
   for (const std::string& value :
-       {proxy_server.host_port_pair().ToString(),
-        proxy_chain.ToDebugString(), proxy_list.ToDebugString(),
+       {proxy_server.host_port_pair().ToString(), proxy_chain.ToDebugString(),
+        proxy_list.ToDebugString(),
         proxy_list.ToValue().GetList()[0].GetString(), stream.str()}) {
     EXPECT_EQ(std::string::npos, value.find("private-user"));
     EXPECT_EQ(std::string::npos, value.find("private-pass"));

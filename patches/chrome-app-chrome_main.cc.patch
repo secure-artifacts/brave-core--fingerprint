@@ -1,5 +1,5 @@
 diff --git a/chrome/app/chrome_main.cc b/chrome/app/chrome_main.cc
-index b5cc00e4c869a..a980bb68be056 100644
+index b5cc00e4c869a0ece32db12b8f60fa9fbce111f7..a980bb68be056c618b06004a087991a0854e42bf 100644
 --- a/chrome/app/chrome_main.cc
 +++ b/chrome/app/chrome_main.cc
 @@ -28,6 +28,10 @@

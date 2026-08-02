@@ -38,10 +38,10 @@ node run_qa.mjs \
   --results-dir ../../../../out/Component_arm64/qa-results
 ```
 
-Full and Soak require the original crash extension and real proxy fixtures.
-The browser first verifies each draft through FreeIPAPI, falls back to
-IPWHOIS.IO, and only applies the proxy after the QA flow confirms the returned
-exit IP and location:
+Full and Soak require the original crash extension and real proxy fixtures. The
+browser first verifies each draft through FreeIPAPI, falls back to IPWHOIS.IO,
+and only applies the proxy after the QA flow confirms the returned exit IP and
+location:
 
 ```bash
 export FP_QA_PRIMARY_EXTENSION_URL='https://chromewebstore.google.com/detail/...'
@@ -55,8 +55,8 @@ without repeating the C++ suite. This diagnostic mode is not a Full delivery
 gate.
 
 Do not place proxy credentials in the repository. The fixture must be a regular
-file with mode `0600`. HTTP-only or SOCKS5-only files run the available
-protocol and keep the Full gate blocked until both are present:
+file with mode `0600`. HTTP-only or SOCKS5-only files run the available protocol
+and keep the Full gate blocked until both are present:
 
 ```json
 {
@@ -142,10 +142,10 @@ the exact output artifacts used by the run:
 }
 ```
 
-The interaction map must contain `pre-extension-*` and `post-extension-*`
-PASS evidence with reasons for Shields, VPN, Wallet, AI, sidebar, Profile menu,
-More Tools, and Action Required. The abbreviated JSON above shows the shape;
-all 16 entries are mandatory.
+The interaction map must contain `pre-extension-*` and `post-extension-*` PASS
+evidence with reasons for Shields, VPN, Wallet, AI, sidebar, Profile menu, More
+Tools, and Action Required. The abbreviated JSON above shows the shape; all 16
+entries are mandatory.
 
 `FP_QA_VISUAL_REVIEW_MANIFEST` binds the manual review of every captured image
 to the same build. Every entry requires an explicit `PASS` or `FAIL` and a
@@ -174,10 +174,10 @@ baselines/
 ```
 
 Add `<baseline>.mask.png` to ignore dynamic regions. White pixels are compared;
-black pixels are ignored. Baseline comparison records RMSE, SSIM difference,
-and pixel difference ratio. The runner never creates or updates baselines.
-Add `<baseline>.red-mask.png` with black regions only for semantic red UI such
-as Shields alerts; unmasked pure-red toolbar pixels remain a hard failure.
+black pixels are ignored. Baseline comparison records RMSE, SSIM difference, and
+pixel difference ratio. The runner never creates or updates baselines. Add
+`<baseline>.red-mask.png` with black regions only for semantic red UI such as
+Shields alerts; unmasked pure-red toolbar pixels remain a hard failure.
 
 Capture these from the verified app used by the same run. Missing proxy data,
 the original extension URL, native evidence, test binaries, or approved
@@ -200,8 +200,8 @@ src/out/Component_arm64/qa-results/<run-id>/
 
 Without `--app`, preparation creates and verifies a dedicated package at
 `src/out/Component_arm64/fingerprint-browser-qa/Brave Browser Development QA.app`.
-The runner rejects `src/out/Component_arm64/Brave Browser Development.app` as
-a launch target.
+The runner rejects `src/out/Component_arm64/Brave Browser Development.app` as a
+launch target.
 
 On macOS, every QA session uses Chromium's `--use-mock-keychain` switch. This
 prevents an ad-hoc-signed QA copy from blocking Cookie Store startup while
@@ -212,21 +212,26 @@ screenshots, and crash artifacts. Every screenshot receives a `PASS` or `FAIL`
 image-analysis record. Full and Soak require approved baselines for every image
 and an artifact-bound human review manifest.
 
+Each run also creates `visual-review-gallery.md`, `visual-review.template.json`,
+and `screenshots/candidate-baselines/`. The candidate directory never replaces
+an approved baseline automatically. The template is bound to the current
+libchrome and resource hashes; every entry must receive a human `PASS` or `FAIL`
+plus a reason before it can be supplied through `FP_QA_VISUAL_REVIEW_MANIFEST`.
+
 Before launch, the runner checks a content-addressed source build manifest,
-source freshness, unscaled/scaled resource SHA-256, all locale pack hashes,
-the main app/Framework/Helper executable set, the full root dylib name,
-Mach-O UUID, `otool -L` version/dependency set, exact libchrome and resource
-hashes, and `codesign --verify --deep --strict`. Full runs also
-require current `brave_components_unittests`, `brave_unit_tests`,
-`net_unittests`, `fingerprint_browser_worker_watcher_unittests`, and
-`brave_browser_tests` binaries. The focused WorkerWatcher binary covers the
-service/shared-worker shutdown crash regression without building Chromium's
-entire `unit_tests` target.
-When preparation is enabled, a mismatched app executable baseline is refreshed;
-changed current dylibs, resources, and locale packs are then copied into the QA
-app and the app is re-signed before verification.
+source freshness, unscaled/scaled resource SHA-256, all locale pack hashes, the
+main app/Framework/Helper executable set, the full root dylib name, Mach-O UUID,
+`otool -L` version/dependency set, exact libchrome and resource hashes, and
+`codesign --verify --deep --strict`. Full runs also require current
+`brave_components_unittests`, `brave_unit_tests`, `net_unittests`,
+`fingerprint_browser_worker_watcher_unittests`, and `brave_browser_tests`
+binaries. The focused WorkerWatcher binary covers the service/shared-worker
+shutdown crash regression without building Chromium's entire `unit_tests`
+target. When preparation is enabled, a mismatched app executable baseline is
+refreshed; changed current dylibs, resources, and locale packs are then copied
+into the QA app and the app is re-signed before verification.
 
 The runner removes only `/tmp/fingerprint-browser-<run-id>` and QA processes
 whose process tree is rooted at `/tmp/fingerprint-browser-*`. Native UI actions
-are bound to that QA browser PID. It does not stop or alter
-the user's production Brave profile.
+are bound to that QA browser PID. It does not stop or alter the user's
+production Brave profile.

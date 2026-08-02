@@ -1,10 +1,14 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import {unsignedMachOSha256} from '../lib/artifacts.mjs'
+import { unsignedMachOSha256 } from '../lib/artifacts.mjs'
 
 function fakeSignedMachO(signature) {
   const header = Buffer.alloc(32)
@@ -25,19 +29,33 @@ function fakeSignedMachO(signature) {
   command.writeUInt32LE(header.length + linkedit.length + command.length + 7, 8)
   command.writeUInt32LE(signature.length, 12)
 
-  return Buffer.concat([header, linkedit, command, Buffer.from('payload'), signature])
+  return Buffer.concat([
+    header,
+    linkedit,
+    command,
+    Buffer.from('payload'),
+    signature,
+  ])
 }
 
 test('unsignedMachOSha256 ignores ad-hoc signature payload and size', async () => {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-artifact-test-'))
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'fp-qa-artifact-test-'),
+  )
   try {
     const first = path.join(directory, 'first.dylib')
     const second = path.join(directory, 'second.dylib')
     await fs.writeFile(first, fakeSignedMachO(Buffer.from('signature-one')))
-    await fs.writeFile(second, fakeSignedMachO(Buffer.from('different-signature-two')))
+    await fs.writeFile(
+      second,
+      fakeSignedMachO(Buffer.from('different-signature-two')),
+    )
 
-    assert.equal(await unsignedMachOSha256(first), await unsignedMachOSha256(second))
+    assert.equal(
+      await unsignedMachOSha256(first),
+      await unsignedMachOSha256(second),
+    )
   } finally {
-    await fs.rm(directory, {recursive: true, force: true})
+    await fs.rm(directory, { recursive: true, force: true })
   }
 })

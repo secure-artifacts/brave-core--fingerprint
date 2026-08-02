@@ -1,11 +1,19 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import path from 'node:path'
 
-import {auditCurrentPage, navigateAndCapture, startQaSession} from '../lib/browser.mjs'
+import {
+  auditCurrentPage,
+  navigateAndCapture,
+  startQaSession,
+} from '../lib/browser.mjs'
 import {
   runLocalExtensionLifecycle,
   runWebStoreExtensionLifecycle,
 } from '../lib/extensions.mjs'
-import {loadProxyFixtures, publicProxyRecord} from '../lib/fixtures.mjs'
+import { loadProxyFixtures, publicProxyRecord } from '../lib/fixtures.mjs'
 import {
   applyVerifiedProfileProxy,
   collectWebRtcCandidates,
@@ -15,7 +23,7 @@ import {
   setProfileProxy,
   verifyProfileProxy,
 } from '../lib/profile.mjs'
-import {runScenario} from '../lib/report.mjs'
+import { runScenario } from '../lib/report.mjs'
 import {
   captureNativeScreenshot,
   clickNativeText,
@@ -25,7 +33,7 @@ import {
   run,
   setFrontWindowSize,
 } from '../lib/system.mjs'
-import {importNativeEvidence} from '../lib/native_evidence.mjs'
+import { importNativeEvidence } from '../lib/native_evidence.mjs'
 
 const GOOGLE_TRANSLATE_URL =
   'https://chromewebstore.google.com/detail/google-translate/aapbdbdomjkkjkaonfhkkikfgjllcleb'
@@ -46,18 +54,19 @@ function observedIpFromBody(body) {
 function observedGeoFromBody(body) {
   const parsed = JSON.parse(body)
   const countryCode = parsed.countryCode || parsed.country_code
-  const timezone = typeof parsed.timezone === 'string'
-    ? parsed.timezone
-    : parsed.timezone?.id
+  const timezone =
+    typeof parsed.timezone === 'string' ? parsed.timezone : parsed.timezone?.id
   if (!countryCode || !timezone) {
-    throw new Error('Geo verification response requires countryCode/country_code and timezone')
+    throw new Error(
+      'Geo verification response requires countryCode/country_code and timezone',
+    )
   }
-  return {countryCode: String(countryCode).toUpperCase(), timezone}
+  return { countryCode: String(countryCode).toUpperCase(), timezone }
 }
 
 async function collectProxySurfaceProbe(page) {
   const origin = 'https://example.com'
-  await page.context().grantPermissions(['geolocation'], {origin})
+  await page.context().grantPermissions(['geolocation'], { origin })
   const response = await page.goto(`${origin}/`, {
     timeout: 60000,
     waitUntil: 'domcontentloaded',
@@ -68,16 +77,18 @@ async function collectProxySurfaceProbe(page) {
   return await page.evaluate(async () => {
     const geolocation = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
-        position => resolve({
-          accuracy: position.coords.accuracy,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }),
-        error => reject(new Error(`Geolocation failed: ${error.message}`)),
-        {timeout: 10000})
+        (position) =>
+          resolve({
+            accuracy: position.coords.accuracy,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }),
+        (error) => reject(new Error(`Geolocation failed: ${error.message}`)),
+        { timeout: 10000 },
+      )
     })
     return {
-      basic: {languages: [...navigator.languages]},
+      basic: { languages: [...navigator.languages] },
       geolocation,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }
@@ -86,8 +97,11 @@ async function collectProxySurfaceProbe(page) {
 
 async function assertCurrentWebUi(page, label) {
   const audit = await auditCurrentPage(page)
-  if (audit.componentContrastFailures.length > 0 ||
-      audit.contrastFailures.length > 0 || audit.layoutFailures.length > 0) {
+  if (
+    audit.componentContrastFailures.length > 0
+    || audit.contrastFailures.length > 0
+    || audit.layoutFailures.length > 0
+  ) {
     throw Object.assign(new Error(`${label} failed WebUI checks`), {
       details: audit,
     })
@@ -96,15 +110,16 @@ async function assertCurrentWebUi(page, label) {
 }
 
 async function profilePrefs(page, updates = null) {
-  await page.goto(
-    'brave://settings/fingerprintProfileProxy',
-    {waitUntil: 'domcontentloaded'})
-  return await page.evaluate(async updates => {
+  await page.goto('brave://settings/fingerprintProfileProxy', {
+    waitUntil: 'domcontentloaded',
+  })
+  return await page.evaluate(async (updates) => {
     if (updates) {
       if (updates['intl.accept_languages']) {
         await chrome.settingsPrivate.setPref(
           'intl.selected_languages',
-          updates['intl.accept_languages'])
+          updates['intl.accept_languages'],
+        )
       }
       for (const [key, value] of Object.entries(updates)) {
         await chrome.settingsPrivate.setPref(key, value)
@@ -122,7 +137,7 @@ async function profilePrefs(page, updates = null) {
   }, updates)
 }
 
-async function verifyProxy({config, dirs, fixture, probe, runId}) {
+async function verifyProxy({ config, dirs, fixture, probe, runId }) {
   const profilePath = `/tmp/fingerprint-browser-${runId}/proxy-${fixture.scheme}`
   const events = []
   let session = await startQaSession({
@@ -134,28 +149,39 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
   })
   events.push(session.events)
   try {
-    let page = session.context.pages()[0] || await session.context.newPage()
+    let page = session.context.pages()[0] || (await session.context.newPage())
     const originalPrefs = await profilePrefs(page, {
       'intl.accept_languages': 'fr-FR,fr',
       'webrtc.ip_handling_policy': 'default_public_and_private_interfaces',
     })
-    if (originalPrefs['intl.accept_languages'] !== 'fr-FR,fr' ||
-        originalPrefs['webrtc.ip_handling_policy'] !==
-          'default_public_and_private_interfaces') {
-      throw Object.assign(new Error('Could not establish restoration sentinels'), {
-        details: originalPrefs,
-      })
+    if (
+      originalPrefs['intl.accept_languages'] !== 'fr-FR,fr'
+      || originalPrefs['webrtc.ip_handling_policy']
+        !== 'default_public_and_private_interfaces'
+    ) {
+      throw Object.assign(
+        new Error('Could not establish restoration sentinels'),
+        {
+          details: originalPrefs,
+        },
+      )
     }
     const defaultState = await readProfileProxyState(page)
     if (defaultState.enabled) {
-      throw new Error(`${fixture.scheme} proxy was unexpectedly enabled by default`)
+      throw new Error(
+        `${fixture.scheme} proxy was unexpectedly enabled by default`,
+      )
     }
     const defaultScreenshot = path.join(
-      dirs.page, `full-proxy-${fixture.scheme}-default.png`)
-    await page.screenshot({path: defaultScreenshot, fullPage: false})
+      dirs.page,
+      `full-proxy-${fixture.scheme}-default.png`,
+    )
+    await page.screenshot({ path: defaultScreenshot, fullPage: false })
     await assertCurrentWebUi(page, `${fixture.scheme} proxy default state`)
     const invalidScreenshot = path.join(
-      dirs.page, `full-proxy-${fixture.scheme}-validation-error.png`)
+      dirs.page,
+      `full-proxy-${fixture.scheme}-validation-error.png`,
+    )
     const validation = await renderProxyValidationError(page, invalidScreenshot)
     await assertCurrentWebUi(page, `${fixture.scheme} proxy validation`)
 
@@ -163,33 +189,43 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
       ...fixture,
       enabled: true,
     })
-    if (!verified.verification?.success || verified.actionError ||
-        verified.verification.egressIp !== fixture.expectedIp ||
-        verified.verification.geo?.countryCode !== fixture.countryCode ||
-        verified.verification.geo?.timezone !== fixture.timezone) {
+    if (
+      !verified.verification?.success
+      || verified.actionError
+      || verified.verification.egressIp !== fixture.expectedIp
+      || verified.verification.geo?.countryCode !== fixture.countryCode
+      || verified.verification.geo?.timezone !== fixture.timezone
+    ) {
       throw Object.assign(
         new Error(`Could not verify ${fixture.scheme} proxy`),
-        {details: {expected: publicProxyRecord(fixture), verified}},
+        { details: { expected: publicProxyRecord(fixture), verified } },
       )
     }
     const verifiedScreenshot = path.join(
-      dirs.page, `full-proxy-${fixture.scheme}-verified.png`)
-    await page.screenshot({path: verifiedScreenshot, fullPage: false})
+      dirs.page,
+      `full-proxy-${fixture.scheme}-verified.png`,
+    )
+    await page.screenshot({ path: verifiedScreenshot, fullPage: false })
     await assertCurrentWebUi(page, `${fixture.scheme} proxy verified state`)
 
     const applied = await applyVerifiedProfileProxy(page)
-    if (!applied.enabled || applied.state !== 'active' ||
-        applied.egressIp !== fixture.expectedIp ||
-        applied.activeGeo?.countryCode !== fixture.countryCode ||
-        applied.activeGeo?.timezone !== fixture.timezone) {
+    if (
+      !applied.enabled
+      || applied.state !== 'active'
+      || applied.egressIp !== fixture.expectedIp
+      || applied.activeGeo?.countryCode !== fixture.countryCode
+      || applied.activeGeo?.timezone !== fixture.timezone
+    ) {
       throw Object.assign(
         new Error(`Could not apply ${fixture.scheme} proxy`),
-        {details: applied},
+        { details: applied },
       )
     }
     const activeScreenshot = path.join(
-      dirs.page, `full-proxy-${fixture.scheme}-active.png`)
-    await page.screenshot({path: activeScreenshot, fullPage: false})
+      dirs.page,
+      `full-proxy-${fixture.scheme}-active.png`,
+    )
+    await page.screenshot({ path: activeScreenshot, fullPage: false })
     await assertCurrentWebUi(page, `${fixture.scheme} proxy active state`)
 
     const response = await page.goto(fixture.verifyUrl, {
@@ -197,67 +233,96 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
       waitUntil: 'domcontentloaded',
     })
     if (!response?.ok()) {
-      throw new Error(`${fixture.scheme} proxy verification returned ${response?.status()}`)
+      throw new Error(
+        `${fixture.scheme} proxy verification returned ${response?.status()}`,
+      )
     }
     const body = await page.locator('body').innerText()
     const observedIp = observedIpFromBody(body)
     if (observedIp !== fixture.expectedIp) {
       throw new Error(
-        `${fixture.scheme} exit IP mismatch: ${observedIp} != ${fixture.expectedIp}`)
+        `${fixture.scheme} exit IP mismatch: ${observedIp} != ${fixture.expectedIp}`,
+      )
     }
     const geoResponse = await page.goto(fixture.geoVerifyUrl, {
       timeout: 60000,
       waitUntil: 'domcontentloaded',
     })
     if (!geoResponse?.ok()) {
-      throw new Error(`${fixture.scheme} Geo verification returned ${geoResponse?.status()}`)
+      throw new Error(
+        `${fixture.scheme} Geo verification returned ${geoResponse?.status()}`,
+      )
     }
-    const networkGeo = observedGeoFromBody(await page.locator('body').innerText())
-    if (networkGeo.countryCode !== fixture.countryCode ||
-        networkGeo.timezone !== fixture.timezone) {
+    const networkGeo = observedGeoFromBody(
+      await page.locator('body').innerText(),
+    )
+    if (
+      networkGeo.countryCode !== fixture.countryCode
+      || networkGeo.timezone !== fixture.timezone
+    ) {
       throw Object.assign(new Error(`${fixture.scheme} exit Geo mismatch`), {
-        details: {expected: publicProxyRecord(fixture), networkGeo},
+        details: { expected: publicProxyRecord(fixture), networkGeo },
       })
     }
 
-    for (const url of ['https://www.google.com/', 'https://www.facebook.com/']) {
+    for (const url of [
+      'https://www.google.com/',
+      'https://www.facebook.com/',
+    ]) {
       const siteResponse = await page.goto(url, {
         timeout: 60000,
         waitUntil: 'domcontentloaded',
       })
       if (!siteResponse?.ok()) {
         throw new Error(
-          `${fixture.scheme} proxy navigation returned ${siteResponse?.status()} for ${url}`)
+          `${fixture.scheme} proxy navigation returned ${siteResponse?.status()} for ${url}`,
+        )
       }
     }
     const observed = await collectProxySurfaceProbe(page)
     if (observed.timezone !== fixture.timezone) {
       throw new Error(
-        `${fixture.scheme} timezone mismatch: ${observed.timezone} != ${fixture.timezone}`)
+        `${fixture.scheme} timezone mismatch: ${observed.timezone} != ${fixture.timezone}`,
+      )
     }
     const languages = observed.basic.languages.map(normalizeLanguage)
-    if (!languages.some(language => language.startsWith(normalizeLanguage(fixture.language)))) {
-      throw new Error(`${fixture.scheme} language mismatch: ${languages.join(', ')}`)
+    if (
+      !languages.some((language) =>
+        language.startsWith(normalizeLanguage(fixture.language)),
+      )
+    ) {
+      throw new Error(
+        `${fixture.scheme} language mismatch: ${languages.join(', ')}`,
+      )
     }
-    if (!Number.isFinite(observed.geolocation.latitude) ||
-        !Number.isFinite(observed.geolocation.longitude)) {
+    if (
+      !Number.isFinite(observed.geolocation.latitude)
+      || !Number.isFinite(observed.geolocation.longitude)
+    ) {
       throw new Error(`${fixture.scheme} geolocation was unavailable`)
     }
-    const latitudeDelta = Math.abs(observed.geolocation.latitude - fixture.latitude)
-    const longitudeDelta = Math.abs(observed.geolocation.longitude - fixture.longitude)
+    const latitudeDelta = Math.abs(
+      observed.geolocation.latitude - fixture.latitude,
+    )
+    const longitudeDelta = Math.abs(
+      observed.geolocation.longitude - fixture.longitude,
+    )
     if (latitudeDelta > 0.1 || longitudeDelta > 0.1) {
       throw new Error(`${fixture.scheme} geolocation mismatch`)
     }
 
     const candidates = await collectWebRtcCandidates(page)
-    const leakingCandidates = candidates.filter(candidate => {
+    const leakingCandidates = candidates.filter((candidate) => {
       const srflx = candidate.includes(' typ srflx ')
       return srflx && !candidate.includes(fixture.expectedIp)
     })
     if (leakingCandidates.length > 0) {
-      throw Object.assign(new Error(`${fixture.scheme} WebRTC leaked a non-proxy srflx address`), {
-        details: {candidates, leakingCandidates},
-      })
+      throw Object.assign(
+        new Error(`${fixture.scheme} WebRTC leaked a non-proxy srflx address`),
+        {
+          details: { candidates, leakingCandidates },
+        },
+      )
     }
 
     await session.close()
@@ -269,13 +334,20 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
       profilePath,
     })
     events.push(session.events)
-    page = session.context.pages()[0] || await session.context.newPage()
+    page = session.context.pages()[0] || (await session.context.newPage())
     const persisted = await readProfileProxyState(page)
-    if (!persisted.enabled || persisted.scheme !== fixture.scheme ||
-        persisted.host !== fixture.host || persisted.port !== fixture.port) {
-      throw Object.assign(new Error(`${fixture.scheme} proxy did not persist across restart`), {
-        details: persisted,
-      })
+    if (
+      !persisted.enabled
+      || persisted.scheme !== fixture.scheme
+      || persisted.host !== fixture.host
+      || persisted.port !== fixture.port
+    ) {
+      throw Object.assign(
+        new Error(`${fixture.scheme} proxy did not persist across restart`),
+        {
+          details: persisted,
+        },
+      )
     }
     const restartedResponse = await page.goto(fixture.verifyUrl, {
       timeout: 60000,
@@ -297,24 +369,29 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
     if (authAttempt.verification || !authAttempt.actionError) {
       throw Object.assign(
         new Error(`${fixture.scheme} wrong credentials were not rejected`),
-        {details: authAttempt},
+        { details: authAttempt },
       )
     }
     const authState = await readProfileProxyState(page, false)
-    if (!authState.enabled ||
-        !['active', 'stale'].includes(authState.state) ||
-        authState.egressIp !== fixture.expectedIp) {
+    if (
+      !authState.enabled
+      || !['active', 'stale'].includes(authState.state)
+      || authState.egressIp !== fixture.expectedIp
+    ) {
       throw Object.assign(
         new Error(`${fixture.scheme} failed draft replaced active proxy`),
-        {details: authState},
+        { details: authState },
       )
     }
     const authScreenshot = path.join(
-      dirs.page, `full-proxy-${fixture.scheme}-authentication-error.png`)
+      dirs.page,
+      `full-proxy-${fixture.scheme}-authentication-error.png`,
+    )
     await page.evaluate(() => {
       function find(root) {
         const direct = root.querySelector?.(
-          'settings-fingerprint-profile-proxy-subpage')
+          'settings-fingerprint-profile-proxy-subpage',
+        )
         if (direct) return direct
         for (const element of root.querySelectorAll?.('*') || []) {
           if (element.shadowRoot) {
@@ -324,31 +401,42 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
         }
         return null
       }
-      find(document)?.shadowRoot?.querySelector('#actionError')
-        ?.scrollIntoView({block: 'center'})
+      find(document)
+        ?.shadowRoot?.querySelector('#actionError')
+        ?.scrollIntoView({ block: 'center' })
     })
-    await page.screenshot({path: authScreenshot, fullPage: false})
-    await assertCurrentWebUi(page, `${fixture.scheme} proxy authentication error`)
+    await page.screenshot({ path: authScreenshot, fullPage: false })
+    await assertCurrentWebUi(
+      page,
+      `${fixture.scheme} proxy authentication error`,
+    )
 
-    await setProfileProxy(page, {enabled: false})
-    const direct = await page.goto(probe.origin, {waitUntil: 'domcontentloaded'})
+    await setProfileProxy(page, { enabled: false })
+    const direct = await page.goto(probe.origin, {
+      waitUntil: 'domcontentloaded',
+    })
     if (!direct?.ok()) {
       throw new Error('Direct settings were not restored after disabling proxy')
     }
     const restoredPrefs = await profilePrefs(page)
     if (JSON.stringify(restoredPrefs) !== JSON.stringify(originalPrefs)) {
-      throw Object.assign(new Error('Language or WebRTC preference was not restored'), {
-        details: {originalPrefs, restoredPrefs},
-      })
+      throw Object.assign(
+        new Error('Language or WebRTC preference was not restored'),
+        {
+          details: { originalPrefs, restoredPrefs },
+        },
+      )
     }
-    const failures = events.flatMap(eventSet => [
-      ...eventSet.browserExits.map(event => `browser exited ${event.code ?? event.signal}`),
-      ...eventSet.crashes.map(event => `renderer crash ${event.page}`),
-      ...eventSet.pageErrors.map(event => `pageerror ${event.message}`),
+    const failures = events.flatMap((eventSet) => [
+      ...eventSet.browserExits.map(
+        (event) => `browser exited ${event.code ?? event.signal}`,
+      ),
+      ...eventSet.crashes.map((event) => `renderer crash ${event.page}`),
+      ...eventSet.pageErrors.map((event) => `pageerror ${event.message}`),
       ...eventSet.disconnected.map(() => 'CDP disconnected'),
     ])
     if (failures.length > 0) {
-      throw Object.assign(new Error(failures.join('; ')), {details: events})
+      throw Object.assign(new Error(failures.join('; ')), { details: events })
     }
     return {
       authState,
@@ -377,7 +465,13 @@ async function verifyProxy({config, dirs, fixture, probe, runId}) {
   }
 }
 
-async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runId}) {
+async function verifyProxySwitchPersistence({
+  config,
+  dirs,
+  fixtures,
+  probe,
+  runId,
+}) {
   const profilePath = `/tmp/fingerprint-browser-${runId}/proxy-switch`
   let session = await startQaSession({
     app: config.app,
@@ -387,13 +481,16 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
     profilePath,
   })
   try {
-    let page = session.context.pages()[0] || await session.context.newPage()
+    let page = session.context.pages()[0] || (await session.context.newPage())
     const transitions = []
     for (const fixture of [fixtures.http, fixtures.socks5]) {
-      const saved = await setProfileProxy(page, {...fixture, enabled: true})
-      if (!saved.enabled || saved.state !== 'active' ||
-          saved.scheme !== fixture.scheme ||
-          saved.egressIp !== fixture.expectedIp) {
+      const saved = await setProfileProxy(page, { ...fixture, enabled: true })
+      if (
+        !saved.enabled
+        || saved.state !== 'active'
+        || saved.scheme !== fixture.scheme
+        || saved.egressIp !== fixture.expectedIp
+      ) {
         throw new Error(`Could not switch to ${fixture.scheme}`)
       }
       const response = await page.goto(fixture.verifyUrl, {
@@ -406,13 +503,13 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
       if (ip !== fixture.expectedIp) {
         throw new Error(`${fixture.scheme} switch exit IP mismatch`)
       }
-      transitions.push({ip, scheme: fixture.scheme})
+      transitions.push({ ip, scheme: fixture.scheme })
     }
     const screenshot = path.join(dirs.page, 'full-proxy-switch-socks5.png')
-    await page.goto(
-      'brave://settings/fingerprintProfileProxy',
-      {waitUntil: 'domcontentloaded'})
-    await page.screenshot({path: screenshot, fullPage: false})
+    await page.goto('brave://settings/fingerprintProfileProxy', {
+      waitUntil: 'domcontentloaded',
+    })
+    await page.screenshot({ path: screenshot, fullPage: false })
     await assertCurrentWebUi(page, 'SOCKS5 switch state')
 
     await session.close()
@@ -423,13 +520,13 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
       name: 'proxy-switch-restart',
       profilePath,
     })
-    page = session.context.pages()[0] || await session.context.newPage()
+    page = session.context.pages()[0] || (await session.context.newPage())
     const persisted = await readProfileProxyState(page)
     if (!persisted.enabled || persisted.scheme !== 'socks5') {
       throw new Error('Switched SOCKS5 proxy did not persist across restart')
     }
     const observed = await collectProxySurfaceProbe(page)
-    await setProfileProxy(page, {enabled: false})
+    await setProfileProxy(page, { enabled: false })
     return {
       observed,
       persisted,
@@ -441,7 +538,80 @@ async function verifyProxySwitchPersistence({config, dirs, fixtures, probe, runI
   }
 }
 
-async function runThirdPartyScans({config, dirs, runId}) {
+function thirdPartyLieSignals(bodyText) {
+  const signals = []
+  const patterns = [
+    /\b(?:lies|mismatches?)\s*[(:=]\s*([1-9]\d*)\b/gi,
+    /\b(?:lied|mismatched?)\s*[:=]\s*(true|yes|detected)\b/gi,
+  ]
+  for (const pattern of patterns) {
+    for (const match of bodyText.matchAll(pattern)) {
+      signals.push(match[0].replaceAll(/\s+/g, ' ').trim())
+    }
+  }
+  return [...new Set(signals)]
+}
+
+export function analyzeThirdPartyScan({
+  bodyText,
+  expectedIp,
+  expectedLanguage,
+  expectedTimezone,
+  languages,
+  name,
+  responseStatus,
+  timezone,
+  webRtcCandidates,
+}) {
+  const failures = []
+  const lieSignals = thirdPartyLieSignals(bodyText)
+  if (
+    !Number.isInteger(responseStatus)
+    || responseStatus < 200
+    || responseStatus >= 400
+  ) {
+    failures.push(`HTTP status ${responseStatus ?? 'unavailable'}`)
+  }
+  if (timezone !== expectedTimezone) {
+    failures.push(
+      `timezone ${timezone || 'unavailable'} != ${expectedTimezone}`,
+    )
+  }
+  const normalizedLanguages = languages.map(normalizeLanguage)
+  if (
+    !normalizedLanguages.some((language) =>
+      language.startsWith(normalizeLanguage(expectedLanguage)),
+    )
+  ) {
+    failures.push(
+      `language ${normalizedLanguages.join(', ') || 'unavailable'} != ${expectedLanguage}`,
+    )
+  }
+  if (name === 'browserleaks' && !bodyText.includes(expectedIp)) {
+    failures.push(`BrowserLeaks did not report expected exit IP ${expectedIp}`)
+  }
+  if (lieSignals.length > 0) {
+    failures.push(`explicit lie/mismatch signals: ${lieSignals.join(', ')}`)
+  }
+  const leakingCandidates = webRtcCandidates.filter(
+    (candidate) =>
+      candidate.includes(' typ srflx ') && !candidate.includes(expectedIp),
+  )
+  if (leakingCandidates.length > 0) {
+    failures.push('WebRTC exposed a non-proxy srflx address')
+  }
+  return {
+    failures,
+    language: normalizedLanguages,
+    lieSignals,
+    pass: failures.length === 0,
+    timezone,
+    webRtcCandidates,
+    webRtcLeaks: leakingCandidates,
+  }
+}
+
+async function runThirdPartyScans({ config, dirs, fixture, runId }) {
   const session = await startQaSession({
     app: config.app,
     logDir: dirs.logs,
@@ -455,16 +625,99 @@ async function runThirdPartyScans({config, dirs, runId}) {
     ['browserleaks-ssl', 'https://browserleaks.com/ssl'],
   ]
   try {
-    const page = session.context.pages()[0] || await session.context.newPage()
+    const page = session.context.pages()[0] || (await session.context.newPage())
+    let observedIp = null
+    if (fixture) {
+      const applied = await setProfileProxy(page, fixture)
+      if (
+        !applied.enabled
+        || applied.state !== 'active'
+        || applied.egressIp !== fixture.expectedIp
+      ) {
+        return {
+          reason: 'HTTP proxy could not be applied for third-party scans',
+          status: 'FAIL',
+        }
+      }
+      const verificationPage = await session.context.newPage()
+      const ipResponse = await verificationPage.goto(fixture.verifyUrl, {
+        timeout: 60000,
+        waitUntil: 'domcontentloaded',
+      })
+      observedIp = observedIpFromBody(
+        await verificationPage.locator('body').innerText(),
+      )
+      await verificationPage.close()
+      if (!ipResponse?.ok() || observedIp !== fixture.expectedIp) {
+        return {
+          observedIp,
+          reason: `Third-party scan exit IP mismatch: ${observedIp} != ${fixture.expectedIp}`,
+          status: 'FAIL',
+        }
+      }
+    }
     const evidence = []
     for (const [name, url] of scans) {
-      const response = await page.goto(url, {timeout: 60000, waitUntil: 'domcontentloaded'})
-      await page.waitForTimeout(5000)
       const screenshot = path.join(dirs.page, `full-scan-${name}.png`)
-      await page.screenshot({path: screenshot, fullPage: false})
-      evidence.push({name, screenshot, status: response?.status() ?? null, url: page.url()})
+      try {
+        const response = await page.goto(url, {
+          timeout: 60000,
+          waitUntil: 'domcontentloaded',
+        })
+        await page.waitForTimeout(5000)
+        const surface = await page.evaluate(() => ({
+          bodyText: document.body?.innerText || '',
+          languages: [...navigator.languages],
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }))
+        const webRtcCandidates = await collectWebRtcCandidates(page)
+        await page.screenshot({ path: screenshot, fullPage: false })
+        const analysis = fixture
+          ? analyzeThirdPartyScan({
+              ...surface,
+              expectedIp: fixture.expectedIp,
+              expectedLanguage: fixture.language,
+              expectedTimezone: fixture.timezone,
+              name,
+              responseStatus: response?.status() ?? null,
+              webRtcCandidates,
+            })
+          : {
+              failures: [
+                'HTTP proxy fixture is required for machine assertions',
+              ],
+              pass: false,
+              ...surface,
+              webRtcCandidates,
+            }
+        evidence.push({
+          analysis,
+          name,
+          screenshot,
+          status: response?.status() ?? null,
+          url: page.url(),
+        })
+      } catch (error) {
+        evidence.push({
+          analysis: { failures: [error.message], pass: false },
+          name,
+          screenshot,
+          status: null,
+          url: page.url(),
+        })
+      }
     }
-    return {evidence, screenshots: evidence.map(item => item.screenshot)}
+    const failed = evidence.filter((item) => !item.analysis.pass)
+    return {
+      evidence,
+      observedIp,
+      reason:
+        failed.length > 0
+          ? `${failed.length} third-party fingerprint scans failed machine assertions`
+          : undefined,
+      screenshots: evidence.map((item) => item.screenshot),
+      status: fixture ? (failed.length > 0 ? 'FAIL' : 'PASS') : 'BLOCKED',
+    }
   } finally {
     await session.close()
   }
@@ -472,30 +725,42 @@ async function runThirdPartyScans({config, dirs, runId}) {
 
 async function verifyTlsSourceScope(config) {
   const mergeBase = await run(
-    'git', ['merge-base', 'HEAD', 'upstream/master'],
-    {check: true, cwd: config.braveRoot})
+    'git',
+    ['merge-base', 'HEAD', 'upstream/master'],
+    { check: true, cwd: config.braveRoot },
+  )
   const base = mergeBase.stdout.trim()
-  const diff = await run('git', [
-    'diff', '--name-only', base, '--',
-    'chromium_src/net/socket/ssl_client_socket_impl.cc',
-    'chromium_src/third_party/boringssl',
-    'patches/*boringssl*',
-    'patches/*ssl_client_socket*',
-  ], {check: true, cwd: config.braveRoot})
+  const diff = await run(
+    'git',
+    [
+      'diff',
+      '--name-only',
+      base,
+      '--',
+      'chromium_src/net/socket/ssl_client_socket_impl.cc',
+      'chromium_src/third_party/boringssl',
+      'patches/*boringssl*',
+      'patches/*ssl_client_socket*',
+    ],
+    { check: true, cwd: config.braveRoot },
+  )
   const changed = diff.stdout.trim().split('\n').filter(Boolean)
   if (changed.length > 0) {
-    throw Object.assign(new Error('TLS implementation differs from upstream base'), {
-      details: {base, changed},
-    })
+    throw Object.assign(
+      new Error('TLS implementation differs from upstream base'),
+      {
+        details: { base, changed },
+      },
+    )
   }
-  return {base, changed}
+  return { base, changed }
 }
 
-export async function runUiMatrix({config, dirs, probe, runId}) {
+export async function runUiMatrix({ config, dirs, probe, runId }) {
   const sizes = [
-    {height: 768, width: 1024},
-    {height: 800, width: 1280},
-    {height: 982, width: 1512},
+    { height: 768, width: 1024 },
+    { height: 800, width: 1280 },
+    { height: 982, width: 1512 },
   ]
   const states = [
     ['new-tab', 'brave://newtab/'],
@@ -514,26 +779,33 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
       name: `ui-${theme}`,
       profilePath: `/tmp/fingerprint-browser-${runId}/ui-${theme}`,
       profilePreferences: {
-        brave: {dark_mode_migrated: true},
-        browser: {theme: {color_scheme2: theme === 'dark' ? 2 : 1}},
+        brave: { dark_mode_migrated: true },
+        browser: { theme: { color_scheme2: theme === 'dark' ? 2 : 1 } },
       },
     })
     try {
-      const page = session.context.pages()[0] || await session.context.newPage()
-      await page.emulateMedia({colorScheme: theme})
+      const page =
+        session.context.pages()[0] || (await session.context.newPage())
+      await page.emulateMedia({ colorScheme: theme })
       for (const size of sizes) {
-        await setFrontWindowSize(size.width, size.height, session.process.child.pid)
+        await setFrontWindowSize(
+          size.width,
+          size.height,
+          session.process.child.pid,
+        )
         await page.setViewportSize(size)
         for (const [name, url] of states) {
           let targetPage = page
           if (name === 'fingerprint') {
-            await page.goto(probe.origin, {waitUntil: 'domcontentloaded'})
+            await page.goto(probe.origin, { waitUntil: 'domcontentloaded' })
             targetPage = await session.context.newPage()
             await targetPage.setViewportSize(size)
-            await targetPage.emulateMedia({colorScheme: theme})
+            await targetPage.emulateMedia({ colorScheme: theme })
           }
           const pageScreenshot = path.join(
-            dirs.page, `full-${theme}-${name}-${size.width}x${size.height}.png`)
+            dirs.page,
+            `full-${theme}-${name}-${size.width}x${size.height}.png`,
+          )
           const result = await navigateAndCapture({
             colorScheme: theme,
             page: targetPage,
@@ -544,49 +816,75 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
             validateLayout:
               name === 'fingerprint' || name === 'settings' || name === 'proxy',
           })
-          if (result.componentContrastFailures.length > 0 ||
-              result.contrastFailures.length > 0 || result.layoutFailures.length > 0) {
-            throw Object.assign(new Error(`${theme} ${name} ${size.width}x${size.height} failed UI checks`), {
-              details: {
-                componentContrastFailures: result.componentContrastFailures,
-                contrastFailures: result.contrastFailures,
-                layoutFailures: result.layoutFailures,
+          if (
+            result.componentContrastFailures.length > 0
+            || result.contrastFailures.length > 0
+            || result.layoutFailures.length > 0
+          ) {
+            throw Object.assign(
+              new Error(
+                `${theme} ${name} ${size.width}x${size.height} failed UI checks`,
+              ),
+              {
+                details: {
+                  componentContrastFailures: result.componentContrastFailures,
+                  contrastFailures: result.contrastFailures,
+                  layoutFailures: result.layoutFailures,
+                },
               },
-            })
+            )
           }
           screenshots.push(pageScreenshot)
-          if (name === 'fingerprint' || name === 'settings' || name === 'proxy') {
+          if (
+            name === 'fingerprint'
+            || name === 'settings'
+            || name === 'proxy'
+          ) {
             await targetPage.bringToFront()
             await setFrontWindowSize(
-              size.width, size.height, session.process.child.pid)
+              size.width,
+              size.height,
+              session.process.child.pid,
+            )
             await targetPage.waitForTimeout(300)
             const nativeScreenshot = path.join(
-              dirs.native, `full-${theme}-${name}-${size.width}x${size.height}.png`)
-            await captureNativeScreenshot(nativeScreenshot, session.process.child.pid)
+              dirs.native,
+              `full-${theme}-${name}-${size.width}x${size.height}.png`,
+            )
+            await captureNativeScreenshot(
+              nativeScreenshot,
+              session.process.child.pid,
+            )
             const dimensions = await pngDimensions(nativeScreenshot)
-            if (dimensions.width !== size.width || dimensions.height !== size.height) {
+            if (
+              dimensions.width !== size.width
+              || dimensions.height !== size.height
+            ) {
               throw Object.assign(
                 new Error(
-                  `${theme} ${name} native screenshot dimensions did not match ${size.width}x${size.height}`),
-                {details: {actual: dimensions, expected: size}},
+                  `${theme} ${name} native screenshot dimensions did not match ${size.width}x${size.height}`,
+                ),
+                { details: { actual: dimensions, expected: size } },
               )
             }
             screenshots.push(nativeScreenshot)
           }
           if (name === 'fingerprint') {
             for (const visualState of ['fail', 'unavailable']) {
-              await targetPage.evaluate(visualState => {
+              await targetPage.evaluate((visualState) => {
                 const status = document.querySelector('#status')
                 const row = document.querySelector('.row-status')
                 status.dataset.state = 'fail'
                 if (visualState === 'fail') {
-                  status.textContent = '8 of 9 values match this profile\'s Persona.'
+                  status.textContent =
+                    "8 of 9 values match this profile's Persona."
                   if (row) {
                     row.dataset.state = 'fail'
                     row.textContent = 'Different'
                   }
                 } else {
-                  status.textContent = 'Could not load fingerprint data: Persona is unavailable.'
+                  status.textContent =
+                    'Could not load fingerprint data: Persona is unavailable.'
                   if (row) {
                     row.dataset.state = 'na'
                     row.textContent = 'Unavailable'
@@ -595,23 +893,29 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
               }, visualState)
               const stateScreenshot = path.join(
                 dirs.page,
-                `full-${theme}-fingerprint-${visualState}-${size.width}x${size.height}.png`)
-              await targetPage.screenshot({path: stateScreenshot, fullPage: false})
+                `full-${theme}-fingerprint-${visualState}-${size.width}x${size.height}.png`,
+              )
+              await targetPage.screenshot({
+                path: stateScreenshot,
+                fullPage: false,
+              })
               await assertCurrentWebUi(
                 targetPage,
-                `${theme} fingerprint ${visualState} ${size.width}x${size.height}`)
+                `${theme} fingerprint ${visualState} ${size.width}x${size.height}`,
+              )
               screenshots.push(stateScreenshot)
             }
           }
           if (name === 'proxy') {
             const validationScreenshot = path.join(
               dirs.page,
-              `full-${theme}-proxy-validation-${size.width}x${size.height}.png`)
-            await renderProxyValidationError(
-              targetPage, validationScreenshot)
+              `full-${theme}-proxy-validation-${size.width}x${size.height}.png`,
+            )
+            await renderProxyValidationError(targetPage, validationScreenshot)
             await assertCurrentWebUi(
               targetPage,
-              `${theme} proxy validation ${size.width}x${size.height}`)
+              `${theme} proxy validation ${size.width}x${size.height}`,
+            )
             screenshots.push(validationScreenshot)
           }
           if (targetPage !== page) {
@@ -623,98 +927,129 @@ export async function runUiMatrix({config, dirs, probe, runId}) {
       await session.close()
     }
   }
-  return {screenshots}
+  return { screenshots }
 }
 
-export async function runProxyToolbarFlow({config, dirs, runId}) {
+export async function runProxyToolbarFlow({ config, dirs, runId }) {
   const session = await startQaSession({
     app: config.app,
     logDir: dirs.logs,
     name: 'proxy-toolbar',
     profilePath: `/tmp/fingerprint-browser-${runId}/proxy-toolbar`,
     profilePreferences: {
-      brave: {dark_mode_migrated: true},
-      browser: {theme: {color_scheme2: 1}},
+      brave: { dark_mode_migrated: true },
+      browser: { theme: { color_scheme2: 1 } },
     },
   })
   try {
-    const page = session.context.pages()[0] || await session.context.newPage()
-    await page.goto('https://example.com/', {waitUntil: 'domcontentloaded'})
+    const page = session.context.pages()[0] || (await session.context.newPage())
+    await page.goto('https://example.com/', { waitUntil: 'domcontentloaded' })
     await page.bringToFront()
     await page.waitForTimeout(500)
 
     const toolbarScreenshot = path.join(
-      dirs.native, 'full-proxy-toolbar-button.png')
-    await captureNativeScreenshot(
-      toolbarScreenshot, session.process.child.pid)
+      dirs.native,
+      'full-proxy-toolbar-button.png',
+    )
+    await captureNativeScreenshot(toolbarScreenshot, session.process.child.pid)
     await clickNativeText(
-      toolbarScreenshot, 'Profile proxy', session.process.child.pid)
-      .catch(async () => await clickNativeWindowOffset(
-        50, 60, session.process.child.pid))
+      toolbarScreenshot,
+      'Profile proxy',
+      session.process.child.pid,
+    ).catch(
+      async () =>
+        await clickNativeWindowOffset(50, 60, session.process.child.pid),
+    )
     await page.waitForTimeout(500)
 
     const bubbleScreenshot = path.join(
-      dirs.native, 'full-proxy-toolbar-bubble.png')
-    await captureNativeScreenshot(
-      bubbleScreenshot, session.process.child.pid)
-    if (!(await nativeScreenshotHasText(bubbleScreenshot, 'Profile proxy')) ||
-        !(await nativeScreenshotHasText(bubbleScreenshot, 'Configure'))) {
+      dirs.native,
+      'full-proxy-toolbar-bubble.png',
+    )
+    await captureNativeScreenshot(bubbleScreenshot, session.process.child.pid)
+    if (
+      !(await nativeScreenshotHasText(bubbleScreenshot, 'Profile proxy'))
+      || !(await nativeScreenshotHasText(bubbleScreenshot, 'Configure'))
+    ) {
       throw new Error('Profile proxy toolbar bubble was not visible')
     }
     await clickNativeText(
-      bubbleScreenshot, 'Configure', session.process.child.pid)
+      bubbleScreenshot,
+      'Configure',
+      session.process.child.pid,
+    )
     await page.waitForTimeout(700)
 
     const afterConfigureScreenshot = path.join(
-      dirs.native, 'full-proxy-toolbar-after-configure.png')
+      dirs.native,
+      'full-proxy-toolbar-after-configure.png',
+    )
     await captureNativeScreenshot(
-      afterConfigureScreenshot, session.process.child.pid)
-    if (await nativeScreenshotHasText(
-      afterConfigureScreenshot, 'Configure')) {
-      await clickNativeWindowOffset(
-        270, 282, session.process.child.pid)
+      afterConfigureScreenshot,
+      session.process.child.pid,
+    )
+    if (await nativeScreenshotHasText(afterConfigureScreenshot, 'Configure')) {
+      await clickNativeWindowOffset(270, 282, session.process.child.pid)
     }
 
     let settingsPage
     for (let attempt = 0; attempt < 100; attempt += 1) {
-      settingsPage = session.context.pages().find(
-        candidate =>
+      settingsPage = session.context
+        .pages()
+        .find((candidate) =>
           /^(?:brave|chrome):\/\/settings\/fingerprintProfileProxy/.test(
-            candidate.url()))
+            candidate.url(),
+          ),
+        )
       if (settingsPage) break
       await page.waitForTimeout(100)
     }
     if (!settingsPage) {
       throw Object.assign(
         new Error('Profile proxy toolbar did not open its settings route'),
-        {details: {urls: session.context.pages().map(candidate => candidate.url())}},
+        {
+          details: {
+            urls: session.context.pages().map((candidate) => candidate.url()),
+          },
+        },
       )
     }
     await settingsPage.bringToFront()
-    await settingsPage.waitForFunction(() => {
-      function find(root) {
-        const direct = root.querySelector?.(
-          'settings-fingerprint-profile-proxy-subpage')
-        if (direct) return direct
-        for (const element of root.querySelectorAll?.('*') || []) {
-          if (element.shadowRoot) {
-            const nested = find(element.shadowRoot)
-            if (nested) return nested
+    await settingsPage.waitForFunction(
+      () => {
+        function find(root) {
+          const direct = root.querySelector?.(
+            'settings-fingerprint-profile-proxy-subpage',
+          )
+          if (direct) return direct
+          for (const element of root.querySelectorAll?.('*') || []) {
+            if (element.shadowRoot) {
+              const nested = find(element.shadowRoot)
+              if (nested) return nested
+            }
           }
+          return null
         }
-        return null
-      }
-      const proxyPage = find(document)
-      return Boolean(
-        proxyPage?.getClientRects().length &&
-        proxyPage.shadowRoot?.querySelector('#host'))
-    }, null, {timeout: 15000})
+        const proxyPage = find(document)
+        return Boolean(
+          proxyPage?.getClientRects().length
+            && proxyPage.shadowRoot?.querySelector('#host'),
+        )
+      },
+      null,
+      { timeout: 15000 },
+    )
     await settingsPage.waitForTimeout(1500)
 
     const pageScreenshot = path.join(
-      dirs.page, 'full-proxy-toolbar-settings-route.png')
-    await settingsPage.screenshot({path: pageScreenshot, fullPage: false})
-    await assertCurrentWebUi(settingsPage, 'Profile proxy toolbar settings route')
+      dirs.page,
+      'full-proxy-toolbar-settings-route.png',
+    )
+    await settingsPage.screenshot({ path: pageScreenshot, fullPage: false })
+    await assertCurrentWebUi(
+      settingsPage,
+      'Profile proxy toolbar settings route',
+    )
     return {
       screenshots: [
         toolbarScreenshot,
@@ -729,15 +1064,15 @@ export async function runProxyToolbarFlow({config, dirs, runId}) {
   }
 }
 
-export async function runProxyFixtures({config, dirs, probe, report, runId}) {
+export async function runProxyFixtures({ config, dirs, probe, report, runId }) {
   let proxyFixtures
   await runScenario(report, 'full-proxy-fixtures', async () => {
     proxyFixtures = await loadProxyFixtures(config.proxyFixtures)
     if (proxyFixtures.status === 'BLOCKED') {
       return {
         fixtures: ['http', 'socks5']
-          .filter(scheme => proxyFixtures[scheme])
-          .map(scheme => publicProxyRecord(proxyFixtures[scheme])),
+          .filter((scheme) => proxyFixtures[scheme])
+          .map((scheme) => publicProxyRecord(proxyFixtures[scheme])),
         reason: proxyFixtures.reason,
         status: 'BLOCKED',
       }
@@ -750,51 +1085,82 @@ export async function runProxyFixtures({config, dirs, probe, report, runId}) {
     }
   })
   if (proxyFixtures) {
-    const availableSchemes = ['http', 'socks5']
-      .filter(scheme => proxyFixtures[scheme])
+    const availableSchemes = ['http', 'socks5'].filter(
+      (scheme) => proxyFixtures[scheme],
+    )
     for (const scheme of availableSchemes) {
-      await runScenario(report, `full-proxy-${scheme}`, async () =>
-        await verifyProxy({
-          config,
-          dirs,
-          fixture: proxyFixtures[scheme],
-          probe,
-          runId,
-        }))
+      await runScenario(
+        report,
+        `full-proxy-${scheme}`,
+        async () =>
+          await verifyProxy({
+            config,
+            dirs,
+            fixture: proxyFixtures[scheme],
+            probe,
+            runId,
+          }),
+      )
     }
     if (availableSchemes.length === 2) {
-      await runScenario(report, 'full-proxy-switch-persistence', async () =>
-        await verifyProxySwitchPersistence({
-          config,
-          dirs,
-          fixtures: proxyFixtures,
-          probe,
-          runId,
-      }))
+      await runScenario(
+        report,
+        'full-proxy-switch-persistence',
+        async () =>
+          await verifyProxySwitchPersistence({
+            config,
+            dirs,
+            fixtures: proxyFixtures,
+            probe,
+            runId,
+          }),
+      )
     }
   }
+  return proxyFixtures
 }
 
-export async function runFull({config, dirs, probe, report, runId}) {
-  await runScenario(report, 'full-profile-lifecycle', async () =>
-    await runProfileLifecycle({config, dirs, probe, runId}))
+export async function runFull({ config, dirs, probe, report, runId }) {
+  await runScenario(
+    report,
+    'full-profile-lifecycle',
+    async () => await runProfileLifecycle({ config, dirs, probe, runId }),
+  )
 
-  await runProxyFixtures({config, dirs, probe, report, runId})
+  const proxyFixtures = await runProxyFixtures({
+    config,
+    dirs,
+    probe,
+    report,
+    runId,
+  })
 
-  await runScenario(report, 'full-local-mv3-extension', async () =>
-    await runLocalExtensionLifecycle({
-      config,
-      dirs,
-      fixtureDir: path.join(config.braveRoot, 'tools', 'fingerprint_browser', 'qa', 'fixtures', 'mv3'),
-      probe,
-      runId,
-    }))
+  await runScenario(
+    report,
+    'full-local-mv3-extension',
+    async () =>
+      await runLocalExtensionLifecycle({
+        config,
+        dirs,
+        fixtureDir: path.join(
+          config.braveRoot,
+          'tools',
+          'fingerprint_browser',
+          'qa',
+          'fixtures',
+          'mv3',
+        ),
+        probe,
+        runId,
+      }),
+  )
 
   const primaryUrl = process.env.FP_QA_PRIMARY_EXTENSION_URL
   await runScenario(report, 'full-cws-primary-extension', async () => {
     if (!primaryUrl) {
       return {
-        reason: 'FP_QA_PRIMARY_EXTENSION_URL is required for the original crash extension',
+        reason:
+          'FP_QA_PRIMARY_EXTENSION_URL is required for the original crash extension',
         status: 'BLOCKED',
       }
     }
@@ -806,28 +1172,52 @@ export async function runFull({config, dirs, probe, report, runId}) {
       runId,
     })
   })
-  await runScenario(report, 'full-cws-google-translate', async () =>
-    await runWebStoreExtensionLifecycle({
-      config,
-      dirs,
-      extensionUrl: GOOGLE_TRANSLATE_URL,
-      label: 'google-translate',
-      runId,
-    }))
+  await runScenario(
+    report,
+    'full-cws-google-translate',
+    async () =>
+      await runWebStoreExtensionLifecycle({
+        config,
+        dirs,
+        extensionUrl: GOOGLE_TRANSLATE_URL,
+        label: 'google-translate',
+        runId,
+      }),
+  )
 
-  await runScenario(report, 'full-third-party-fingerprint-evidence', async () =>
-    await runThirdPartyScans({config, dirs, runId}))
+  await runScenario(
+    report,
+    'full-third-party-fingerprint-evidence',
+    async () =>
+      await runThirdPartyScans({
+        config,
+        dirs,
+        fixture: proxyFixtures?.http || null,
+        runId,
+      }),
+  )
 
-  await runScenario(report, 'full-tls-source-regression', async () =>
-    await verifyTlsSourceScope(config))
+  await runScenario(
+    report,
+    'full-tls-source-regression',
+    async () => await verifyTlsSourceScope(config),
+  )
 
-  await runScenario(report, 'full-proxy-toolbar-flow', async () =>
-    await runProxyToolbarFlow({config, dirs, runId}))
+  await runScenario(
+    report,
+    'full-proxy-toolbar-flow',
+    async () => await runProxyToolbarFlow({ config, dirs, runId }),
+  )
 
-  await runScenario(report, 'full-ui-theme-size-matrix', async () =>
-    await runUiMatrix({config, dirs, probe, runId}))
+  await runScenario(
+    report,
+    'full-ui-theme-size-matrix',
+    async () => await runUiMatrix({ config, dirs, probe, runId }),
+  )
 
-  await runScenario(report, 'full-native-toolbar-menu-evidence', async () =>
-    await importNativeEvidence(dirs.native, report.artifacts))
-
+  await runScenario(
+    report,
+    'full-native-toolbar-menu-evidence',
+    async () => await importNativeEvidence(dirs.native, report.artifacts),
+  )
 }

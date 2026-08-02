@@ -78,6 +78,11 @@ brave_components_permissions_deps = [
   "//url",
 ]
 
+if (enable_widevine) {
+  brave_components_permissions_deps +=
+      [ "//third_party/widevine/cdm:buildflags" ]
+}
+
 if (enable_brave_wallet) {
   brave_components_permissions_deps += [
     "//brave/components/brave_wallet/browser:permission_utils",

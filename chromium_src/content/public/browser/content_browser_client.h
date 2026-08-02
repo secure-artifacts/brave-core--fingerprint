@@ -19,31 +19,31 @@ class StoragePartitionConfig;
 // Allow the embedder to control if access to privileged functions that could
 // be used by fingerprinting by a shared worker is allowed.
 // Allow the embedder to clean up the url before copying into the clipboard.
-#define SetBrowserStartupIsCompleteForTesting                                \
-  Unused() {}                                                                \
-  virtual void MaybeHideReferrer(                                            \
-      BrowserContext* browser_context, const GURL& request_url,              \
-      const GURL& document_url, blink::mojom::ReferrerPtr* referrer) {}      \
-  virtual std::string GetEffectiveUserAgent(BrowserContext* browser_context, \
-                                            const GURL& url);                \
-  virtual std::optional<base::UnguessableToken> GetEphemeralStorageToken(    \
-      RenderFrameHost* render_frame_host, const url::Origin& origin);        \
-  virtual bool AllowWorkerFingerprinting(const GURL& url,                    \
-                                         BrowserContext* browser_context);   \
-  virtual brave_shields::mojom::ShieldsSettingsPtr                           \
-  WorkerGetBraveShieldSettings(                                              \
-      const GURL& url, BrowserContext* browser_context,                      \
-      const StoragePartitionConfig* storage_partition_config);               \
-  virtual std::optional<GURL> SanitizeURL(content::RenderFrameHost*,         \
-                                          const GURL&);                      \
-  virtual bool IsWindowsRecallDisabled();                                    \
-  virtual bool ShouldInheritStoragePartition(                                \
-      const content::StoragePartitionConfig& partition_config) const;        \
-  virtual bool ShouldUseDefaultHostZoomMapForStoragePartition(               \
-      const content::StoragePartitionConfig& partition_config) const;        \
-  virtual bool GetProfileGeolocationOverride(                                \
-      RenderFrameHost* render_frame_host, double* latitude,                   \
-      double* longitude, double* accuracy);                                   \
+#define SetBrowserStartupIsCompleteForTesting                                  \
+  Unused() {}                                                                  \
+  virtual void MaybeHideReferrer(                                              \
+      BrowserContext* browser_context, const GURL& request_url,                \
+      const GURL& document_url, blink::mojom::ReferrerPtr* referrer) {}        \
+  virtual std::string GetEffectiveUserAgent(BrowserContext* browser_context,   \
+                                            const GURL& url);                  \
+  virtual std::optional<base::UnguessableToken> GetEphemeralStorageToken(      \
+      RenderFrameHost* render_frame_host, const url::Origin& origin);          \
+  virtual bool AllowWorkerFingerprinting(const GURL& url,                      \
+                                         BrowserContext* browser_context);     \
+  virtual brave_shields::mojom::ShieldsSettingsPtr                             \
+  WorkerGetBraveShieldSettings(                                                \
+      const GURL& url, BrowserContext* browser_context,                        \
+      const StoragePartitionConfig* storage_partition_config);                 \
+  virtual std::optional<GURL> SanitizeURL(content::RenderFrameHost*,           \
+                                          const GURL&);                        \
+  virtual bool IsWindowsRecallDisabled();                                      \
+  virtual bool ShouldInheritStoragePartition(                                  \
+      const content::StoragePartitionConfig& partition_config) const;          \
+  virtual bool ShouldUseDefaultHostZoomMapForStoragePartition(                 \
+      const content::StoragePartitionConfig& partition_config) const;          \
+  virtual bool GetProfileGeolocationOverride(                                  \
+      RenderFrameHost* render_frame_host, double* latitude, double* longitude, \
+      double* accuracy);                                                       \
   virtual void SetBrowserStartupIsCompleteForTesting
 
 #include <content/public/browser/content_browser_client.h>  // IWYU pragma: export

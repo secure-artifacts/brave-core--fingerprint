@@ -1,11 +1,15 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import {importNativeEvidence} from '../lib/native_evidence.mjs'
-import {sha256} from '../lib/system.mjs'
+import { importNativeEvidence } from '../lib/native_evidence.mjs'
+import { sha256 } from '../lib/system.mjs'
 
 const NAMES = [
   'toolbar-normal.png',
@@ -20,24 +24,29 @@ const NAMES = [
   'extension-popup.png',
 ]
 
-const INTERACTIONS = Object.fromEntries([
-  'pre-extension-shields',
-  'pre-extension-vpn',
-  'pre-extension-wallet',
-  'pre-extension-ai',
-  'pre-extension-sidebar',
-  'pre-extension-profile-menu',
-  'pre-extension-more-tools',
-  'pre-extension-action-required',
-  'post-extension-shields',
-  'post-extension-vpn',
-  'post-extension-wallet',
-  'post-extension-ai',
-  'post-extension-sidebar',
-  'post-extension-profile-menu',
-  'post-extension-more-tools',
-  'post-extension-action-required',
-].map(id => [id, {reason: `${id} opened without a crash`, status: 'PASS'}]))
+const INTERACTIONS = Object.fromEntries(
+  [
+    'pre-extension-shields',
+    'pre-extension-vpn',
+    'pre-extension-wallet',
+    'pre-extension-ai',
+    'pre-extension-sidebar',
+    'pre-extension-profile-menu',
+    'pre-extension-more-tools',
+    'pre-extension-action-required',
+    'post-extension-shields',
+    'post-extension-vpn',
+    'post-extension-wallet',
+    'post-extension-ai',
+    'post-extension-sidebar',
+    'post-extension-profile-menu',
+    'post-extension-more-tools',
+    'post-extension-action-required',
+  ].map((id) => [
+    id,
+    { reason: `${id} opened without a crash`, status: 'PASS' },
+  ]),
+)
 
 test('importNativeEvidence binds screenshots to current artifact hashes', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-native-'))
@@ -52,20 +61,23 @@ test('importNativeEvidence binds screenshots to current artifact hashes', async 
       await fs.writeFile(file, name)
       files[name] = await sha256(file)
     }
-    await fs.writeFile(path.join(source, 'manifest.json'), JSON.stringify({
-      capturedAt: new Date(2000).toISOString(),
-      chromiumResourcesSha256: 'chromium-resources',
-      files,
-      interactions: INTERACTIONS,
-      libchromeSha256: 'lib',
-      resourcesSha256: 'resources',
-    }))
+    await fs.writeFile(
+      path.join(source, 'manifest.json'),
+      JSON.stringify({
+        capturedAt: new Date(2000).toISOString(),
+        chromiumResourcesSha256: 'chromium-resources',
+        files,
+        interactions: INTERACTIONS,
+        libchromeSha256: 'lib',
+        resourcesSha256: 'resources',
+      }),
+    )
     process.env.FP_QA_NATIVE_UI_EVIDENCE_DIR = source
     const result = await importNativeEvidence(destination, {
-      libchrome: {source: {mtimeMs: 1000, sha256: 'lib'}},
+      libchrome: { source: { mtimeMs: 1000, sha256: 'lib' } },
       resources: {
-        chromiumSource: {mtimeMs: 1000, sha256: 'chromium-resources'},
-        source: {mtimeMs: 1000, sha256: 'resources'},
+        chromiumSource: { mtimeMs: 1000, sha256: 'chromium-resources' },
+        source: { mtimeMs: 1000, sha256: 'resources' },
       },
     })
     assert.equal(result.status, 'PASS')
@@ -76,6 +88,6 @@ test('importNativeEvidence binds screenshots to current artifact hashes', async 
     } else {
       process.env.FP_QA_NATIVE_UI_EVIDENCE_DIR = previous
     }
-    await fs.rm(directory, {recursive: true, force: true})
+    await fs.rm(directory, { recursive: true, force: true })
   }
 })

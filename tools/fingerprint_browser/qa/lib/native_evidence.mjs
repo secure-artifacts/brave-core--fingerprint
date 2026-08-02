@@ -1,7 +1,11 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import {pathExists, sha256} from './system.mjs'
+import { pathExists, sha256 } from './system.mjs'
 
 const REQUIRED_NATIVE_SCREENSHOTS = [
   'toolbar-normal.png',
@@ -39,7 +43,8 @@ export async function importNativeEvidence(destination, artifacts) {
   const source = process.env.FP_QA_NATIVE_UI_EVIDENCE_DIR
   if (!source) {
     return {
-      reason: 'FP_QA_NATIVE_UI_EVIDENCE_DIR is required for native toolbar/menu evidence',
+      reason:
+        'FP_QA_NATIVE_UI_EVIDENCE_DIR is required for native toolbar/menu evidence',
       status: 'BLOCKED',
     }
   }
@@ -51,9 +56,12 @@ export async function importNativeEvidence(destination, artifacts) {
     }
   }
   const manifest = JSON.parse(await fs.readFile(manifestFile, 'utf8'))
-  if (manifest.libchromeSha256 !== artifacts.libchrome.source.sha256 ||
-      manifest.resourcesSha256 !== artifacts.resources.source.sha256 ||
-      manifest.chromiumResourcesSha256 !== artifacts.resources.chromiumSource.sha256) {
+  if (
+    manifest.libchromeSha256 !== artifacts.libchrome.source.sha256
+    || manifest.resourcesSha256 !== artifacts.resources.source.sha256
+    || manifest.chromiumResourcesSha256
+      !== artifacts.resources.chromiumSource.sha256
+  ) {
     return {
       reason: 'Native UI evidence artifact hashes do not match this QA build',
       status: 'BLOCKED',
@@ -63,7 +71,8 @@ export async function importNativeEvidence(destination, artifacts) {
   const artifactMtime = Math.max(
     artifacts.libchrome.source.mtimeMs,
     artifacts.resources.source.mtimeMs,
-    artifacts.resources.chromiumSource.mtimeMs)
+    artifacts.resources.chromiumSource.mtimeMs,
+  )
   if (!Number.isFinite(capturedAt) || capturedAt < artifactMtime) {
     return {
       reason: 'Native UI evidence was captured before this QA build',
@@ -72,7 +81,7 @@ export async function importNativeEvidence(destination, artifacts) {
   }
   const missing = []
   const records = []
-  await fs.mkdir(destination, {recursive: true})
+  await fs.mkdir(destination, { recursive: true })
   for (const name of REQUIRED_NATIVE_SCREENSHOTS) {
     const file = path.join(source, name)
     if (!(await pathExists(file))) {
@@ -86,7 +95,7 @@ export async function importNativeEvidence(destination, artifacts) {
       continue
     }
     await fs.copyFile(file, target)
-    records.push({file: target, sha256: sourceHash})
+    records.push({ file: target, sha256: sourceHash })
   }
   if (missing.length > 0) {
     return {
@@ -95,18 +104,22 @@ export async function importNativeEvidence(destination, artifacts) {
       status: 'BLOCKED',
     }
   }
-  const interactions = REQUIRED_NATIVE_INTERACTIONS.map(id => ({
+  const interactions = REQUIRED_NATIVE_INTERACTIONS.map((id) => ({
     id,
     ...(manifest.interactions?.[id] || {}),
   }))
-  const incompleteInteractions = interactions.filter(interaction =>
-    interaction.status !== 'PASS' || !String(interaction.reason || '').trim())
+  const incompleteInteractions = interactions.filter(
+    (interaction) =>
+      interaction.status !== 'PASS' || !String(interaction.reason || '').trim(),
+  )
   if (incompleteInteractions.length > 0) {
     return {
-      incompleteInteractions: incompleteInteractions.map(interaction => interaction.id),
+      incompleteInteractions: incompleteInteractions.map(
+        (interaction) => interaction.id,
+      ),
       reason: `${incompleteInteractions.length} native UI interactions lack PASS evidence`,
       status: 'BLOCKED',
     }
   }
-  return {interactions, manifest: manifestFile, records, status: 'PASS'}
+  return { interactions, manifest: manifestFile, records, status: 'PASS' }
 }

@@ -1,9 +1,15 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import path from 'node:path'
-import {fileURLToPath} from 'node:url'
+import { fileURLToPath } from 'node:url'
 
 const MODES = new Set(['smoke', 'proxy', 'full', 'soak'])
 const DEFAULT_BRAVE_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)), '../../../..')
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../..',
+)
 
 export function usage() {
   return `Usage: run_qa.mjs --mode smoke|proxy|full|soak [options]
@@ -21,10 +27,10 @@ Options:
 `
 }
 
-export function parseArgs(argv, {
-  braveRoot = DEFAULT_BRAVE_ROOT,
-  cwd = process.cwd(),
-} = {}) {
+export function parseArgs(
+  argv,
+  { braveRoot = DEFAULT_BRAVE_ROOT, cwd = process.cwd() } = {},
+) {
   const values = {}
   const flags = new Set()
   const valueOptions = new Set([
@@ -60,7 +66,7 @@ export function parseArgs(argv, {
   }
 
   if (flags.has('--help')) {
-    return {help: true}
+    return { help: true }
   }
 
   const mode = values['--mode'] || 'smoke'
@@ -73,8 +79,11 @@ export function parseArgs(argv, {
   const outDir = path.join(chromiumRoot, 'out', 'Component_arm64')
   const app = values['--app']
     ? path.resolve(cwd, values['--app'])
-    : path.join(outDir, 'fingerprint-browser-qa',
-      'Brave Browser Development QA.app')
+    : path.join(
+        outDir,
+        'fingerprint-browser-qa',
+        'Brave Browser Development QA.app',
+      )
   const resultsDir = values['--results-dir']
     ? path.resolve(cwd, values['--results-dir'])
     : path.join(outDir, 'qa-results')
