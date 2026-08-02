@@ -13,12 +13,11 @@ import { startProbeServer } from './lib/probe_server.mjs'
 import { runScenario, writeReports } from './lib/report.mjs'
 import {
   copyCrashReports,
-  listProcesses,
   newCrashReports,
   safeRunId,
   scanFatalLogs,
   snapshotCrashReports,
-  stopAllQaProcesses,
+  stopProfileProcesses,
 } from './lib/system.mjs'
 import {
   runBrowserTests,
@@ -103,11 +102,11 @@ async function main() {
       report,
       'preflight-stop-old-qa-processes',
       async () => {
-        const stopped = await stopAllQaProcesses()
+        const stopped = await stopProfileProcesses(profileRoot)
         await log(
-          `Stopped ${stopped.length} previous QA profile process groups`,
+          `Stopped ${stopped.stopped.length} processes for this QA profile`,
         )
-        const residual = stopped.flatMap((result) => result.residual || [])
+        const residual = stopped.residual || []
         if (residual.length > 0) {
           throw Object.assign(
             new Error(
@@ -118,7 +117,7 @@ async function main() {
             },
           )
         }
-        return { stopped }
+        return stopped
       },
     )
     if (processGate.status !== 'PASS') {
@@ -333,15 +332,8 @@ async function main() {
     }
 
     await runScenario(report, 'postflight-cleanup', async () => {
-      const stopped = await stopAllQaProcesses()
-      const residual = [
-        ...stopped.flatMap((result) => result.residual || []),
-        ...(await listProcesses()).filter(
-          (item) =>
-            item.command.includes('Brave Browser Development')
-            && item.command.includes('/tmp/fingerprint-browser-'),
-        ),
-      ]
+      const stopped = await stopProfileProcesses(profileRoot)
+      const residual = stopped.residual || []
       if (residual.length > 0) {
         throw Object.assign(
           new Error(`${residual.length} QA processes remained`),

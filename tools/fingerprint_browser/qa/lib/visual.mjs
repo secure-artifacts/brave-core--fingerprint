@@ -5,7 +5,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { pathExists, run } from './system.mjs'
+import { pathExists, run, sha256 } from './system.mjs'
 
 async function imageStats(image) {
   const result = await run(
@@ -365,7 +365,11 @@ export async function writeVisualReviewBundle({ analyses, artifacts, runDir }) {
     const candidate = path.join(candidateDir, analysis.baselineKey)
     await fs.mkdir(path.dirname(candidate), { recursive: true })
     await fs.copyFile(analysis.actual, candidate)
-    reviews[analysis.baselineKey] = { reason: '', status: '' }
+    reviews[analysis.baselineKey] = {
+      reason: '',
+      screenshotSha256: await sha256(analysis.actual),
+      status: '',
+    }
     gallery.push(
       `## ${analysis.baselineKey}`,
       '',
@@ -430,6 +434,20 @@ export async function loadHumanVisualReview({
     baselineKey: analysis.baselineKey,
     ...(manifest.reviews?.[analysis.baselineKey] || {}),
   }))
+  const screenshotHashes = await Promise.all(
+    analyses.map((analysis) => sha256(analysis.actual)),
+  )
+  const changed = reviews.filter(
+    (review, index) => review.screenshotSha256 !== screenshotHashes[index],
+  )
+  if (changed.length > 0) {
+    return {
+      changed: changed.map((review) => review.baselineKey),
+      reason: `${changed.length} screenshot hashes do not match the review`,
+      reviews,
+      status: 'BLOCKED',
+    }
+  }
   const missing = reviews.filter(
     (review) =>
       !['PASS', 'FAIL'].includes(review.status)

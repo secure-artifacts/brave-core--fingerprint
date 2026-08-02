@@ -59,6 +59,15 @@ const PERSONA_BROWSER_FILTER = `${[
 
 const LEGACY_FARBLING_FILTER = LEGACY_PERSONA_CONFLICT_FILTERS.join(':')
 
+const CODE_TEST_SOURCE_EXTENSIONS = new Set([
+  '.cc',
+  '.gn',
+  '.gni',
+  '.h',
+  '.mojom',
+  '.patch',
+])
+
 const TEST_SOURCE_GROUPS = {
   braveComponents: [
     'components/brave_shields/core/browser/brave_shields_settings_service.cc',
@@ -120,7 +129,11 @@ const TEST_SOURCE_GROUPS = {
 async function latestFile(target) {
   if (!(await pathExists(target))) return null
   const stat = await fs.stat(target)
-  if (stat.isFile()) return { file: target, mtimeMs: stat.mtimeMs }
+  if (stat.isFile()) {
+    return CODE_TEST_SOURCE_EXTENSIONS.has(path.extname(target))
+      ? { file: target, mtimeMs: stat.mtimeMs }
+      : null
+  }
   let latest = null
   for (const entry of await fs.readdir(target, { withFileTypes: true })) {
     const candidate = await latestFile(path.join(target, entry.name))
@@ -131,7 +144,7 @@ async function latestFile(target) {
   return latest
 }
 
-async function latestTestSource(braveRoot, paths) {
+export async function latestTestSource(braveRoot, paths) {
   let latest = null
   for (const relative of paths) {
     const candidate = await latestFile(path.resolve(braveRoot, relative))
