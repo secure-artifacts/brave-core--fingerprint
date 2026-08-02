@@ -1,5 +1,5 @@
 diff --git a/content/public/browser/BUILD.gn b/content/public/browser/BUILD.gn
-index 99c99d6ab2422ab24af0699cc99fe4b7a9d1a3a3..035eb3dc0ee646373db895e7d6eafb02c97feca8 100644
+index 99c99d6ab2422ab24af0699cc99fe4b7a9d1a3a3..55ed7b817346d5d1d0132a468b45493d9e8dddbf 100644
 --- a/content/public/browser/BUILD.gn
 +++ b/content/public/browser/BUILD.gn
 @@ -778,6 +778,10 @@ source_set("browser_sources") {
@@ -11,5 +11,5 @@ index 99c99d6ab2422ab24af0699cc99fe4b7a9d1a3a3..035eb3dc0ee646373db895e7d6eafb02
 +  sources += brave_content_public_browser_sources
 +  deps += brave_content_public_browser_deps
  }
-
+ 
  if (is_android) {
