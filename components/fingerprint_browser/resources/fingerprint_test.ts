@@ -1,3 +1,8 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
+import { sendWithPromise } from 'chrome://resources/js/cr.js'
 type ScreenPersona = {
   width: number
   height: number
@@ -32,20 +37,18 @@ type WindowWithLoadTimeData = Window & {
   }
 }
 
-export {}
-
 type ActualFingerprint = {
   userAgent: string
   platform: string
   uaPlatform: string
   hardwareConcurrency: number
-  deviceMemory: number|null
+  deviceMemory: number | null
   maxTouchPoints: number
   languages: string[]
   screen: ScreenPersona
-  webgl: WebGLPersona|null
+  webgl: WebGLPersona | null
   timezone: string
-  uaData: Record<string, unknown>|null
+  uaData: Record<string, unknown> | null
 }
 
 type WebPageFingerprintResponse = {
@@ -55,7 +58,8 @@ type WebPageFingerprintResponse = {
 }
 
 const summary = document.querySelector<HTMLDivElement>('#summary')!
-const comparison = document.querySelector<HTMLTableSectionElement>('#comparison')!
+const comparison =
+  document.querySelector<HTMLTableSectionElement>('#comparison')!
 const observed = document.querySelector<HTMLTableSectionElement>('#observed')!
 const status = document.querySelector<HTMLDivElement>('#status')!
 const refresh = document.querySelector<HTMLButtonElement>('#refresh')!
@@ -75,25 +79,35 @@ function valuesEqual(expected: unknown, actual: unknown): boolean {
     return true
   }
   if (Array.isArray(expected) && Array.isArray(actual)) {
-    return expected.length === actual.length &&
-      expected.every((value, index) => valuesEqual(value, actual[index]))
+    return (
+      expected.length === actual.length
+      && expected.every((value, index) => valuesEqual(value, actual[index]))
+    )
   }
-  if (expected && actual && typeof expected === 'object' &&
-      typeof actual === 'object') {
+  if (
+    expected
+    && actual
+    && typeof expected === 'object'
+    && typeof actual === 'object'
+  ) {
     const expectedRecord = expected as Record<string, unknown>
     const actualRecord = actual as Record<string, unknown>
     const expectedKeys = Object.keys(expectedRecord).sort()
     const actualKeys = Object.keys(actualRecord).sort()
-    return valuesEqual(expectedKeys, actualKeys) &&
-      expectedKeys.every(key => valuesEqual(
-        expectedRecord[key], actualRecord[key]))
+    return (
+      valuesEqual(expectedKeys, actualKeys)
+      && expectedKeys.every((key) =>
+        valuesEqual(expectedRecord[key], actualRecord[key]),
+      )
+    )
   }
   return false
 }
 
 async function readActualFingerprint(): Promise<WebPageFingerprintResponse> {
-  const response = JSON.parse(await sendWithPromise<string>(
-    'getLastWebPageFingerprint')) as WebPageFingerprintResponse
+  const response = JSON.parse(
+    await sendWithPromise<string>('getLastWebPageFingerprint'),
+  ) as WebPageFingerprintResponse
   if (response.error || !response.fingerprint || !response.url) {
     throw new Error(response.error || 'No webpage fingerprint was returned.')
   }
@@ -101,8 +115,9 @@ async function readActualFingerprint(): Promise<WebPageFingerprintResponse> {
 }
 
 function readPersona(): Persona {
-  const persona = (window as WindowWithLoadTimeData).loadTimeData
-    ?.getString('fingerprintTestPersona')
+  const persona = (window as WindowWithLoadTimeData).loadTimeData?.getString(
+    'fingerprintTestPersona',
+  )
   if (!persona) {
     throw new Error('Persona is unavailable.')
   }
@@ -135,7 +150,11 @@ function addComparisonRow(label: string, expected: unknown, actual: unknown) {
   const isAvailable = actual !== null && actual !== undefined && actual !== ''
   const isMatch = isAvailable && valuesEqual(expected, actual)
   resultCell.dataset.state = isAvailable ? (isMatch ? 'pass' : 'fail') : 'na'
-  resultCell.textContent = isAvailable ? (isMatch ? 'Match' : 'Different') : 'Unavailable'
+  resultCell.textContent = isAvailable
+    ? isMatch
+      ? 'Match'
+      : 'Different'
+    : 'Unavailable'
   row.append(labelCell, expectedCell, actualCell, resultCell)
   comparison.append(row)
   return isMatch
@@ -174,9 +193,21 @@ async function load() {
       addComparisonRow('User agent', persona.userAgent, actual.userAgent),
       addComparisonRow('Navigator platform', persona.platform, actual.platform),
       addComparisonRow('UA-CH platform', persona.uaPlatform, actual.uaPlatform),
-      addComparisonRow('Hardware concurrency', persona.hardwareConcurrency, actual.hardwareConcurrency),
-      addComparisonRow('Device memory (GB)', persona.deviceMemory, actual.deviceMemory),
-      addComparisonRow('Max touch points', persona.maxTouchPoints, actual.maxTouchPoints),
+      addComparisonRow(
+        'Hardware concurrency',
+        persona.hardwareConcurrency,
+        actual.hardwareConcurrency,
+      ),
+      addComparisonRow(
+        'Device memory (GB)',
+        persona.deviceMemory,
+        actual.deviceMemory,
+      ),
+      addComparisonRow(
+        'Max touch points',
+        persona.maxTouchPoints,
+        actual.maxTouchPoints,
+      ),
       addComparisonRow('Languages', persona.languages, actual.languages),
       addComparisonRow('Screen', persona.screen, actual.screen),
       addComparisonRow('WebGL', persona.webgl, actual.webgl),
@@ -202,4 +233,3 @@ refresh.addEventListener('click', load)
 window.addEventListener('load', () => {
   window.setTimeout(load, 500)
 })
-import {sendWithPromise} from 'chrome://resources/js/cr.js'

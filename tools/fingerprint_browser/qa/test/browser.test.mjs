@@ -1,10 +1,14 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import {qaBrowserArgs, seedProfilePreferences} from '../lib/browser.mjs'
+import { qaBrowserArgs, seedProfilePreferences } from '../lib/browser.mjs'
 
 test('macOS QA sessions isolate Keychain access', () => {
   const args = qaBrowserArgs({
@@ -49,16 +53,16 @@ test('seedProfilePreferences merges nested profile values', async () => {
   const preferencesFile = path.join(directory, 'Default', 'Preferences')
   try {
     await seedProfilePreferences(directory, 'Default', {
-      browser: {theme: {color_scheme2: 1}},
+      browser: { theme: { color_scheme2: 1 } },
     })
     await seedProfilePreferences(directory, 'Default', {
-      brave: {dark_mode_migrated: true},
+      brave: { dark_mode_migrated: true },
     })
     assert.deepEqual(JSON.parse(await fs.readFile(preferencesFile, 'utf8')), {
-      brave: {dark_mode_migrated: true},
-      browser: {theme: {color_scheme2: 1}},
+      brave: { dark_mode_migrated: true },
+      browser: { theme: { color_scheme2: 1 } },
     })
   } finally {
-    await fs.rm(directory, {recursive: true, force: true})
+    await fs.rm(directory, { recursive: true, force: true })
   }
 })

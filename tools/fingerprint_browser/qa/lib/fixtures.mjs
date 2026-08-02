@@ -1,7 +1,11 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import fs from 'node:fs/promises'
-import {isIP} from 'node:net'
+import { isIP } from 'node:net'
 
-import {pathExists} from './system.mjs'
+import { pathExists } from './system.mjs'
 
 const REQUIRED_PROXY_FIELDS = [
   'host',
@@ -22,7 +26,11 @@ function validateProxy(name, value) {
     throw new Error(`Proxy fixture ${name} must be an object`)
   }
   for (const field of REQUIRED_PROXY_FIELDS) {
-    if (value[field] === undefined || value[field] === null || value[field] === '') {
+    if (
+      value[field] === undefined
+      || value[field] === null
+      || value[field] === ''
+    ) {
       throw new Error(`Proxy fixture ${name}.${field} is required`)
     }
   }
@@ -30,26 +38,38 @@ function validateProxy(name, value) {
     throw new Error(`Proxy fixture ${name}.port is invalid`)
   }
   if (!/^[A-Z]{2}$/.test(value.countryCode)) {
-    throw new Error(`Proxy fixture ${name}.countryCode must be ISO alpha-2 uppercase`)
+    throw new Error(
+      `Proxy fixture ${name}.countryCode must be ISO alpha-2 uppercase`,
+    )
   }
   if (isIP(value.expectedIp) === 0) {
     throw new Error(`Proxy fixture ${name}.expectedIp must be an IP address`)
   }
   try {
-    new Intl.DateTimeFormat('en-US', {timeZone: value.timezone}).format()
+    new Intl.DateTimeFormat('en-US', { timeZone: value.timezone }).format()
   } catch {
     throw new Error(`Proxy fixture ${name}.timezone must be an IANA time zone`)
   }
   try {
     Intl.getCanonicalLocales(value.language)
   } catch {
-    throw new Error(`Proxy fixture ${name}.language must be a BCP-47 language tag`)
+    throw new Error(
+      `Proxy fixture ${name}.language must be a BCP-47 language tag`,
+    )
   }
-  if (!Number.isFinite(value.latitude) || value.latitude < -90 || value.latitude > 90 ||
-      !Number.isFinite(value.longitude) || value.longitude < -180 || value.longitude > 180) {
+  if (
+    !Number.isFinite(value.latitude)
+    || value.latitude < -90
+    || value.latitude > 90
+    || !Number.isFinite(value.longitude)
+    || value.longitude < -180
+    || value.longitude > 180
+  ) {
     throw new Error(`Proxy fixture ${name} coordinates are invalid`)
   }
-  const verifyUrl = new URL(value.verifyUrl || 'https://api.ipify.org?format=json')
+  const verifyUrl = new URL(
+    value.verifyUrl || 'https://api.ipify.org?format=json',
+  )
   if (verifyUrl.protocol !== 'https:') {
     throw new Error(`Proxy fixture ${name}.verifyUrl must use HTTPS`)
   }
@@ -67,10 +87,13 @@ function validateProxy(name, value) {
 
 export async function loadProxyFixtures(file) {
   if (!file) {
-    return {reason: '--proxy-fixtures was not provided', status: 'BLOCKED'}
+    return { reason: '--proxy-fixtures was not provided', status: 'BLOCKED' }
   }
   if (!(await pathExists(file))) {
-    return {reason: `Proxy fixture file does not exist: ${file}`, status: 'BLOCKED'}
+    return {
+      reason: `Proxy fixture file does not exist: ${file}`,
+      status: 'BLOCKED',
+    }
   }
   const stat = await fs.lstat(file)
   if (stat.isSymbolicLink() || !stat.isFile()) {
@@ -79,22 +102,21 @@ export async function loadProxyFixtures(file) {
   const permissions = stat.mode & 0o777
   if (permissions !== 0o600) {
     throw new Error(
-      `Proxy fixture permissions must be 0600, got ${permissions.toString(8).padStart(4, '0')}`)
+      `Proxy fixture permissions must be 0600, got ${permissions.toString(8).padStart(4, '0')}`,
+    )
   }
   const parsed = JSON.parse(await fs.readFile(file, 'utf8'))
   const http = parsed.http ? validateProxy('http', parsed.http) : null
   const socks5 = parsed.socks5 ? validateProxy('socks5', parsed.socks5) : null
-  const missing = [
-    !http && 'http',
-    !socks5 && 'socks5',
-  ].filter(Boolean)
+  const missing = [!http && 'http', !socks5 && 'socks5'].filter(Boolean)
   return {
     file,
     http,
     missing,
-    reason: missing.length > 0
-      ? `Proxy fixture is missing: ${missing.join(', ')}`
-      : undefined,
+    reason:
+      missing.length > 0
+        ? `Proxy fixture is missing: ${missing.join(', ')}`
+        : undefined,
     socks5,
     status: missing.length > 0 ? 'BLOCKED' : 'PASS',
   }

@@ -1,9 +1,14 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import {pathExists, run} from '../lib/system.mjs'
+import { pathExists, run } from '../lib/system.mjs'
 
 const COMPONENT_UNIT_FILTER = [
+  '*BraveShieldsSettingsFarblingTest.*',
   'PersonaGeneratorTest.*',
   'PersonaSerializationTest.*',
   'PersonaServiceTest.*',
@@ -32,6 +37,7 @@ const LEGACY_PERSONA_CONFLICT_FILTERS = [
   'BraveDeviceMemoryFarblingBrowserTest.FarbleDeviceMemory',
   'BraveFarblingBrowserTest.FarblingTokenBehaviourAfterRestart/*Enabled',
   'BraveFarblingBrowserTest.FarblingTokenIsClearedAfterWebsiteClear/*',
+  'BraveFarblingBrowserTest.CheckBetweenNormalAndIncognitoProfile/*',
   'BraveFarblingBrowserTest.NavigatorPluginsAreFarbled/*',
   'BraveNavigatorHardwareConcurrencyFarblingBrowserTest.FarbleNavigatorHardwareConcurrency',
   'BraveNavigatorHardwareConcurrencyFarblingBrowserTest.FarbleNavigatorHardwareConcurrencyWorkers',
@@ -55,6 +61,9 @@ const LEGACY_FARBLING_FILTER = LEGACY_PERSONA_CONFLICT_FILTERS.join(':')
 
 const TEST_SOURCE_GROUPS = {
   braveComponents: [
+    'components/brave_shields/core/browser/brave_shields_settings_service.cc',
+    'components/brave_shields/core/browser/brave_shields_settings_service.h',
+    'components/brave_shields/core/browser/brave_shields_settings_service_unittest.cc',
     'components/fingerprint_browser/browser',
     'third_party/libmaxminddb/include/maxminddb_config.h',
   ],
@@ -64,8 +73,11 @@ const TEST_SOURCE_GROUPS = {
     'components/fingerprint_browser/browser',
   ],
   browser: [
+    '../third_party/blink/renderer/core/timezone/timezone_controller.cc',
+    '../third_party/blink/renderer/core/timezone/timezone_controller.h',
     'browser/brave_content_browser_client.cc',
     'browser/brave_content_browser_client.h',
+    'browser/brave_shields/brave_shields_settings_service_factory.cc',
     'browser/farbling',
     'browser/fingerprint_browser',
     'browser/ui/webui',
@@ -108,9 +120,9 @@ const TEST_SOURCE_GROUPS = {
 async function latestFile(target) {
   if (!(await pathExists(target))) return null
   const stat = await fs.stat(target)
-  if (stat.isFile()) return {file: target, mtimeMs: stat.mtimeMs}
+  if (stat.isFile()) return { file: target, mtimeMs: stat.mtimeMs }
   let latest = null
-  for (const entry of await fs.readdir(target, {withFileTypes: true})) {
+  for (const entry of await fs.readdir(target, { withFileTypes: true })) {
     const candidate = await latestFile(path.join(target, entry.name))
     if (candidate && (!latest || candidate.mtimeMs > latest.mtimeMs)) {
       latest = candidate
@@ -127,7 +139,7 @@ async function latestTestSource(braveRoot, paths) {
       latest = candidate
     }
   }
-  return latest || {file: null, mtimeMs: 0}
+  return latest || { file: null, mtimeMs: 0 }
 }
 
 export async function runTestBinary({
@@ -144,25 +156,33 @@ export async function runTestBinary({
   const binaryStat = await fs.stat(binary)
   if (source?.mtimeMs && binaryStat.mtimeMs <= source.mtimeMs) {
     throw Object.assign(new Error(`Required test binary is stale: ${binary}`), {
-      details: {binaryMtimeMs: binaryStat.mtimeMs, source},
+      details: { binaryMtimeMs: binaryStat.mtimeMs, source },
     })
   }
-  const result = await run(binary, [
-    `--gtest_filter=${filter}`,
-    '--test-launcher-bot-mode',
-    '--test-launcher-jobs=1',
-    '--test-launcher-retry-limit=0',
-    ...extraArgs,
-  ], {timeoutMs})
+  const result = await run(
+    binary,
+    [
+      `--gtest_filter=${filter}`,
+      '--test-launcher-bot-mode',
+      '--test-launcher-jobs=1',
+      '--test-launcher-retry-limit=0',
+      ...extraArgs,
+    ],
+    { timeoutMs },
+  )
   const output = `${result.stdout}\n${result.stderr}`
   await fs.writeFile(logFile, output)
   if (result.timedOut || result.code !== 0) {
-    throw new Error(result.timedOut
-      ? `${path.basename(binary)} timed out after ${timeoutMs}ms`
-      : `${path.basename(binary)} exited ${result.code}`)
+    throw new Error(
+      result.timedOut
+        ? `${path.basename(binary)} timed out after ${timeoutMs}ms`
+        : `${path.basename(binary)} exited ${result.code}`,
+    )
   }
   if (/No matching tests to run/i.test(output)) {
-    throw new Error(`${path.basename(binary)} filter matched no tests: ${filter}`)
+    throw new Error(
+      `${path.basename(binary)} filter matched no tests: ${filter}`,
+    )
   }
   return {
     binary,
@@ -175,7 +195,7 @@ export async function runTestBinary({
   }
 }
 
-export async function runUnitTests({braveRoot, dirs, outDir}) {
+export async function runUnitTests({ braveRoot, dirs, outDir }) {
   const [componentSource, braveUnitSource] = await Promise.all([
     latestTestSource(braveRoot, TEST_SOURCE_GROUPS.braveComponents),
     latestTestSource(braveRoot, TEST_SOURCE_GROUPS.braveUnit),
@@ -198,7 +218,7 @@ export async function runUnitTests({braveRoot, dirs, outDir}) {
   ])
 }
 
-export async function runNetTests({braveRoot, dirs, outDir}) {
+export async function runNetTests({ braveRoot, dirs, outDir }) {
   return await runTestBinary({
     binary: path.join(outDir, 'net_unittests'),
     filter: NET_FILTER,
@@ -208,18 +228,20 @@ export async function runNetTests({braveRoot, dirs, outDir}) {
   })
 }
 
-export async function runPerformanceManagerTests({braveRoot, dirs, outDir}) {
+export async function runPerformanceManagerTests({ braveRoot, dirs, outDir }) {
   return await runTestBinary({
     binary: path.join(outDir, 'fingerprint_browser_worker_watcher_unittests'),
     filter: PERFORMANCE_MANAGER_FILTER,
     logFile: path.join(dirs.logs, 'performance_manager_unit_tests.log'),
     source: await latestTestSource(
-      braveRoot, TEST_SOURCE_GROUPS.performanceManager),
+      braveRoot,
+      TEST_SOURCE_GROUPS.performanceManager,
+    ),
     timeoutMs: 20 * 60 * 1000,
   })
 }
 
-export async function runBrowserTests({braveRoot, dirs, outDir}) {
+export async function runBrowserTests({ braveRoot, dirs, outDir }) {
   const binary = path.join(outDir, 'brave_browser_tests')
   const source = await latestTestSource(braveRoot, TEST_SOURCE_GROUPS.browser)
   const legacy = await runTestBinary({

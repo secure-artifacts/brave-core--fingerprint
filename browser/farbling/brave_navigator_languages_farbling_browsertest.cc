@@ -351,8 +351,8 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
   auto default_accept_language_b = GetObservedHTTPAcceptLanguage(domain_b);
   ASSERT_TRUE(default_accept_language_b);
-  EXPECT_TRUE(base::StartsWith(*default_accept_language_b, "la;q=",
-                               base::CompareCase::SENSITIVE));
+  EXPECT_TRUE(base::StartsWith(*default_accept_language_b,
+                               "la;q=", base::CompareCase::SENSITIVE));
   SetExpectedHTTPAcceptLanguage(domain_d, *default_accept_language_b);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_d));
 
@@ -387,8 +387,8 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_b));
   auto zh_default_accept_language_b = GetObservedHTTPAcceptLanguage(domain_b);
   ASSERT_TRUE(zh_default_accept_language_b);
-  EXPECT_TRUE(base::StartsWith(*zh_default_accept_language_b, "zh-HK,zh;q=",
-                               base::CompareCase::SENSITIVE));
+  EXPECT_TRUE(base::StartsWith(*zh_default_accept_language_b,
+                               "zh-HK,zh;q=", base::CompareCase::SENSITIVE));
   SetExpectedHTTPAcceptLanguage(domain_d, *zh_default_accept_language_b);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_d));
 
@@ -474,6 +474,6 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   EXPECT_EQ(expected_title, watcher.WaitAndGetTitle());
   auto observed_accept_language = GetObservedHTTPAcceptLanguage(domain_b);
   ASSERT_TRUE(observed_accept_language);
-  EXPECT_TRUE(base::StartsWith(*observed_accept_language, "zh-HK,zh;q=",
-                               base::CompareCase::SENSITIVE));
+  EXPECT_TRUE(base::StartsWith(*observed_accept_language,
+                               "zh-HK,zh;q=", base::CompareCase::SENSITIVE));
 }

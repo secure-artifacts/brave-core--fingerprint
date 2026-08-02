@@ -21,7 +21,5 @@ static_library("libmaxminddb") {
 
   defines = [ "PACKAGE_VERSION=\"1.12.2\"" ]
 
-  cflags = [
-    "-Wno-incompatible-pointer-types-discards-qualifiers",
-  ]
+  cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
 }

@@ -4,6 +4,7 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 #include "brave/browser/ui/webui/brave_settings_ui.h"
+
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -18,8 +19,8 @@ class BraveSettingsUIBrowserTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest, LoadsBraveSettingsUI) {
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL("chrome://settings/")));
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("chrome://settings/")));
 
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(web_contents, nullptr);
@@ -29,8 +30,7 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest, LoadsBraveSettingsUI) {
   ASSERT_NE(web_ui, nullptr);
   EXPECT_TRUE(web_ui->GetController()->GetAs<BraveSettingsUI>());
 
-  const auto background =
-      content::EvalJs(web_contents, R"(
+  const auto background = content::EvalJs(web_contents, R"(
         (() => {
           const findSettingsMain = (root) => {
             for (const element of root.querySelectorAll('*')) {
@@ -51,15 +51,15 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest, LoadsBraveSettingsUI) {
                               : 'missing';
         })()
       )")
-          .ExtractString();
+                              .ExtractString();
   EXPECT_NE(background, "missing");
   EXPECT_NE(background, "rgb(255, 0, 0)");
 }
 
 IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
                        LoadsFingerprintProfileProxySettings) {
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL("chrome://settings/privacy")));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           GURL("chrome://settings/privacy")));
 
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_NE(web_contents, nullptr);

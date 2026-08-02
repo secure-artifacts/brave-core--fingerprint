@@ -1,7 +1,11 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import {assertProbeConsistency} from '../lib/profile.mjs'
+import { assertProbeConsistency } from '../lib/profile.mjs'
 
 function probe() {
   const basic = {
@@ -13,12 +17,12 @@ function probe() {
   }
   return {
     basic,
-    dedicatedWorker: {...basic},
-    iframe: {...basic},
-    serviceWorker: {...basic},
-    sharedWorker: {...basic},
+    dedicatedWorker: { ...basic },
+    iframe: { ...basic },
+    serviceWorker: { ...basic },
+    sharedWorker: { ...basic },
     uaData: {
-      brands: [{brand: 'Persona', version: '1'}],
+      brands: [{ brand: 'Persona', version: '1' }],
       platform: 'macOS',
     },
     wireHeaders: {
@@ -37,7 +41,10 @@ test('assertProbeConsistency accepts matching document, workers, and wire header
 test('assertProbeConsistency rejects worker and wire mismatches', () => {
   const workerMismatch = probe()
   workerMismatch.serviceWorker.platform = 'Win32'
-  assert.throws(() => assertProbeConsistency(workerMismatch), /serviceWorker platform/)
+  assert.throws(
+    () => assertProbeConsistency(workerMismatch),
+    /serviceWorker platform/,
+  )
 
   const wireMismatch = probe()
   wireMismatch.wireHeaders['sec-ch-ua-platform'] = '"Windows"'

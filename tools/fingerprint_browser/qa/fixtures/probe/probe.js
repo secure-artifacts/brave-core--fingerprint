@@ -1,3 +1,7 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 function hash(value) {
   let result = 2166136261
   for (let index = 0; index < value.length; index += 1) {
@@ -41,7 +45,9 @@ async function canvasFingerprint() {
   context.fillText('Brave fingerprint QA 0123456789', 4, 52)
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
   const dataUrl = canvas.toDataURL()
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+  const blob = await new Promise((resolve) =>
+    canvas.toBlob(resolve, 'image/png'),
+  )
   return {
     blob: blob ? hashBytes(new Uint8Array(await blob.arrayBuffer())) : null,
     dataUrl: hash(dataUrl),
@@ -59,19 +65,31 @@ function webglFingerprint() {
   gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
   return {
     pixels: hashBytes(pixels),
-    renderer: extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
-    vendor: extension ? gl.getParameter(extension.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR),
+    renderer: extension
+      ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL)
+      : gl.getParameter(gl.RENDERER),
+    vendor: extension
+      ? gl.getParameter(extension.UNMASKED_VENDOR_WEBGL)
+      : gl.getParameter(gl.VENDOR),
   }
 }
 
 function fontFingerprint() {
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')
-  const fonts = ['Arial', 'Courier New', 'Georgia', 'Helvetica', 'Times New Roman']
-  return Object.fromEntries(fonts.map(font => {
-    context.font = `72px ${font}`
-    return [font, context.measureText('Brave fingerprint QA').width]
-  }))
+  const fonts = [
+    'Arial',
+    'Courier New',
+    'Georgia',
+    'Helvetica',
+    'Times New Roman',
+  ]
+  return Object.fromEntries(
+    fonts.map((font) => {
+      context.font = `72px ${font}`
+      return [font, context.measureText('Brave fingerprint QA').width]
+    }),
+  )
 }
 
 async function audioFingerprint() {
@@ -85,20 +103,26 @@ async function audioFingerprint() {
   oscillator.start(0)
   const buffer = await context.startRendering()
   const samples = buffer.getChannelData(0).slice(4500, 5000)
-  return hash([...samples].map(value => value.toFixed(8)).join(','))
+  return hash([...samples].map((value) => value.toFixed(8)).join(','))
 }
 
 async function userAgentData() {
   if (!navigator.userAgentData) return null
   return await navigator.userAgentData.getHighEntropyValues([
-    'architecture', 'bitness', 'fullVersionList', 'model', 'platform', 'platformVersion', 'wow64',
+    'architecture',
+    'bitness',
+    'fullVersionList',
+    'model',
+    'platform',
+    'platformVersion',
+    'wow64',
   ])
 }
 
 async function webgpuFingerprint() {
-  if (!navigator.gpu) return {available: false}
+  if (!navigator.gpu) return { available: false }
   const adapter = await navigator.gpu.requestAdapter()
-  if (!adapter) return {available: true, adapter: null}
+  if (!adapter) return { available: true, adapter: null }
   const info = adapter.info || {}
   return {
     adapter: {
@@ -113,37 +137,40 @@ async function webgpuFingerprint() {
 }
 
 async function localFonts() {
-  if (!globalThis.queryLocalFonts) return {available: false}
+  if (!globalThis.queryLocalFonts) return { available: false }
   try {
-    const permission = await navigator.permissions.query({name: 'local-fonts'})
+    const permission = await navigator.permissions.query({
+      name: 'local-fonts',
+    })
     if (permission.state !== 'granted') {
-      return {available: true, permission: permission.state}
+      return { available: true, permission: permission.state }
     }
     const fonts = await globalThis.queryLocalFonts()
     return {
       available: true,
-      families: [...new Set(fonts.map(font => font.family))].sort(),
+      families: [...new Set(fonts.map((font) => font.family))].sort(),
       permission: permission.state,
     }
   } catch (error) {
-    return {available: true, error: String(error)}
+    return { available: true, error: String(error) }
   }
 }
 
 async function geolocation() {
-  return await new Promise(resolve => {
+  return await new Promise((resolve) => {
     if (!navigator.geolocation) {
-      resolve({available: false})
+      resolve({ available: false })
       return
     }
     navigator.geolocation.getCurrentPosition(
-      position => resolve({
-        accuracy: position.coords.accuracy,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      }),
-      error => resolve({error: error.message}),
-      {enableHighAccuracy: false, maximumAge: 0, timeout: 5000},
+      (position) =>
+        resolve({
+          accuracy: position.coords.accuracy,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }),
+      (error) => resolve({ error: error.message }),
+      { enableHighAccuracy: false, maximumAge: 0, timeout: 5000 },
     )
   })
 }
@@ -151,7 +178,7 @@ async function geolocation() {
 async function dedicatedWorker() {
   return await new Promise((resolve, reject) => {
     const worker = new Worker('dedicated-worker.js')
-    worker.onmessage = event => {
+    worker.onmessage = (event) => {
       worker.terminate()
       resolve(event.data)
     }
@@ -164,26 +191,26 @@ async function sharedWorker() {
   return await new Promise((resolve, reject) => {
     try {
       const worker = new SharedWorker('shared-worker.js')
-      worker.port.onmessage = event => resolve(event.data)
+      worker.port.onmessage = (event) => resolve(event.data)
       worker.onerror = reject
       worker.port.start()
       worker.port.postMessage('collect')
     } catch (error) {
-      resolve({error: String(error)})
+      resolve({ error: String(error) })
     }
   })
 }
 
 async function serviceWorker() {
-  if (!('serviceWorker' in navigator)) return {available: false}
-  await navigator.serviceWorker.register('service-worker.js', {scope: '/'})
+  if (!('serviceWorker' in navigator)) return { available: false }
+  await navigator.serviceWorker.register('service-worker.js', { scope: '/' })
   await navigator.serviceWorker.ready
   const registration = await navigator.serviceWorker.getRegistration('/')
   const worker = registration?.active
-  if (!worker) return {error: 'no active worker'}
-  return await new Promise(resolve => {
+  if (!worker) return { error: 'no active worker' }
+  return await new Promise((resolve) => {
     const channel = new MessageChannel()
-    channel.port1.onmessage = event => resolve(event.data)
+    channel.port1.onmessage = (event) => resolve(event.data)
     worker.postMessage('collect', [channel.port2])
   })
 }
@@ -193,7 +220,9 @@ async function collect() {
   iframe.src = 'iframe.html'
   iframe.hidden = true
   document.body.append(iframe)
-  await new Promise(resolve => iframe.addEventListener('load', resolve, {once: true}))
+  await new Promise((resolve) =>
+    iframe.addEventListener('load', resolve, { once: true }),
+  )
   const result = {
     audio: await audioFingerprint(),
     basic: basic(),
@@ -221,10 +250,14 @@ async function collect() {
   window.__fpQaResult = result
   window.__fpQaReady = true
   document.querySelector('#status').textContent = 'Ready'
-  document.querySelector('#result').textContent = JSON.stringify(result, null, 2)
+  document.querySelector('#result').textContent = JSON.stringify(
+    result,
+    null,
+    2,
+  )
 }
 
-collect().catch(error => {
+collect().catch((error) => {
   window.__fpQaError = String(error?.stack || error)
   document.querySelector('#status').textContent = 'Failed'
   document.querySelector('#result').textContent = window.__fpQaError

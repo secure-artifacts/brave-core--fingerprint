@@ -132,8 +132,8 @@ namespace brave_wallet {
 class WalletPanelConfigBrowserTest : public InProcessBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(WalletPanelConfigBrowserTest, IsRegistered) {
-  EXPECT_NE(TopChromeWebUIConfig::From(
-                browser()->profile(), GURL(kBraveUIWalletPanelURL)),
+  EXPECT_NE(TopChromeWebUIConfig::From(browser()->profile(),
+                                       GURL(kBraveUIWalletPanelURL)),
             nullptr);
 }
 

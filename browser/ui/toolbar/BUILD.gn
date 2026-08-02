@@ -41,9 +41,9 @@ source_set("brave_app_menu_browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   sources = [
+    "//brave/chromium_src/chrome/browser/ui/tabs/recent_tabs_sub_menu_model_browsertest.cc",
     "//chrome/browser/ui/tabs/recent_tabs_builder_test_helper.cc",
     "//chrome/browser/ui/tabs/recent_tabs_builder_test_helper.h",
-    "//brave/chromium_src/chrome/browser/ui/tabs/recent_tabs_sub_menu_model_browsertest.cc",
     "//chrome/test/base/browser_with_test_window_test.cc",
     "//chrome/test/base/browser_with_test_window_test.h",
     "//chrome/test/base/menu_model_test.cc",

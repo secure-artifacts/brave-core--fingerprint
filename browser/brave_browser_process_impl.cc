@@ -27,7 +27,6 @@
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
 #include "brave/components/brave_component_updater/browser/brave_component_updater_delegate.h"
 #include "brave/components/brave_component_updater/browser/local_data_files_service.h"
-#include "brave/components/fingerprint_browser/browser/offline_geoip_database.h"
 #include "brave/components/brave_origin/brave_origin_policy_manager.h"
 #include "brave/components/brave_policy/ad_block_only_mode/ad_block_only_mode_policy_manager.h"
 #include "brave/components/brave_shields/content/browser/ad_block_service.h"
@@ -39,6 +38,7 @@
 #include "brave/components/constants/pref_names.h"
 #include "brave/components/debounce/core/browser/debounce_component_installer.h"
 #include "brave/components/debounce/core/common/features.h"
+#include "brave/components/fingerprint_browser/browser/offline_geoip_database.h"
 #include "brave/components/https_upgrade_exceptions/browser/https_upgrade_exceptions_service.h"
 #include "brave/components/ntp_background_images/browser/ntp_background_images_service.h"
 #include "brave/components/p3a/histograms_braveizer.h"
@@ -328,8 +328,8 @@ void BraveBrowserProcessImpl::StartBraveServices() {
   speedreader_rewriter_service();
 #endif
   URLSanitizerComponentInstaller();
-  local_data_files_service()->AddReadyCallback(base::BindRepeating(
-      [](const base::FilePath& install_dir) {
+  local_data_files_service()->AddReadyCallback(
+      base::BindRepeating([](const base::FilePath& install_dir) {
         fingerprint_browser::OfflineGeoIpDatabase::GetInstance()
             ->SetDatabaseDirectory(install_dir);
       }));

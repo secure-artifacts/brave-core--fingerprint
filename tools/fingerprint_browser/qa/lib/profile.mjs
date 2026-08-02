@@ -1,36 +1,48 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import {startQaSession} from './browser.mjs'
+import { startQaSession } from './browser.mjs'
 
 const PROFILE_PROXY_URL = 'brave://settings/fingerprintProfileProxy'
 
 async function findProxyElement(page) {
-  await page.waitForFunction(() => {
-    function find(root) {
-      const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
-      if (direct) return direct
-      for (const element of root.querySelectorAll?.('*') || []) {
-        if (element.shadowRoot) {
-          const nested = find(element.shadowRoot)
-          if (nested) return nested
+  await page.waitForFunction(
+    () => {
+      function find(root) {
+        const direct = root.querySelector?.(
+          'settings-fingerprint-profile-proxy-subpage',
+        )
+        if (direct) return direct
+        for (const element of root.querySelectorAll?.('*') || []) {
+          if (element.shadowRoot) {
+            const nested = find(element.shadowRoot)
+            if (nested) return nested
+          }
         }
+        return null
       }
-      return null
-    }
-    return Boolean(find(document))
-  }, null, {timeout: 15000})
+      return Boolean(find(document))
+    },
+    null,
+    { timeout: 15000 },
+  )
 }
 
 export async function readProfileProxyState(page, navigate = true) {
   if (navigate) {
-    await page.goto(PROFILE_PROXY_URL, {waitUntil: 'domcontentloaded'})
+    await page.goto(PROFILE_PROXY_URL, { waitUntil: 'domcontentloaded' })
     await findProxyElement(page)
     await page.waitForTimeout(500)
   }
   return await page.evaluate(() => {
     function find(root) {
-      const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
+      const direct = root.querySelector?.(
+        'settings-fingerprint-profile-proxy-subpage',
+      )
       if (direct) return direct
       for (const element of root.querySelectorAll?.('*') || []) {
         if (element.shadowRoot) {
@@ -55,37 +67,44 @@ export async function readProfileProxyState(page, navigate = true) {
       scheme: element.scheme_,
       state: element.state_,
       statusMessage: element.statusMessage_ || '',
-      verification: element.verification_ ? {
-        egressIp: element.verification_.egressIp,
-        error: element.verification_.error,
-        geo: element.verification_.geo || null,
-        geoProvider: element.verification_.geoProvider,
-        success: element.verification_.success,
-        verificationId: element.verification_.verificationId,
-      } : null,
+      verification: element.verification_
+        ? {
+            egressIp: element.verification_.egressIp,
+            error: element.verification_.error,
+            geo: element.verification_.geo || null,
+            geoProvider: element.verification_.geoProvider,
+            success: element.verification_.success,
+            verificationId: element.verification_.verificationId,
+          }
+        : null,
     }
   })
 }
 
 export async function waitForProfileProxyError(page, timeoutMs = 15000) {
-  await page.goto(PROFILE_PROXY_URL, {waitUntil: 'domcontentloaded'})
+  await page.goto(PROFILE_PROXY_URL, { waitUntil: 'domcontentloaded' })
   await findProxyElement(page)
-  await page.waitForFunction(() => {
-    function find(root) {
-      const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
-      if (direct) return direct
-      for (const element of root.querySelectorAll?.('*') || []) {
-        if (element.shadowRoot) {
-          const nested = find(element.shadowRoot)
-          if (nested) return nested
+  await page.waitForFunction(
+    () => {
+      function find(root) {
+        const direct = root.querySelector?.(
+          'settings-fingerprint-profile-proxy-subpage',
+        )
+        if (direct) return direct
+        for (const element of root.querySelectorAll?.('*') || []) {
+          if (element.shadowRoot) {
+            const nested = find(element.shadowRoot)
+            if (nested) return nested
+          }
         }
+        return null
       }
-      return null
-    }
-    const element = find(document)
-    return Boolean(
-      element?.state_ === 'error' || element?.actionError_)
-  }, null, {timeout: timeoutMs})
+      const element = find(document)
+      return Boolean(element?.state_ === 'error' || element?.actionError_)
+    },
+    null,
+    { timeout: timeoutMs },
+  )
   return await readProfileProxyState(page, false)
 }
 
@@ -95,9 +114,11 @@ export async function verifyProfileProxy(page, config) {
     waitUntil: 'domcontentloaded',
   })
   await findProxyElement(page)
-  return await page.evaluate(async config => {
+  return await page.evaluate(async (config) => {
     function find(root) {
-      const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
+      const direct = root.querySelector?.(
+        'settings-fingerprint-profile-proxy-subpage',
+      )
       if (direct) return direct
       for (const element of root.querySelectorAll?.('*') || []) {
         if (element.shadowRoot) {
@@ -128,14 +149,16 @@ export async function verifyProfileProxy(page, config) {
       portError: element.portError_,
       state: element.state_,
       statusMessage: element.statusMessage_ || '',
-      verification: element.verification_ ? {
-        egressIp: element.verification_.egressIp,
-        error: element.verification_.error,
-        geo: element.verification_.geo || null,
-        geoProvider: element.verification_.geoProvider,
-        success: element.verification_.success,
-        verificationId: element.verification_.verificationId,
-      } : null,
+      verification: element.verification_
+        ? {
+            egressIp: element.verification_.egressIp,
+            error: element.verification_.error,
+            geo: element.verification_.geo || null,
+            geoProvider: element.verification_.geoProvider,
+            success: element.verification_.success,
+            verificationId: element.verification_.verificationId,
+          }
+        : null,
     }
   }, config)
 }
@@ -144,7 +167,9 @@ export async function applyVerifiedProfileProxy(page) {
   await findProxyElement(page)
   await page.evaluate(async () => {
     function find(root) {
-      const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
+      const direct = root.querySelector?.(
+        'settings-fingerprint-profile-proxy-subpage',
+      )
       if (direct) return direct
       for (const element of root.querySelectorAll?.('*') || []) {
         if (element.shadowRoot) {
@@ -168,7 +193,9 @@ export async function setProfileProxy(page, config) {
     await findProxyElement(page)
     await page.evaluate(async () => {
       function find(root) {
-        const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
+        const direct = root.querySelector?.(
+          'settings-fingerprint-profile-proxy-subpage',
+        )
         if (direct) return direct
         for (const element of root.querySelectorAll?.('*') || []) {
           if (element.shadowRoot) {
@@ -188,15 +215,17 @@ export async function setProfileProxy(page, config) {
     return verified
   }
   const applied = await applyVerifiedProfileProxy(page)
-  return {...applied, verified: verified.verification}
+  return { ...applied, verified: verified.verification }
 }
 
 export async function renderProxyValidationError(page, screenshot) {
-  await page.goto(PROFILE_PROXY_URL, {waitUntil: 'domcontentloaded'})
+  await page.goto(PROFILE_PROXY_URL, { waitUntil: 'domcontentloaded' })
   await findProxyElement(page)
   const result = await page.evaluate(() => {
     function find(root) {
-      const direct = root.querySelector?.('settings-fingerprint-profile-proxy-subpage')
+      const direct = root.querySelector?.(
+        'settings-fingerprint-profile-proxy-subpage',
+      )
       if (direct) return direct
       for (const element of root.querySelectorAll?.('*') || []) {
         if (element.shadowRoot) {
@@ -217,7 +246,7 @@ export async function renderProxyValidationError(page, screenshot) {
       valid,
     }
   })
-  await page.screenshot({path: screenshot, fullPage: false})
+  await page.screenshot({ path: screenshot, fullPage: false })
   if (result.valid || !result.hostError || !result.portError) {
     throw new Error('Proxy settings validation state was not rendered')
   }
@@ -225,14 +254,20 @@ export async function renderProxyValidationError(page, screenshot) {
 }
 
 export async function collectProbe(page, origin) {
-  await page.goto(origin, {waitUntil: 'domcontentloaded', timeout: 45000})
-  await page.waitForFunction(() => window.__fpQaReady || window.__fpQaError, null, {
-    timeout: 20000,
-  })
+  await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 45000 })
+  await page.waitForFunction(
+    () => window.__fpQaReady || window.__fpQaError,
+    null,
+    {
+      timeout: 20000,
+    },
+  )
   const result = await page.evaluate(async () => {
     if (window.__fpQaError) throw new Error(window.__fpQaError)
-    const wireHeaders = await fetch('/headers.json', {cache: 'no-store'}).then(response => response.json())
-    return {...window.__fpQaResult, wireHeaders}
+    const wireHeaders = await fetch('/headers.json', {
+      cache: 'no-store',
+    }).then((response) => response.json())
+    return { ...window.__fpQaResult, wireHeaders }
   })
   assertProbeConsistency(result)
   return result
@@ -247,45 +282,70 @@ export function assertProbeConsistency(result) {
   ]
   for (const [name, context] of contexts) {
     if (!context || context.error || context.available === false) {
-      throw new Error(`${name} fingerprint probe unavailable: ${JSON.stringify(context)}`)
+      throw new Error(
+        `${name} fingerprint probe unavailable: ${JSON.stringify(context)}`,
+      )
     }
-    for (const key of ['hardwareConcurrency', 'language', 'platform', 'userAgent']) {
+    for (const key of [
+      'hardwareConcurrency',
+      'language',
+      'platform',
+      'userAgent',
+    ]) {
       if (context[key] !== result.basic[key]) {
         throw new Error(`${name} ${key} did not match main document`)
       }
     }
-    if (JSON.stringify(context.languages) !== JSON.stringify(result.basic.languages)) {
+    if (
+      JSON.stringify(context.languages)
+      !== JSON.stringify(result.basic.languages)
+    ) {
       throw new Error(`${name} languages did not match main document`)
     }
   }
   if (result.wireHeaders?.['user-agent'] !== result.basic.userAgent) {
     throw new Error('Wire User-Agent did not match navigator.userAgent')
   }
-  const wireLanguages = String(result.wireHeaders?.['accept-language'] || '')
-    .toLowerCase()
+  const wireLanguages = String(
+    result.wireHeaders?.['accept-language'] || '',
+  ).toLowerCase()
   if (!wireLanguages.includes(result.basic.language.toLowerCase())) {
     throw new Error('Wire Accept-Language did not include navigator.language')
   }
-  const wirePlatform = result.wireHeaders?.['sec-ch-ua-platform']?.replaceAll('"', '')
+  const wirePlatform = result.wireHeaders?.['sec-ch-ua-platform']?.replaceAll(
+    '"',
+    '',
+  )
   if (result.uaData?.platform && wirePlatform !== result.uaData.platform) {
     throw new Error('Wire UA-CH platform did not match navigator.userAgentData')
   }
-  const wireBrands = [...String(result.wireHeaders?.['sec-ch-ua'] || '')
-    .matchAll(/"([^"]+)";v="([^"]+)"/g)]
-    .map(match => ({brand: match[1], version: match[2]}))
+  const wireBrands = [
+    ...String(result.wireHeaders?.['sec-ch-ua'] || '').matchAll(
+      /"([^"]+)";v="([^"]+)"/g,
+    ),
+  ].map((match) => ({ brand: match[1], version: match[2] }))
   for (const brand of result.uaData?.brands || []) {
-    if (!wireBrands.some(value => value.brand === brand.brand &&
-        value.version === brand.version)) {
+    if (
+      !wireBrands.some(
+        (value) =>
+          value.brand === brand.brand && value.version === brand.version,
+      )
+    ) {
       throw new Error(`Wire UA-CH brand did not match ${brand.brand}`)
     }
   }
-  const wireFullVersions = [...String(
-    result.wireHeaders?.['sec-ch-ua-full-version-list'] || '')
-    .matchAll(/"([^"]+)";v="([^"]+)"/g)]
-    .map(match => ({brand: match[1], version: match[2]}))
+  const wireFullVersions = [
+    ...String(
+      result.wireHeaders?.['sec-ch-ua-full-version-list'] || '',
+    ).matchAll(/"([^"]+)";v="([^"]+)"/g),
+  ].map((match) => ({ brand: match[1], version: match[2] }))
   for (const brand of result.uaData?.fullVersionList || []) {
-    if (!wireFullVersions.some(value => value.brand === brand.brand &&
-        value.version === brand.version)) {
+    if (
+      !wireFullVersions.some(
+        (value) =>
+          value.brand === brand.brand && value.version === brand.version,
+      )
+    ) {
       throw new Error(`Wire full UA-CH brand did not match ${brand.brand}`)
     }
   }
@@ -299,7 +359,9 @@ export function assertProbeConsistency(result) {
     if (property in (result.uaData || {})) {
       const wireValue = result.wireHeaders?.[header]?.replaceAll('"', '')
       if (wireValue !== result.uaData[property]) {
-        throw new Error(`Wire UA-CH ${property} did not match navigator.userAgentData`)
+        throw new Error(
+          `Wire UA-CH ${property} did not match navigator.userAgentData`,
+        )
       }
     }
   }
@@ -311,19 +373,25 @@ export function assertProbeConsistency(result) {
   }
 }
 
-export async function readPersona(sourcePage, {screenshot = null} = {}) {
+export async function readPersona(sourcePage, { screenshot = null } = {}) {
   const page = await sourcePage.context().newPage()
   try {
-    await page.goto('brave://fingerprint-test/', {waitUntil: 'domcontentloaded'})
-    await page.waitForFunction(() => document.querySelector('#status')?.dataset.state !== 'warn', null, {
-      timeout: 15000,
+    await page.goto('brave://fingerprint-test/', {
+      waitUntil: 'domcontentloaded',
     })
+    await page.waitForFunction(
+      () => document.querySelector('#status')?.dataset.state !== 'warn',
+      null,
+      {
+        timeout: 15000,
+      },
+    )
     if (screenshot) {
-      await page.screenshot({path: screenshot, fullPage: false})
+      await page.screenshot({ path: screenshot, fullPage: false })
     }
     return await page.evaluate(() => {
       const summary = [...document.querySelectorAll('#summary .summary-item')]
-      const entries = summary.map(item => [
+      const entries = summary.map((item) => [
         item.querySelector('span')?.textContent?.trim(),
         item.querySelector('.summary-value')?.textContent?.trim(),
       ])
@@ -352,11 +420,11 @@ function stableFingerprint(probe) {
   }
 }
 
-export async function runProfileLifecycle({config, dirs, probe, runId}) {
+export async function runProfileLifecycle({ config, dirs, probe, runId }) {
   const eventSets = []
   const sessions = []
-  const profilePath = name => `/tmp/fingerprint-browser-${runId}/${name}`
-  const launch = async name => {
+  const profilePath = (name) => `/tmp/fingerprint-browser-${runId}/${name}`
+  const launch = async (name) => {
     const session = await startQaSession({
       app: config.app,
       logDir: dirs.logs,
@@ -369,26 +437,31 @@ export async function runProfileLifecycle({config, dirs, probe, runId}) {
   }
   try {
     const sessionA = await launch('profile-a')
-    const pageA = sessionA.context.pages()[0] || await sessionA.context.newPage()
+    const pageA =
+      sessionA.context.pages()[0] || (await sessionA.context.newPage())
     const firstA = await collectProbe(pageA, probe.origin)
     await pageA.evaluate(() => {
       localStorage.setItem('fp-qa-owner', 'profile-a')
     })
-    await sessionA.context.addCookies([{
-      expires: Math.floor(Date.now() / 1000) + 3600,
-      name: 'fp-qa-owner',
-      sameSite: 'Lax',
-      url: probe.origin,
-      value: 'profile-a',
-    }])
+    await sessionA.context.addCookies([
+      {
+        expires: Math.floor(Date.now() / 1000) + 3600,
+        name: 'fp-qa-owner',
+        sameSite: 'Lax',
+        url: probe.origin,
+        value: 'profile-a',
+      },
+    ])
     const initialStorageA = await pageA.evaluate(() => ({
       cookie: document.cookie,
       localStorage: localStorage.getItem('fp-qa-owner'),
     }))
-    if (initialStorageA.localStorage !== 'profile-a' ||
-        !initialStorageA.cookie.includes('profile-a')) {
+    if (
+      initialStorageA.localStorage !== 'profile-a'
+      || !initialStorageA.cookie.includes('profile-a')
+    ) {
       throw Object.assign(new Error('Profile A storage setup failed'), {
-        details: {initialStorageA},
+        details: { initialStorageA },
       })
     }
     const personaA = await readPersona(pageA)
@@ -399,7 +472,8 @@ export async function runProfileLifecycle({config, dirs, probe, runId}) {
     sessions.splice(sessions.indexOf(sessionA), 1)
 
     const restartedA = await launch('profile-a')
-    const restartedPageA = restartedA.context.pages()[0] || await restartedA.context.newPage()
+    const restartedPageA =
+      restartedA.context.pages()[0] || (await restartedA.context.newPage())
     const secondA = await collectProbe(restartedPageA, probe.origin)
     const storageA = await restartedPageA.evaluate(() => ({
       cookie: document.cookie,
@@ -408,7 +482,8 @@ export async function runProfileLifecycle({config, dirs, probe, runId}) {
     const restartedPersonaA = await readPersona(restartedPageA)
 
     const sessionB = await launch('profile-b')
-    const pageB = sessionB.context.pages()[0] || await sessionB.context.newPage()
+    const pageB =
+      sessionB.context.pages()[0] || (await sessionB.context.newPage())
     const firstB = await collectProbe(pageB, probe.origin)
     const storageB = await pageB.evaluate(() => ({
       cookie: document.cookie,
@@ -428,32 +503,42 @@ export async function runProfileLifecycle({config, dirs, probe, runId}) {
     if (!idB || idA === idB) {
       throw new Error('Profile A and B Persona IDs are not distinct')
     }
-    if (JSON.stringify(stableFingerprint(firstA)) ===
-        JSON.stringify(stableFingerprint(firstB))) {
+    if (
+      JSON.stringify(stableFingerprint(firstA))
+      === JSON.stringify(stableFingerprint(firstB))
+    ) {
       throw new Error('Profile A and B fingerprints are identical')
     }
-    if (JSON.stringify(stableFingerprint(firstA)) !==
-        JSON.stringify(stableFingerprint(secondA))) {
+    if (
+      JSON.stringify(stableFingerprint(firstA))
+      !== JSON.stringify(stableFingerprint(secondA))
+    ) {
       throw new Error('Profile A fingerprint changed across restart')
     }
-    if (storageA.localStorage !== 'profile-a' || !storageA.cookie.includes('profile-a')) {
+    if (
+      storageA.localStorage !== 'profile-a'
+      || !storageA.cookie.includes('profile-a')
+    ) {
       throw Object.assign(new Error('Profile A storage did not persist'), {
-        details: {storageA},
+        details: { storageA },
       })
     }
-    if (storageB.localStorage !== null || storageB.cookie.includes('profile-a')) {
+    if (
+      storageB.localStorage !== null
+      || storageB.cookie.includes('profile-a')
+    ) {
       throw new Error('Profile B observed Profile A storage')
     }
 
     const pageScreenshot = path.join(dirs.page, 'full-profile-persona-b.png')
-    await readPersona(pageB, {screenshot: pageScreenshot})
+    await readPersona(pageB, { screenshot: pageScreenshot })
 
     await restartedA.close()
     sessions.splice(sessions.indexOf(restartedA), 1)
-    await fs.rm(profilePath('profile-a'), {recursive: true, force: true})
+    await fs.rm(profilePath('profile-a'), { recursive: true, force: true })
     const recreatedA = await launch('profile-a')
-    const recreatedPageA = recreatedA.context.pages()[0] ||
-      await recreatedA.context.newPage()
+    const recreatedPageA =
+      recreatedA.context.pages()[0] || (await recreatedA.context.newPage())
     await collectProbe(recreatedPageA, probe.origin)
     const recreatedStorageA = await recreatedPageA.evaluate(() => ({
       cookie: document.cookie,
@@ -461,51 +546,65 @@ export async function runProfileLifecycle({config, dirs, probe, runId}) {
     }))
     const recreatedPersonaA = await readPersona(recreatedPageA)
     const recreatedIdA = recreatedPersonaA.entries['Persona ID']
-    if (recreatedPersonaA.state !== 'pass' || !recreatedIdA || recreatedIdA === idA) {
+    if (
+      recreatedPersonaA.state !== 'pass'
+      || !recreatedIdA
+      || recreatedIdA === idA
+    ) {
       throw Object.assign(
-        new Error('Deleted Profile A did not receive a fresh valid Persona'), {
-          details: {idA, recreatedIdA, recreatedPersonaA},
-        })
+        new Error('Deleted Profile A did not receive a fresh valid Persona'),
+        {
+          details: { idA, recreatedIdA, recreatedPersonaA },
+        },
+      )
     }
     if (recreatedStorageA.localStorage !== null || recreatedStorageA.cookie) {
-      throw new Error('Deleted Profile A retained site storage after recreation')
+      throw new Error(
+        'Deleted Profile A retained site storage after recreation',
+      )
     }
-    const failures = eventSets.flatMap(events => [
-      ...events.browserExits.map(event => `browser exited ${event.code ?? event.signal}`),
-      ...events.crashes.map(event => `renderer crash ${event.page}`),
-      ...events.pageErrors.map(event => `pageerror ${event.message}`),
+    const failures = eventSets.flatMap((events) => [
+      ...events.browserExits.map(
+        (event) => `browser exited ${event.code ?? event.signal}`,
+      ),
+      ...events.crashes.map((event) => `renderer crash ${event.page}`),
+      ...events.pageErrors.map((event) => `pageerror ${event.message}`),
       ...events.disconnected.map(() => 'CDP disconnected'),
     ])
     if (failures.length > 0) {
-      throw Object.assign(new Error(failures.join('; ')), {details: eventSets})
+      throw Object.assign(new Error(failures.join('; ')), {
+        details: eventSets,
+      })
     }
     return {
       personaA: idA,
       personaAAfterDelete: recreatedIdA,
       personaB: idB,
       processes: [
-        ...await recreatedA.processes(),
-        ...await sessionB.processes(),
+        ...(await recreatedA.processes()),
+        ...(await sessionB.processes()),
       ],
       screenshots: [pageScreenshot],
       storageA,
       storageB,
     }
   } finally {
-    await Promise.all(sessions.map(session => session.close()))
+    await Promise.all(sessions.map((session) => session.close()))
   }
 }
 
 export async function collectWebRtcCandidates(page) {
   return await page.evaluate(async () => {
-    const peer = new RTCPeerConnection({iceServers: [{urls: 'stun:stun.l.google.com:19302'}]})
+    const peer = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    })
     peer.createDataChannel('qa')
     const candidates = []
-    peer.onicecandidate = event => {
+    peer.onicecandidate = (event) => {
       if (event.candidate) candidates.push(event.candidate.candidate)
     }
     await peer.setLocalDescription(await peer.createOffer())
-    await new Promise(resolve => setTimeout(resolve, 5000))
+    await new Promise((resolve) => setTimeout(resolve, 5000))
     peer.close()
     return candidates
   })

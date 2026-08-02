@@ -8,24 +8,27 @@ Status: Accepted (2026-07-08)
 (多身份同时在线)。单 Profile 原地换指纹+代理会导致存储串号,不是真多号。
 
 调研确认:Chromium proxy 天然是 per-`Profile`/`NetworkContext`
-(`ProfileNetworkContextService` 持 `ProxyConfigMonitor`);Brave 的 Tor 已有完整的
-per-Profile `ProxyConfigService` 模板。
+(`ProfileNetworkContextService` 持
+`ProxyConfigMonitor`);Brave 的 Tor 已有完整的 per-Profile `ProxyConfigService`
+模板。
 
 ## Decision
 
-**一个身份 = 一个 Chromium Profile**,自带独立 storage + NetworkContext + 代理 + persona,
-多个 Profile 可并发运行。
+**一个身份 = 一个 Chromium Profile**,自带独立 storage + NetworkContext + 代理 +
+persona, 多个 Profile 可并发运行。
 
-代理注入复用 Tor 的缝:`chromium_src/chrome/browser/net/proxy_config_monitor.cc` 里
-`if (profile->IsTor()) ... CreateProxyConfigServiceTor` 的模式,克隆出一个通用
-per-Profile `ProxyConfigService`,承载任意 HTTP/SOCKS5 地址 + 凭证。
+代理注入复用 Tor 的缝:`chromium_src/chrome/browser/net/proxy_config_monitor.cc`
+里 `if (profile->IsTor()) ... CreateProxyConfigServiceTor`
+的模式,克隆出一个通用per-Profile
+`ProxyConfigService`,承载任意 HTTP/SOCKS5 地址 + 凭证。
 
 ## Consequences
 
 - 存储隔离、代理隔离天然成立,无需自建隔离层。
-- SOCKS5 user/pass 认证已内置(`socks5_client_socket.cc` 的 `SOCKS5ClientSocketAuth`),
-  HTTP 代理认证走 `LoginHandler::SetAuth()`/预填 `HttpAuthCache` 绕弹窗。
-- 并发多 Profile = 多 NetworkContext 同时存活,内存/资源偏重,但 Chromium 原生支持。
+- SOCKS5 user/pass 认证已内置(`socks5_client_socket.cc` 的
+  `SOCKS5ClientSocketAuth`), HTTP 代理认证走 `LoginHandler::SetAuth()`/预填
+  `HttpAuthCache` 绕弹窗。
+- 并发多 Profile
+  = 多 NetworkContext 同时存活,内存/资源偏重,但 Chromium 原生支持。
 - persona 与 proxy 都挂在 Profile 上,天然一一对应。
-- v1 用户可见面仍是「当前 Profile 的 IP 设置页+开关」(用户原始最小需求);完整的
-  Profile 管理器(批量创建/分配)是后续层,不在 v1 强制范围。
+- v1 用户可见面仍是「当前 Profile 的 IP 设置页+开关」(用户原始最小需求);完整的Profile 管理器(批量创建/分配)是后续层,不在 v1 强制范围。

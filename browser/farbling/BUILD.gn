@@ -72,7 +72,7 @@ if (!is_android) {
 
     if (enable_tor) {
       deps += [
-        "//brave/browser/tor:tor",
+        "//brave/browser/tor",
         "//brave/components/tor",
       ]
     }

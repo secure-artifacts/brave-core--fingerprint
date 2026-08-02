@@ -84,8 +84,8 @@ std::string FarbleAcceptLanguageHeader(
   if (!persona_token.is_zero() &&
       brave_shields::GetFarblingLevel(content_settings, origin_url) !=
           brave_shields::mojom::FarblingLevel::OFF) {
-    prng = brave_shields::FarblingPRNG(persona_token.high() ^
-                                        persona_token.low());
+    prng =
+        brave_shields::FarblingPRNG(persona_token.high() ^ persona_token.low());
     accept_language_string += kFakeQValues[prng() % kFakeQValues.size()];
   } else {
     auto* shields_settings_service =
