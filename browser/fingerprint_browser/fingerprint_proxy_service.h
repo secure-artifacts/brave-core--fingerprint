@@ -136,6 +136,7 @@ class FingerprintProxyService
   void OnEncryptorReady(scoped_refptr<os_crypt_async::Encryptor> encryptor);
   bool MigratePlaintextPassword();
   std::optional<std::string> GetSavedPassword() const;
+  std::optional<std::string> EncryptPassword(std::string_view password) const;
   bool StorePassword(std::string_view password);
 
   void StartVerification(ProfileProxyDraft draft,
@@ -150,6 +151,9 @@ class FingerprintProxyService
   void RunVerificationCallbacks(ProxyVerificationResult result);
 
   ProfileProxyDraft GetAppliedDraft() const;
+  std::string StoreLookupResult(const ProxyGeoLookupResult& lookup,
+                                const ProfileProxyGeo& geo,
+                                bool show_change_warning);
   void ApplyLookup(const ProxyGeoLookupResult& lookup,
                    const ProfileProxyGeo& geo,
                    bool show_change_warning);
@@ -169,6 +173,7 @@ class FingerprintProxyService
   raw_ptr<PrefService> prefs_;
   scoped_refptr<os_crypt_async::Encryptor> encryptor_;
   bool credential_failure_ = false;
+  bool apply_in_progress_ = false;
   bool verification_in_progress_ = false;
   bool verification_is_revalidation_ = false;
   std::string state_before_verification_;

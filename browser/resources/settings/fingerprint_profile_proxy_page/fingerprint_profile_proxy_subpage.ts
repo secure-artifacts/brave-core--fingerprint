@@ -97,6 +97,7 @@ class SettingsFingerprintProfileProxySubpageElement extends
   private declare actionError_: string
   private declare isBusy_: boolean
   private declare initialized_: boolean
+  private draftRevision_ = 0
 
   private browserProxy_: FingerprintProfileProxyBrowserProxy =
     FingerprintProfileProxyBrowserProxyImpl.getInstance()
@@ -145,6 +146,7 @@ class SettingsFingerprintProfileProxySubpageElement extends
   }
 
   private onInputChanged_() {
+    this.draftRevision_++
     this.verification_ = null
     this.hostError_ = ''
     this.portError_ = ''
@@ -182,8 +184,13 @@ class SettingsFingerprintProfileProxySubpageElement extends
     }
     this.isBusy_ = true
     this.verification_ = null
+    const revision = this.draftRevision_
+    const draft = this.buildDraft_()
     try {
-      const result = await this.browserProxy_.verifyDraft(this.buildDraft_())
+      const result = await this.browserProxy_.verifyDraft(draft)
+      if (revision !== this.draftRevision_) {
+        return
+      }
       if (!result.success) {
         this.actionError_ = result.error
         return

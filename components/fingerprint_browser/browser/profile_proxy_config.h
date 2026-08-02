@@ -57,6 +57,8 @@ void SyncProfileProxyLanguage(PrefService& prefs);
 void SyncProfileProxyDerivedPrefs(PrefService& prefs);
 void ApplyVerifiedProfileProxyGeo(PrefService& prefs,
                                   const ProfileProxyGeo& geo);
+void PrepareVerifiedProfileProxyDerivedPrefs(PrefService& prefs,
+                                             const ProfileProxyGeo& geo);
 void ClearVerifiedProfileProxyGeo(PrefService& prefs);
 std::optional<std::string> AcceptLanguagesForCountryCode(
     std::string_view country_code);

@@ -28,6 +28,7 @@ source_set("fingerprint_browser") {
     "//components/os_crypt/async/common",
     "//components/pref_registry",
     "//components/prefs",
+    "//components/proxy_config",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//net",
