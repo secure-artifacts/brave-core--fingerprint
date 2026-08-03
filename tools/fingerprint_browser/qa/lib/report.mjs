@@ -134,6 +134,7 @@ export async function writeReports(report, runDir) {
   if (reviewBundles.length > 0) {
     const reviewBundle = reviewBundles.at(-1)
     lines.push('', '## Visual Review Bundle', '')
+    lines.push(`- Approval page: \`${reviewBundle.htmlFile}\``)
     lines.push(`- Gallery: \`${reviewBundle.galleryFile}\``)
     lines.push(`- Candidate baselines: \`${reviewBundle.candidateDir}\``)
     lines.push(`- Review manifest template: \`${reviewBundle.manifestFile}\``)

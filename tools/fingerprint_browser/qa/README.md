@@ -216,11 +216,13 @@ screenshots, and crash artifacts. Every screenshot receives a `PASS` or `FAIL`
 image-analysis record. Full and Soak require approved baselines for every image
 and an artifact-bound human review manifest.
 
-Each run also creates `visual-review-gallery.md`, `visual-review.template.json`,
-and `screenshots/candidate-baselines/`. The candidate directory never replaces
-an approved baseline automatically. The template is bound to the current
-libchrome and resource hashes; every entry must receive a human `PASS` or `FAIL`
-plus a reason before it can be supplied through `FP_QA_VISUAL_REVIEW_MANIFEST`.
+Each run also creates `visual-review.html`, `visual-review-gallery.md`,
+`visual-review.template.json`, and `screenshots/candidate-baselines/`. Open the
+HTML page to review screenshots with a lightbox, record `PASS` or `FAIL`, and
+export `visual-review.json`. The candidate directory never replaces an approved
+baseline automatically. The exported file is bound to the current libchrome
+and resource hashes and can be supplied through
+`FP_QA_VISUAL_REVIEW_MANIFEST`.
 
 Before launch, the runner checks a content-addressed source build manifest,
 source freshness, unscaled/scaled resource SHA-256, all locale pack hashes, the

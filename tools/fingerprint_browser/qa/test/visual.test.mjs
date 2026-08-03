@@ -206,6 +206,16 @@ test('writeVisualReviewBundle creates artifact-bound candidates and review files
       await fs.readFile(result.galleryFile, 'utf8'),
       /native\/toolbar\.png/,
     )
+    const reviewPage = await fs.readFile(result.htmlFile, 'utf8')
+    assert.match(reviewPage, /指纹浏览器截图审批/)
+    assert.match(reviewPage, /id="lightbox"/)
+    assert.match(reviewPage, /导出审批结果/)
+    assert.match(reviewPage, /candidate-baselines\/native\/toolbar\.png/)
+    assert.match(reviewPage, /"libchromeSha256":"lib"/)
+    const scripts = [
+      ...reviewPage.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g),
+    ]
+    assert.doesNotThrow(() => new Function(scripts.at(-1)[1]))
   } finally {
     await fs.rm(directory, { recursive: true, force: true })
   }
