@@ -22,6 +22,7 @@ import {
   runProfileLifecycle,
   setProfileProxy,
   verifyProfileProxy,
+  waitForProfileProxyIdle,
 } from '../lib/profile.mjs'
 import { runScenario } from '../lib/report.mjs'
 import {
@@ -37,6 +38,19 @@ import { importNativeEvidence } from '../lib/native_evidence.mjs'
 
 const GOOGLE_TRANSLATE_URL =
   'https://chromewebstore.google.com/detail/google-translate/aapbdbdomjkkjkaonfhkkikfgjllcleb'
+const VERIFICATION_BUSY_ERROR = '另一个代理验证任务正在运行。'
+
+async function verifyProfileProxyAfterRevalidation(page, draft) {
+  let result
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    result = await verifyProfileProxy(page, draft)
+    if (result.actionError !== VERIFICATION_BUSY_ERROR) {
+      return result
+    }
+    await waitForProfileProxyIdle(page)
+  }
+  return result
+}
 
 function normalizeLanguage(value) {
   return String(value).toLowerCase().replace('_', '-')
@@ -228,6 +242,24 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
     await page.screenshot({ path: activeScreenshot, fullPage: false })
     await assertCurrentWebUi(page, `${fixture.scheme} proxy active state`)
 
+    const toolbarProbe = await page.goto('https://example.com/', {
+      timeout: 60000,
+      waitUntil: 'domcontentloaded',
+    })
+    if (!toolbarProbe?.ok()) {
+      throw new Error(`${fixture.scheme} active toolbar probe failed`)
+    }
+    await page.bringToFront()
+    await page.waitForTimeout(500)
+    const activeToolbarScreenshot = path.join(
+      dirs.native,
+      `full-proxy-${fixture.scheme}-active-toolbar.png`,
+    )
+    await captureNativeScreenshot(
+      activeToolbarScreenshot,
+      session.process.child.pid,
+    )
+
     const response = await page.goto(fixture.verifyUrl, {
       timeout: 60000,
       waitUntil: 'domcontentloaded',
@@ -361,7 +393,7 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
       throw new Error(`${fixture.scheme} exit IP changed after restart`)
     }
 
-    const authAttempt = await verifyProfileProxy(page, {
+    const authAttempt = await verifyProfileProxyAfterRevalidation(page, {
       ...fixture,
       enabled: true,
       password: `${fixture.password}-intentionally-wrong`,
@@ -456,82 +488,10 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
         invalidScreenshot,
         verifiedScreenshot,
         activeScreenshot,
+        activeToolbarScreenshot,
         authScreenshot,
       ],
       validation,
-    }
-  } finally {
-    await session.close()
-  }
-}
-
-async function verifyProxySwitchPersistence({
-  config,
-  dirs,
-  fixtures,
-  probe,
-  runId,
-}) {
-  const profilePath = `/tmp/fingerprint-browser-${runId}/proxy-switch`
-  let session = await startQaSession({
-    app: config.app,
-    language: null,
-    logDir: dirs.logs,
-    name: 'proxy-switch',
-    profilePath,
-  })
-  try {
-    let page = session.context.pages()[0] || (await session.context.newPage())
-    const transitions = []
-    for (const fixture of [fixtures.http, fixtures.socks5]) {
-      const saved = await setProfileProxy(page, { ...fixture, enabled: true })
-      if (
-        !saved.enabled
-        || saved.state !== 'active'
-        || saved.scheme !== fixture.scheme
-        || saved.egressIp !== fixture.expectedIp
-      ) {
-        throw new Error(`Could not switch to ${fixture.scheme}`)
-      }
-      const response = await page.goto(fixture.verifyUrl, {
-        timeout: 60000,
-        waitUntil: 'domcontentloaded',
-      })
-      const ip = response?.ok()
-        ? observedIpFromBody(await page.locator('body').innerText())
-        : null
-      if (ip !== fixture.expectedIp) {
-        throw new Error(`${fixture.scheme} switch exit IP mismatch`)
-      }
-      transitions.push({ ip, scheme: fixture.scheme })
-    }
-    const screenshot = path.join(dirs.page, 'full-proxy-switch-socks5.png')
-    await page.goto('brave://settings/fingerprintProfileProxy', {
-      waitUntil: 'domcontentloaded',
-    })
-    await page.screenshot({ path: screenshot, fullPage: false })
-    await assertCurrentWebUi(page, 'SOCKS5 switch state')
-
-    await session.close()
-    session = await startQaSession({
-      app: config.app,
-      language: null,
-      logDir: dirs.logs,
-      name: 'proxy-switch-restart',
-      profilePath,
-    })
-    page = session.context.pages()[0] || (await session.context.newPage())
-    const persisted = await readProfileProxyState(page)
-    if (!persisted.enabled || persisted.scheme !== 'socks5') {
-      throw new Error('Switched SOCKS5 proxy did not persist across restart')
-    }
-    const observed = await collectProxySurfaceProbe(page)
-    await setProfileProxy(page, { enabled: false })
-    return {
-      observed,
-      persisted,
-      screenshots: [screenshot],
-      transitions,
     }
   } finally {
     await session.close()
@@ -621,7 +581,7 @@ async function runThirdPartyScans({ config, dirs, fixture, runId }) {
   const scans = [
     ['creepjs', 'https://abrahamjuliot.github.io/creepjs/'],
     ['fingerprintjs', 'https://fingerprint.com/demo/'],
-    ['browserleaks', 'https://browserleaks.com/'],
+    ['browserleaks', 'https://browserleaks.com/ip'],
     ['browserleaks-ssl', 'https://browserleaks.com/ssl'],
   ]
   try {
@@ -1087,52 +1047,30 @@ export async function runProxyFixtures({ config, dirs, probe, report, runId }) {
     proxyFixtures = await loadProxyFixtures(config.proxyFixtures)
     if (proxyFixtures.status === 'BLOCKED') {
       return {
-        fixtures: ['http', 'socks5']
-          .filter((scheme) => proxyFixtures[scheme])
-          .map((scheme) => publicProxyRecord(proxyFixtures[scheme])),
+        fixtures: proxyFixtures.http
+          ? [publicProxyRecord(proxyFixtures.http)]
+          : [],
         reason: proxyFixtures.reason,
         status: 'BLOCKED',
       }
     }
     return {
-      fixtures: [
-        publicProxyRecord(proxyFixtures.http),
-        publicProxyRecord(proxyFixtures.socks5),
-      ],
+      fixtures: [publicProxyRecord(proxyFixtures.http)],
     }
   })
-  if (proxyFixtures) {
-    const availableSchemes = ['http', 'socks5'].filter(
-      (scheme) => proxyFixtures[scheme],
+  if (proxyFixtures?.http) {
+    await runScenario(
+      report,
+      'full-proxy-http',
+      async () =>
+        await verifyProxy({
+          config,
+          dirs,
+          fixture: proxyFixtures.http,
+          probe,
+          runId,
+        }),
     )
-    for (const scheme of availableSchemes) {
-      await runScenario(
-        report,
-        `full-proxy-${scheme}`,
-        async () =>
-          await verifyProxy({
-            config,
-            dirs,
-            fixture: proxyFixtures[scheme],
-            probe,
-            runId,
-          }),
-      )
-    }
-    if (availableSchemes.length === 2) {
-      await runScenario(
-        report,
-        'full-proxy-switch-persistence',
-        async () =>
-          await verifyProxySwitchPersistence({
-            config,
-            dirs,
-            fixtures: proxyFixtures,
-            probe,
-            runId,
-          }),
-      )
-    }
   }
   return proxyFixtures
 }
@@ -1173,22 +1111,20 @@ export async function runFull({ config, dirs, probe, report, runId }) {
   )
 
   const primaryUrl = process.env.FP_QA_PRIMARY_EXTENSION_URL
-  await runScenario(report, 'full-cws-primary-extension', async () => {
-    if (!primaryUrl) {
-      return {
-        reason:
-          'FP_QA_PRIMARY_EXTENSION_URL is required for the original crash extension',
-        status: 'BLOCKED',
-      }
-    }
-    return await runWebStoreExtensionLifecycle({
-      config,
-      dirs,
-      extensionUrl: primaryUrl,
-      label: 'primary',
-      runId,
-    })
-  })
+  if (primaryUrl) {
+    await runScenario(
+      report,
+      'full-cws-primary-extension',
+      async () =>
+        await runWebStoreExtensionLifecycle({
+          config,
+          dirs,
+          extensionUrl: primaryUrl,
+          label: 'primary',
+          runId,
+        }),
+    )
+  }
   await runScenario(
     report,
     'full-cws-google-translate',

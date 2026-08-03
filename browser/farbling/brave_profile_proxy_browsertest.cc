@@ -605,6 +605,58 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       UnsupportedSocks5DraftIsRejectedBeforeNetwork) {
+  Profile* profile = CreateTestProfile();
+  const size_t request_count = ProxyRequestCount();
+
+  const auto verification = VerifyDraft(
+      profile,
+      {.scheme = fingerprint_browser::prefs::kProfileProxySchemeSocks5,
+       .host = "127.0.0.1",
+       .port = ProxyPort(),
+       .username = "foo",
+       .password = "bar"});
+
+  EXPECT_FALSE(verification.success);
+  EXPECT_EQ(fingerprint_browser::kProxyMessageInvalidConfig,
+            verification.error_code);
+  EXPECT_EQ(request_count, ProxyRequestCount());
+  EXPECT_FALSE(profile->GetPrefs()->GetBoolean(
+      fingerprint_browser::prefs::kProfileProxyEnabled));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       LegacySocks5ConfigurationRemainsFailClosed) {
+  Profile* profile = CreateTestProfile();
+  PrefService* prefs = profile->GetPrefs();
+  prefs->SetBoolean(fingerprint_browser::prefs::kProfileProxyEnabled, true);
+  prefs->SetString(fingerprint_browser::prefs::kProfileProxyScheme,
+                   fingerprint_browser::prefs::kProfileProxySchemeSocks5);
+  prefs->SetString(fingerprint_browser::prefs::kProfileProxyHost,
+                   "127.0.0.1");
+  prefs->SetInteger(fingerprint_browser::prefs::kProfileProxyPort,
+                    ProxyPort());
+
+  fingerprint_browser::FingerprintProxyService legacy_service(profile);
+  const auto state = legacy_service.GetState();
+  EXPECT_TRUE(state.enabled);
+  EXPECT_EQ(fingerprint_browser::kProxyStateError, state.state);
+  EXPECT_EQ(fingerprint_browser::kProxyMessageInvalidConfig,
+            state.status_code);
+
+  const auto proxy = legacy_service.GetProxyServer();
+  ASSERT_TRUE(proxy);
+  EXPECT_EQ(net::ProxyServer::SCHEME_HTTP, proxy->scheme());
+  EXPECT_EQ("127.0.0.1", proxy->host_port_pair().host());
+  EXPECT_EQ(9, proxy->host_port_pair().port());
+
+  const auto revalidation = Revalidate(profile);
+  EXPECT_FALSE(revalidation.success);
+  EXPECT_EQ(fingerprint_browser::kProxyMessageInvalidConfig,
+            revalidation.error_code);
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                        BadAuthenticationAndExpiredTokenAreRejected) {
   Profile* bad_auth_profile = CreateTestProfile();
   const auto bad_auth = VerifyDraft(

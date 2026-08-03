@@ -54,13 +54,14 @@ in any text file in the resulting ZIP. The macOS process running this command
 needs Accessibility and Screen Recording permission for the save dialog and
 native recovery screenshot.
 
-Full and Soak require the original crash extension and real proxy fixtures. The
-browser first verifies each draft through FreeIPAPI, falls back to IPWHOIS.IO,
-and only applies the proxy after the QA flow confirms the returned exit IP and
-location:
+Full and Soak require a real HTTP proxy fixture. The browser first verifies the
+draft through FreeIPAPI, falls back to IPWHOIS.IO, and only applies the proxy
+after the QA flow confirms the returned exit IP and location. The original
+crash extension URL is optional after the user accepted its manual Chrome Web
+Store installation test:
 
 ```bash
-export FP_QA_PRIMARY_EXTENSION_URL='https://chromewebstore.google.com/detail/...'
+# Optional: export FP_QA_PRIMARY_EXTENSION_URL='https://chromewebstore.google.com/detail/...'
 export FP_QA_NATIVE_UI_EVIDENCE_DIR='/absolute/path/to/approved-native-evidence'
 export FP_QA_VISUAL_REVIEW_MANIFEST='/absolute/path/to/visual-review.json'
 node run_qa.mjs --mode full --proxy-fixtures /absolute/path/to/proxies.json
@@ -70,28 +71,14 @@ Use `--mode proxy` for an artifact-gated Smoke plus available proxy fixtures
 without repeating the C++ suite. This diagnostic mode is not a Full delivery
 gate.
 
-Do not place proxy credentials in the repository. The fixture must be a regular
-file with mode `0600`. HTTP-only or SOCKS5-only files run the available protocol
-and keep the Full gate blocked until both are present:
+Do not place proxy credentials in the repository. The HTTP fixture must be a
+regular file with mode `0600`:
 
 ```json
 {
   "http": {
     "host": "proxy.example",
     "port": 8443,
-    "username": "qa",
-    "password": "secret",
-    "expectedIp": "203.0.113.10",
-    "geoVerifyUrl": "https://geo.example.test/json",
-    "countryCode": "US",
-    "timezone": "America/New_York",
-    "language": "en-US",
-    "latitude": 40.7128,
-    "longitude": -74.006
-  },
-  "socks5": {
-    "host": "proxy.example",
-    "port": 1080,
     "username": "qa",
     "password": "secret",
     "expectedIp": "203.0.113.10",
@@ -196,8 +183,9 @@ pixel difference ratio. The runner never creates or updates baselines. Add
 Shields alerts; unmasked pure-red toolbar pixels remain a hard failure.
 
 Capture these from the verified app used by the same run. Missing proxy data,
-the original extension URL, native evidence, test binaries, or approved
-baselines produces `BLOCKED`, never a substitute pass.
+native evidence, test binaries, or approved baselines produces `BLOCKED`, never
+a substitute pass. `FP_QA_PRIMARY_EXTENSION_URL` is optional and adds an extra
+automated Chrome Web Store lifecycle when supplied.
 
 Exit codes:
 

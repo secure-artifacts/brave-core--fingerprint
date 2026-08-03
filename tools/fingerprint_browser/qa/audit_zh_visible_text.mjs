@@ -21,7 +21,6 @@ const ALLOWED_TECHNICAL_TERMS = [
   'WebRTC',
   'WebGPU',
   'WebGL',
-  'SOCKS5',
   'UA-CH',
   'Profile',
   'HTTPS',

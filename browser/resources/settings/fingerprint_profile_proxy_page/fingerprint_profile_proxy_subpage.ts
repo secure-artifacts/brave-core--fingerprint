@@ -138,7 +138,7 @@ class SettingsFingerprintProfileProxySubpageElement extends
     this.activeGeo_ = state.geo || null
 
     if (!this.initialized_) {
-      this.scheme_ = state.scheme || 'http'
+      this.scheme_ = state.scheme === 'https' ? 'https' : 'http'
       this.host_ = state.host || ''
       this.port_ = state.port ? String(state.port) : ''
       this.username_ = state.username || ''
@@ -281,6 +281,10 @@ class SettingsFingerprintProfileProxySubpageElement extends
     return result.netError ?
       `代理操作失败（网络错误：${result.netError}）` :
       '代理操作失败，请稍后重试。'
+  }
+
+  private isInteractionDisabled_(isBusy: boolean, state: string) {
+    return isBusy || state === 'verifying'
   }
 
   private isActive_(state: string, geo: ProfileProxyGeo|null) {

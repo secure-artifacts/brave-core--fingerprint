@@ -38,16 +38,23 @@ SHALL 保持原网络行为，不被本功能接管。
 - **AND** SHALL 让标准代理路径继续处理既有配置
 - **AND** MUST NOT 静默覆盖
 
-### Requirement: 支持 HTTP、HTTPS 与 SOCKS5 认证代理
+### Requirement: 支持 HTTP 与 HTTPS 认证代理
 
-系统 SHALL 支持 HTTP、HTTPS 与 SOCKS5 代理，均支持用户名/密码认证。认证 MUST
-NOT 弹出交互式登录框。SOCKS5 认证使用 RFC1929；HTTP/HTTPS 自动处理代理认证挑战。
+系统 SHALL 支持 HTTP 与 HTTPS 代理，均支持用户名/密码认证。认证 MUST
+NOT 弹出交互式登录框。产品服务 MUST 在建立网络请求前拒绝其他协议。底层 SOCKS5
+实现可保留，但不属于 v1 产品能力或交付门禁。
 
-#### Scenario: SOCKS5 带认证连接
+#### Scenario: 不支持的代理协议
 
-- **WHEN** 配置需要账号密码的 SOCKS5 代理
-- **THEN** 浏览器 SHALL 用 RFC1929 完成认证并建立连接
-- **AND** 全程无认证弹窗
+- **WHEN** 页面或调用方提交 SOCKS5 或其他未支持协议
+- **THEN** 产品服务 SHALL 返回配置无效
+- **AND** SHALL NOT 发起代理验证请求或启用该配置
+
+#### Scenario: 旧 Profile 保存了不支持的协议
+
+- **WHEN** 浏览器启动时发现已启用的旧 SOCKS5 配置
+- **THEN** 产品服务 SHALL 进入错误状态并使用阻断代理
+- **AND** MUST NOT 恢复 DIRECT，直到用户明确禁用代理或重新配置 HTTP/HTTPS
 
 #### Scenario: HTTP 或 HTTPS 带认证连接
 

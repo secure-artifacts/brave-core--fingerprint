@@ -46,6 +46,11 @@
 namespace fingerprint_browser {
 namespace {
 
+bool IsSupportedProductProxyScheme(std::string_view scheme) {
+  return scheme == prefs::kProfileProxySchemeHttp ||
+         scheme == prefs::kProfileProxySchemeHttps;
+}
+
 constexpr base::TimeDelta kVerificationTimeout = base::Seconds(6);
 constexpr base::TimeDelta kVerificationLifetime = base::Minutes(5);
 constexpr base::TimeDelta kRevalidationInterval = base::Minutes(15);
@@ -169,6 +174,15 @@ FingerprintProxyService::FingerprintProxyService(Profile* profile)
   g_browser_process->os_crypt_async()->GetInstance(base::BindOnce(
       &FingerprintProxyService::OnEncryptorReady, weak_factory_.GetWeakPtr()));
 
+  if (prefs_->GetBoolean(prefs::kProfileProxyEnabled) &&
+      !IsSupportedProductProxyScheme(
+          prefs_->GetString(prefs::kProfileProxyScheme))) {
+    SyncProfileProxyWebRTCPolicy(*prefs_);
+    ClearVerifiedProfileProxyGeo(*prefs_);
+    SetState(kProxyStateError, kProxyMessageInvalidConfig);
+    return;
+  }
+
   const ProfileProxyConfigConflict conflict =
       GetProfileProxyConfigConflict(*prefs_);
   if (conflict != ProfileProxyConfigConflict::kNone) {
@@ -222,6 +236,12 @@ FingerprintProxyState FingerprintProxyService::GetState() const {
 void FingerprintProxyService::VerifyDraft(ProfileProxyDraft draft,
                                           VerificationCallback callback) {
   base::TrimWhitespaceASCII(draft.host, base::TRIM_ALL, &draft.host);
+  if (!IsSupportedProductProxyScheme(draft.scheme)) {
+    ProxyVerificationResult result;
+    result.error_code = kProxyMessageInvalidConfig;
+    std::move(callback).Run(std::move(result));
+    return;
+  }
   if (draft.password.empty() && HasSavedProxyPassword(*prefs_)) {
     if (!DraftMatchesSavedProxyIdentity(draft, *prefs_)) {
       ProxyVerificationResult result;
@@ -284,7 +304,8 @@ void FingerprintProxyService::ApplyVerified(std::string verification_id,
     return;
   }
 
-  if (!BuildProfileProxyServer(pending_verification_->draft)) {
+  if (!IsSupportedProductProxyScheme(pending_verification_->draft.scheme) ||
+      !BuildProfileProxyServer(pending_verification_->draft)) {
     result.error_code = kProxyMessageInvalidConfig;
     std::move(callback).Run(std::move(result));
     return;
@@ -342,6 +363,15 @@ void FingerprintProxyService::Revalidate(VerificationCallback callback) {
   }
 
   ProfileProxyDraft draft = GetAppliedDraft();
+  if (!IsSupportedProductProxyScheme(draft.scheme)) {
+    SetState(kProxyStateError, kProxyMessageInvalidConfig);
+    ProxyVerificationResult result;
+    result.error_code = kProxyMessageInvalidConfig;
+    if (callback) {
+      std::move(callback).Run(std::move(result));
+    }
+    return;
+  }
   if (HasCredentialFailure() || !BuildProfileProxyServer(draft)) {
     SetState(kProxyStateError, kProxyMessageCredentialsUnavailable);
     ProxyVerificationResult result;
@@ -389,7 +419,8 @@ std::optional<net::ProxyServer> FingerprintProxyService::GetProxyServer()
   }
 
   ProfileProxyDraft draft = GetAppliedDraft();
-  if (HasCredentialFailure()) {
+  if (!IsSupportedProductProxyScheme(draft.scheme) ||
+      HasCredentialFailure()) {
     return BlockingProxyServer();
   }
   const std::optional<net::ProxyServer> proxy_server =

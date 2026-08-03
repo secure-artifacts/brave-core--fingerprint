@@ -70,15 +70,9 @@ export async function runSoak({ config, dirs, probe, report, runId }) {
   await runScenario(report, 'soak-required-fixtures', async () => {
     fixtures = await loadProxyFixtures(config.proxyFixtures)
     if (fixtures.status === 'BLOCKED') return fixtures
-    if (!process.env.FP_QA_PRIMARY_EXTENSION_URL) {
-      return {
-        reason: 'FP_QA_PRIMARY_EXTENSION_URL is required before Soak',
-        status: 'BLOCKED',
-      }
-    }
     return { status: 'PASS' }
   })
-  if (fixtures?.status !== 'PASS' || !process.env.FP_QA_PRIMARY_EXTENSION_URL) {
+  if (fixtures?.status !== 'PASS') {
     return
   }
 
@@ -162,7 +156,7 @@ export async function runSoak({ config, dirs, probe, report, runId }) {
         if (counters.proxyToggles < dueCount(20)) {
           const toggle = counters.proxyToggles
           const enabled = toggle % 2 === 0
-          const fixture = toggle % 4 < 2 ? fixtures.http : fixtures.socks5
+          const fixture = fixtures.http
           const proxyPage = pagesBySession[0][0]
           const state = await setProfileProxy(
             proxyPage,

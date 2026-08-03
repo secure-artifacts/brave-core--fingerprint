@@ -66,7 +66,7 @@ test('rejects required sources missing with ENOENT', async () => {
 test('allows technical tokens and machine data', () => {
   assert.equal(
     disallowedEnglish(
-      'HTTP HTTPS SOCKS5 WebRTC UA UA-CH WebGL WebGPU IP IANA JSON ZIP '
+      'HTTP HTTPS WebRTC UA UA-CH WebGL WebGPU IP IANA JSON ZIP '
         + 'Profile Crashpad Chrome Web Store',
     ),
     '',
@@ -110,7 +110,7 @@ test('reports ordinary English assigned to code visibility sinks', () => {
     file: 'sample.ts',
     source: `
       status.textContent = 'HTTPS 已连接'
-      status.textContent = state === 'active' ? 'HTTP 已连接' : 'SOCKS5 已连接'
+      status.textContent = state === 'active' ? 'HTTP 已连接' : 'HTTPS 已连接'
       status.textContent = ready ? 'Connection ready' : 'Connection failed'
       addSummary('WebGL', value)
       addObservedRow('Screen color depth', depth)
@@ -129,7 +129,7 @@ test('filters shared resource messages and rejects ordinary English', () => {
     messageNamePattern: /FINGERPRINT/,
     source: `
       <message name="IDS_OTHER">Unrelated English</message>
-      <message name="IDS_FINGERPRINT_PROTOCOL">HTTP、SOCKS5</message>
+      <message name="IDS_FINGERPRINT_PROTOCOL">HTTP、HTTPS</message>
       <message name="IDS_FINGERPRINT_SAVE">Save proxy settings</message>
     `,
   })

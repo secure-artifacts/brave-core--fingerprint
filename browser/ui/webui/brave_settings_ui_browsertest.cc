@@ -124,6 +124,29 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
         const proxyPage = findProxyPage(document);
         if (proxyPage && proxyPage.getClientRects().length > 0 &&
             proxyPage.shadowRoot?.querySelector('#host')) {
+          const controls = [
+            '#scheme', '#host', '#port', '#username', '#password', '#verify'
+          ];
+          const waitForRender = () => new Promise(resolve =>
+              requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          proxyPage.isBusy_ = false;
+          proxyPage.state_ = 'verifying';
+          await waitForRender();
+          if (!controls.every(selector =>
+                  proxyPage.shadowRoot.querySelector(selector)?.disabled)) {
+            return 'unlocked-during-verification';
+          }
+          proxyPage.state_ = 'unconfigured';
+          await waitForRender();
+          if (!controls.every(selector =>
+                  !proxyPage.shadowRoot.querySelector(selector)?.disabled)) {
+            return 'locked-after-verification';
+          }
+          const schemes = [...proxyPage.shadowRoot.querySelectorAll(
+              '#scheme option')].map(option => option.value);
+          if (schemes.join(',') !== 'http,https') {
+            return `unexpected-schemes:${schemes.join(',')}`;
+          }
           const strings = {
             title: loadTimeData.getString('profileProxyTitle'),
             verify: loadTimeData.getString('profileProxyVerify'),

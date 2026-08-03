@@ -18,7 +18,7 @@ Ads）。核心矛盾：每个账号需要在一台机器上呈现一个稳定�
   readPixels）。
 - **只在 Chrome 系内伪装**（ADR-0003）：UA 始终 Chrome → 原版 Chromium
   TLS/HTTP2（L4）自动与 UA 一致，L4 保持原生、不改。
-- **新增 per-Profile 代理**：HTTP/HTTPS/SOCKS5 + 账号密码，沿用 Tor 的 per-Profile
+- **新增 per-Profile 代理**：HTTP/HTTPS + 账号密码，沿用 Tor 的 per-Profile
   `ProxyConfigService` 注入模式（ADR-0004）。凭证使用 `OSCryptAsync`
   加密，代理不可用时禁止 DIRECT 回退。
 - **新增验证后确认流程**：在独立、仅内存的 `NetworkContext`
@@ -29,7 +29,7 @@ Ads）。核心矛盾：每个账号需要在一台机器上呈现一个稳定�
   Menu 前增加固定代理按钮；未配置显示黄色警告，生效后持续显示出口国家国旗，过期、错误和策略冲突使用独立语义状态。
 - **身份隔离**：1 身份 = 1 Chromium
   Profile，可并发；persona 与 proxy 均绑定到 Profile（ADR-0004）。
-- **明确排除 v1**：L4（TLS/HTTP2/TCP 伪装）、GPU 精确渲染伪装、养号行为、批量 Profile 管理器。
+- **明确排除 v1**：SOCKS5 产品支持、L4（TLS/HTTP2/TCP 伪装）、GPU 精确渲染伪装、养号行为、批量 Profile 管理器。现有底层 SOCKS5 代码保留，但产品服务不启用且不纳入交付验收。
 
 ## Capabilities
 
@@ -40,7 +40,7 @@ Ads）。核心矛盾：每个账号需要在一台机器上呈现一个稳定�
 - `fingerprint-spoofing`: 把 persona 值施加到 L1+L2 指纹面（navigator/screen/UA-CH/canvas/webgl/webgpu/audio +
   Brave 未挂钩面），复用/替换 farbling 钩子；Chrome-only 范围，L4 原生。
 - `profile-proxy`:
-  per-Profile 代理配置（HTTP/HTTPS/SOCKS5 + 认证）、验证后确认状态机、加密凭证、设置页与工具栏状态按钮。
+  per-Profile 代理配置（HTTP/HTTPS + 认证）、验证后确认状态机、加密凭证、设置页与工具栏状态按钮。
 - `proxy-geo-consistency`: 通过候选代理查询 FreeIPAPI/IPWHOIS.IO，按真实出口 IP 推导时区/经纬度/Accept-Language（L3）+
   WebRTC 防漏，并定时复检。
 - `profile-identity`: 1 身份 = 1 Chromium Profile 的隔离与并发；persona ↔ proxy
@@ -58,8 +58,7 @@ Ads）。核心矛盾：每个账号需要在一台机器上呈现一个稳定�
   下各指纹面 override（canvas/webgl/webgpu/audio/navigator/screen/font）。
 - **Net
   / 代理**：`chromium_src/chrome/browser/net/proxy_config_monitor.cc`（Tor-first 注入缝）、Profile 级
-  `FingerprintProxyService`、独立验证
-  `NetworkContext`、`chromium_src/net/socket/socks5_client_socket.cc`（SOCKS5 认证已内置）、HTTP 代理认证链路。
+  `FingerprintProxyService`、独立验证 `NetworkContext`、HTTP/HTTPS 代理认证链路。
 - **L3 覆盖点**：`base/i18n/timezone.cc`（时区）、pref
   `webrtc.ip_handling_policy` / `--force-webrtc-ip-handling-policy`、pref
   `intl.accept_languages`、geolocation override。

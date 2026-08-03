@@ -116,7 +116,6 @@ export const SOURCE_GROUPS = {
   ],
   localeResources: ['app/brave_settings_strings.grdp'],
   scaledResources: [
-    'app/brave_settings_strings.grdp',
     'components/fingerprint_browser/resources/fingerprint_proxy_flag_resources.grdp',
     'components/resources/brave_components_resources.grd',
   ],

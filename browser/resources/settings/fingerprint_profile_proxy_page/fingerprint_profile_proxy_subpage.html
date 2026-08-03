@@ -161,11 +161,12 @@
         </div>
       </template>
       <div class="cr-row actions-row">
-        <cr-button on-click="onDisable_" disabled="[[isBusy_]]">
+        <cr-button on-click="onDisable_"
+            disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
           $i18n{profileProxyDisable}
         </cr-button>
         <cr-button class="action-button" on-click="onRevalidate_"
-            disabled="[[isBusy_]]">
+            disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
           $i18n{profileProxyRevalidate}
         </cr-button>
       </div>
@@ -183,11 +184,12 @@
 
   <template is="dom-if" if="[[showRecoveryActions_(enabled_, state_)]]">
     <div class="cr-row actions-row">
-      <cr-button on-click="onDisable_" disabled="[[isBusy_]]">
+      <cr-button on-click="onDisable_"
+          disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
         $i18n{profileProxyDisable}
       </cr-button>
       <cr-button class="action-button" on-click="onRevalidate_"
-          disabled="[[isBusy_]]">
+          disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
         $i18n{profileProxyRevalidate}
       </cr-button>
     </div>
@@ -205,15 +207,12 @@
       <div class="secondary">$i18n{profileProxySchemeDesc}</div>
     </div>
     <select id="scheme" class="md-select" on-change="onSchemeChanged_"
-        disabled="[[isBusy_]]">
+        disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
       <option value="http" selected="[[schemeEqual_('http', scheme_)]]">
         $i18n{profileProxyHttp}
       </option>
       <option value="https" selected="[[schemeEqual_('https', scheme_)]]">
         $i18n{profileProxyHttps}
-      </option>
-      <option value="socks5" selected="[[schemeEqual_('socks5', scheme_)]]">
-        $i18n{profileProxySocks5}
       </option>
     </select>
   </div>
@@ -226,7 +225,7 @@
           spellcheck="false"
           invalid="[[isNonEmpty_(hostError_)]]"
           error-message="[[hostError_]]"
-          disabled="[[isBusy_]]"
+          disabled="[[isInteractionDisabled_(isBusy_, state_)]]"
           on-input="onInputChanged_">
       </cr-input>
       <cr-input id="port"
@@ -237,7 +236,7 @@
           max="65535"
           invalid="[[isNonEmpty_(portError_)]]"
           error-message="[[portError_]]"
-          disabled="[[isBusy_]]"
+          disabled="[[isInteractionDisabled_(isBusy_, state_)]]"
           on-input="onInputChanged_">
       </cr-input>
       <cr-input id="username"
@@ -245,7 +244,7 @@
           label="$i18n{profileProxyUsernameLabel}"
           value="{{username_::input}}"
           spellcheck="false"
-          disabled="[[isBusy_]]"
+          disabled="[[isInteractionDisabled_(isBusy_, state_)]]"
           on-input="onInputChanged_">
       </cr-input>
       <cr-input id="password"
@@ -254,7 +253,7 @@
           value="{{password_::input}}"
           type="password"
           placeholder="[[passwordHint_(hasSavedPassword_)]]"
-          disabled="[[isBusy_]]"
+          disabled="[[isInteractionDisabled_(isBusy_, state_)]]"
           on-input="onInputChanged_">
       </cr-input>
     </div>
@@ -304,11 +303,12 @@
         </div>
       </div>
       <div class="cr-row actions-row">
-        <cr-button on-click="onInputChanged_" disabled="[[isBusy_]]">
+        <cr-button on-click="onInputChanged_"
+            disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
           $i18n{profileProxyModify}
         </cr-button>
         <cr-button class="action-button" on-click="onApply_"
-            disabled="[[isBusy_]]">
+            disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
           $i18n{profileProxyConfirmApply}
         </cr-button>
       </div>
@@ -318,7 +318,7 @@
   <template is="dom-if" if="[[!verification_]]">
     <div class="cr-row actions-row">
       <cr-button id="verify" class="action-button" on-click="onVerify_"
-          disabled="[[isBusy_]]">
+          disabled="[[isInteractionDisabled_(isBusy_, state_)]]">
         $i18n{profileProxyVerify}
       </cr-button>
     </div>
