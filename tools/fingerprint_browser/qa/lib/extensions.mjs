@@ -12,9 +12,12 @@ import {
 } from './browser.mjs'
 import { collectProbe } from './profile.mjs'
 import {
+  assertNativeUiFocusRetained,
+  beginNativeUiSession,
   captureNativeScreenshot,
   clickNativeWindowOffset,
   clickNativeText,
+  endNativeUiSession,
   nativeKeyCode,
   nativeScreenshotHasText,
   pathExists,
@@ -264,6 +267,7 @@ async function captureWebStoreExtensionPages({
     manifest?.action?.default_popup || manifest?.browser_action?.default_popup
   if (popup) {
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded' })
+    await assertNativeUiFocusRetained(pid)
     await page.bringToFront()
     await new Promise((resolve) => setTimeout(resolve, 300))
     const toolbarScreenshot = path.join(
@@ -373,6 +377,7 @@ export async function runLocalExtensionLifecycle({
   const eventSets = []
   let session = await startQaExtensionSession({
     app: config.app,
+    background: true,
     logDir: dirs.logs,
     name: 'local-extension',
     profilePath,
@@ -477,6 +482,7 @@ export async function runLocalExtensionLifecycle({
     await session.close()
     session = await startQaExtensionSession({
       app: config.app,
+      background: true,
       logDir: dirs.logs,
       name: 'local-extension-restart',
       profilePath,
@@ -535,17 +541,24 @@ export async function runWebStoreExtensionLifecycle({
   const eventSets = []
   let session = await startQaSession({
     app: config.app,
+    background: false,
     extraArgs: [
       '--enable-logging=stderr',
       '--vmodule=webstore_installer=2,webstore_private_api=2,extension_downloader=2,crx_installer=2,sandboxed_unpacker=2',
     ],
     logDir: dirs.logs,
     name: `cws-${label}`,
+    nativeIdleSeconds: config.nativeIdleSeconds,
     profilePath,
     testType: false,
   })
+  let nativeSessionStarted = false
   eventSets.push(session.events)
   try {
+    await beginNativeUiSession(session.process.child.pid, {
+      minimumIdleSeconds: config.nativeIdleSeconds,
+    })
+    nativeSessionStarted = true
     let page = session.context.pages()[0] || (await session.context.newPage())
     const before = await extensionItems(page)
     await page.goto(extensionUrl, {
@@ -575,6 +588,7 @@ export async function runWebStoreExtensionLifecycle({
       .getByRole('button', { name: /Add to (Brave|Chrome)/i })
       .first()
     await button.waitFor({ state: 'visible', timeout: 30000 })
+    await assertNativeUiFocusRetained(session.process.child.pid)
     await button.click()
     const confirmationScreenshot = path.join(
       dirs.native,
@@ -645,6 +659,7 @@ export async function runWebStoreExtensionLifecycle({
       waitUntil: 'domcontentloaded',
       timeout: 60000,
     })
+    await assertNativeUiFocusRetained(session.process.child.pid)
     await page.bringToFront()
     const nativeToolbarScreenshot = path.join(
       dirs.native,
@@ -656,18 +671,32 @@ export async function runWebStoreExtensionLifecycle({
     )
     screenshots.push(nativeToolbarScreenshot)
 
+    const transition = await endNativeUiSession(session.process.child.pid)
+    nativeSessionStarted = false
     await session.close()
+    if (!transition.focusRetained) {
+      throw Object.assign(
+        new Error('Native UI paused because the user changed focus'),
+        { status: 'BLOCKED' },
+      )
+    }
     session = await startQaSession({
       app: config.app,
+      background: false,
       extraArgs: [
         '--enable-logging=stderr',
         '--vmodule=webstore_installer=2,webstore_private_api=2,extension_downloader=2,crx_installer=2,sandboxed_unpacker=2',
       ],
       logDir: dirs.logs,
       name: `cws-${label}-restart`,
+      nativeIdleSeconds: 0,
       profilePath,
       testType: false,
     })
+    await beginNativeUiSession(session.process.child.pid, {
+      minimumIdleSeconds: 0,
+    })
+    nativeSessionStarted = true
     eventSets.push(session.events)
     page = await session.context.newPage()
     await waitForExtension(page, (item) => item.id === installed.id)
@@ -691,6 +720,9 @@ export async function runWebStoreExtensionLifecycle({
       assertSessionHealth(events, `${label} CWS lifecycle`)
     return { extension: installed, screenshots }
   } finally {
+    if (nativeSessionStarted) {
+      await endNativeUiSession(session.process.child.pid)
+    }
     await session.close()
   }
 }

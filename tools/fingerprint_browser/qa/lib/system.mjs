@@ -354,14 +354,139 @@ function requirePid(pid) {
   return pid
 }
 
+const nativeUiSessions = new Map()
+
+export function nativeUiFocusAllowed(env = process.env) {
+  return env.FP_QA_ALLOW_NATIVE_FOCUS === '1'
+}
+
+function requireNativeUiFocus(env = process.env) {
+  if (!nativeUiFocusAllowed(env)) {
+    throw new Error(
+      'QA native UI focus is disabled; pass --allow-native-focus explicitly',
+    )
+  }
+}
+
+function nativeUiDeferred(message) {
+  return Object.assign(new Error(message), { status: 'BLOCKED' })
+}
+
+async function nativeUiState() {
+  const program = `
+import AppKit
+import CoreGraphics
+
+_ = NSApplication.shared
+let anyInputEvent = CGEventType(rawValue: UInt32.max)!
+let idle = CGEventSource.secondsSinceLastEventType(
+  .combinedSessionState, eventType: anyInputEvent)
+let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
+print("\\(frontmost) \\(idle)")
+`
+  const result = await run('swift', ['-e', program], {
+    check: true,
+    timeoutMs: 30000,
+  })
+  const [frontmostPid, idleSeconds] = result.stdout
+    .trim()
+    .split(/\s+/)
+    .map(Number)
+  if (!Number.isInteger(frontmostPid) || !Number.isFinite(idleSeconds)) {
+    throw new Error(`Could not read native UI state: ${result.stdout.trim()}`)
+  }
+  return { frontmostPid, idleSeconds }
+}
+
+export async function assertNativeUiIdle(
+  { env = process.env, minimumIdleSeconds = 60 } = {},
+) {
+  requireNativeUiFocus(env)
+  if (!Number.isFinite(minimumIdleSeconds) || minimumIdleSeconds < 0) {
+    throw new Error('minimumIdleSeconds must be zero or greater')
+  }
+  const state = await nativeUiState()
+  if (state.idleSeconds < minimumIdleSeconds) {
+    throw nativeUiDeferred(
+      `Native UI deferred: user idle ${state.idleSeconds.toFixed(1)}s, require ${minimumIdleSeconds}s`,
+    )
+  }
+  return state
+}
+
+export async function beginNativeUiSession(
+  pid,
+  { env = process.env, minimumIdleSeconds = 60 } = {},
+) {
+  requirePid(pid)
+  requireNativeUiFocus(env)
+  const existing = nativeUiSessions.get(pid)
+  if (existing) return existing
+
+  const before = await assertNativeUiIdle({ env, minimumIdleSeconds })
+  await run(
+    'osascript',
+    [
+      '-e',
+      `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
+    ],
+    { check: true },
+  )
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  const after = await nativeUiState()
+  if (after.frontmostPid !== pid) {
+    throw new Error(`Could not activate QA browser PID ${pid}`)
+  }
+  const session = { originalFrontmostPid: before.frontmostPid, pid }
+  nativeUiSessions.set(pid, session)
+  return session
+}
+
+async function assertNativeUiSession(pid, env = process.env) {
+  requirePid(pid)
+  requireNativeUiFocus(env)
+  if (!nativeUiSessions.has(pid)) {
+    throw new Error(`Native UI session was not started for QA browser PID ${pid}`)
+  }
+  const state = await nativeUiState()
+  if (state.frontmostPid !== pid) {
+    throw nativeUiDeferred(
+      `Native UI paused: user changed focus away from QA browser PID ${pid}`,
+    )
+  }
+}
+
+export async function assertNativeUiFocusRetained(
+  pid,
+  env = process.env,
+) {
+  await assertNativeUiSession(pid, env)
+}
+
+export async function endNativeUiSession(pid) {
+  requirePid(pid)
+  const session = nativeUiSessions.get(pid)
+  if (!session) return { focusRetained: false, restored: false }
+  nativeUiSessions.delete(pid)
+  const state = await nativeUiState().catch(() => null)
+  if (
+    state?.frontmostPid !== pid
+    || !Number.isInteger(session.originalFrontmostPid)
+    || session.originalFrontmostPid <= 0
+    || session.originalFrontmostPid === pid
+  ) {
+    return { focusRetained: state?.frontmostPid === pid, restored: false }
+  }
+  await run('osascript', [
+    '-e',
+    `tell application "System Events" to set frontmost of first process whose unix id is ${session.originalFrontmostPid} to true`,
+  ]).catch(() => {})
+  return { focusRetained: true, restored: true }
+}
+
 export async function captureNativeScreenshot(target, pid) {
   requirePid(pid)
   await fs.mkdir(path.dirname(target), { recursive: true })
-  await run('osascript', [
-    '-e',
-    `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
-  ])
-  await new Promise((resolve) => setTimeout(resolve, 300))
   const program = `
 import AppKit
 import ApplicationServices
@@ -474,8 +599,14 @@ RunLoop.main.run()
   throw new Error(`ScreenCaptureKit failed: ${result.stderr.trim()}`)
 }
 
-export async function clickNativeText(screenshot, expectedText, pid) {
+export async function clickNativeText(
+  screenshot,
+  expectedText,
+  pid,
+  env = process.env,
+) {
   requirePid(pid)
+  await assertNativeUiSession(pid, env)
   if (!(await pathExists(screenshot))) {
     throw new Error(`Native screenshot does not exist: ${screenshot}`)
   }
@@ -637,8 +768,14 @@ print("\\(point.x) \\(point.y)")
   return result.stdout.trim()
 }
 
-export async function clickNativeWindowOffset(xFromRight, yFromTop, pid) {
+export async function clickNativeWindowOffset(
+  xFromRight,
+  yFromTop,
+  pid,
+  env = process.env,
+) {
   requirePid(pid)
+  await assertNativeUiSession(pid, env)
   if (
     !Number.isFinite(xFromRight)
     || xFromRight < 0
@@ -736,8 +873,14 @@ print(found ? "true" : "false")
   return result.stdout.trim() === 'true'
 }
 
-export async function nativeShortcut(key, modifiers = [], pid) {
+export async function nativeShortcut(
+  key,
+  modifiers = [],
+  pid,
+  env = process.env,
+) {
   requirePid(pid)
+  await assertNativeUiSession(pid, env)
   const modifierText =
     modifiers.length > 0
       ? ` using {${modifiers.map((modifier) => `${modifier} down`).join(', ')}}`
@@ -746,61 +889,48 @@ export async function nativeShortcut(key, modifiers = [], pid) {
     'osascript',
     [
       '-e',
-      `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
-      '-e',
-      'delay 0.2',
-      '-e',
       `tell application "System Events" to keystroke "${key}"${modifierText}`,
     ],
     { check: true },
   )
 }
 
-export async function nativeTypeText(value, pid) {
+export async function nativeTypeText(value, pid, env = process.env) {
   requirePid(pid)
   if (typeof value !== 'string' || value.includes('\0')) {
     throw new Error('Native text must be a string without null bytes')
   }
+  await assertNativeUiSession(pid, env)
   return await run(
     'osascript',
     [
       '-e',
       'on run argv',
       '-e',
-      'set expectedPid to item 1 of argv as integer',
-      '-e',
-      'set inputText to item 2 of argv',
+      'set inputText to item 1 of argv',
       '-e',
       'tell application "System Events"',
-      '-e',
-      'set frontmost of first process whose unix id is expectedPid to true',
-      '-e',
-      'delay 0.2',
       '-e',
       'keystroke inputText',
       '-e',
       'end tell',
       '-e',
       'end run',
-      String(pid),
       value,
     ],
     { check: true },
   )
 }
 
-export async function nativeKeyCode(keyCode, pid) {
+export async function nativeKeyCode(keyCode, pid, env = process.env) {
   requirePid(pid)
   if (!Number.isInteger(keyCode) || keyCode < 0) {
     throw new Error(`A valid macOS key code is required, got ${keyCode}`)
   }
+  await assertNativeUiSession(pid, env)
   return await run(
     'osascript',
     [
-      '-e',
-      `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
-      '-e',
-      'delay 0.2',
       '-e',
       `tell application "System Events" to key code ${keyCode}`,
     ],
@@ -808,15 +938,19 @@ export async function nativeKeyCode(keyCode, pid) {
   )
 }
 
-export async function setFrontWindowSize(width, height, pid) {
+export async function setFrontWindowSize(
+  width,
+  height,
+  pid,
+  env = process.env,
+) {
   requirePid(pid)
+  await assertNativeUiSession(pid, env)
   return await run(
     'osascript',
     [
       '-e',
       `tell application "System Events" to tell first process whose unix id is ${pid}`,
-      '-e',
-      'set frontmost to true',
       '-e',
       `set size of front window to {${Math.round(width)}, ${Math.round(height)}}`,
       '-e',
@@ -826,8 +960,14 @@ export async function setFrontWindowSize(width, height, pid) {
   )
 }
 
-export async function setFrontWindowPosition(x, y, pid) {
+export async function setFrontWindowPosition(
+  x,
+  y,
+  pid,
+  env = process.env,
+) {
   requirePid(pid)
+  await assertNativeUiSession(pid, env)
   return await run(
     'osascript',
     [

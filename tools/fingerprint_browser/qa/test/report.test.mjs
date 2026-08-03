@@ -28,6 +28,18 @@ test('runScenario captures failures without aborting the run', async () => {
   assert.match(scenario.reason, /expected failure/)
 })
 
+test('runScenario preserves an explicit blocked error status', async () => {
+  const report = { scenarios: [] }
+  const error = Object.assign(new Error('waiting for user idle'), {
+    status: 'BLOCKED',
+  })
+  const scenario = await runScenario(report, 'native-ui', async () => {
+    throw error
+  })
+  assert.equal(scenario.status, 'BLOCKED')
+  assert.equal(scenario.reason, 'waiting for user idle')
+})
+
 test('runScenario does not let evidence text replace a gate status', async () => {
   const report = { scenarios: [] }
   const scenario = await runScenario(report, 'evidence-status', async () => ({

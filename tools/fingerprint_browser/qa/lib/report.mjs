@@ -200,7 +200,9 @@ export async function runScenario(report, id, operation) {
       }
     }
   } catch (error) {
-    scenario.status = 'FAIL'
+    scenario.status = ['FAIL', 'BLOCKED'].includes(error.status)
+      ? error.status
+      : 'FAIL'
     scenario.reason = error.message
     scenario.error = {
       details: error.details,

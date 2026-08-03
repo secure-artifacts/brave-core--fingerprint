@@ -20,6 +20,8 @@ Options:
   --proxy-fixtures <path>   0600 JSON containing an HTTP proxy fixture
   --baseline-dir <path>     Approved screenshot baselines
   --duration-minutes <n>    Soak duration, default 60
+  --allow-native-focus      Permit foreground macOS UI automation
+  --native-idle-seconds <n> Required user idle time, default 60
   --keep-profile            Keep this run's temporary profiles
   --skip-code-tests         Skip C++ tests (never accepted for Full delivery)
   --no-prepare-app          Verify app without copying current artifacts
@@ -40,8 +42,10 @@ export function parseArgs(
     '--proxy-fixtures',
     '--baseline-dir',
     '--duration-minutes',
+    '--native-idle-seconds',
   ])
   const flagOptions = new Set([
+    '--allow-native-focus',
     '--help',
     '--keep-profile',
     '--skip-code-tests',
@@ -91,9 +95,16 @@ export function parseArgs(
   if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
     throw new Error('--duration-minutes must be greater than zero')
   }
+  const nativeIdleSeconds = Number(values['--native-idle-seconds'] || 60)
+  if (!Number.isFinite(nativeIdleSeconds) || nativeIdleSeconds < 0) {
+    throw new Error('--native-idle-seconds must be zero or greater')
+  }
+  const allowNativeFocus = flags.has('--allow-native-focus')
 
   return {
+    allowNativeFocus,
     app,
+    background: !allowNativeFocus,
     baselineDir: values['--baseline-dir']
       ? path.resolve(cwd, values['--baseline-dir'])
       : path.join(braveRoot, 'tools', 'fingerprint_browser', 'qa', 'baselines'),
@@ -103,6 +114,7 @@ export function parseArgs(
     help: false,
     keepProfile: flags.has('--keep-profile'),
     mode,
+    nativeIdleSeconds,
     outDir,
     prepareApp: !flags.has('--no-prepare-app'),
     proxyFixtures: values['--proxy-fixtures']

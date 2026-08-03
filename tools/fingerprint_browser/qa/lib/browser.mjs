@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process'
 
 import { contrastRatio } from './visual.mjs'
 import {
+  assertNativeUiIdle,
   findFreePort,
   listProcesses,
   processesForProfile,
@@ -109,6 +110,7 @@ export async function seedProfilePreferences(
 }
 
 export function qaBrowserArgs({
+  background = true,
   disableDefaultApps = true,
   extraArgs = [],
   language = 'en-US',
@@ -130,6 +132,7 @@ export function qaBrowserArgs({
     ...(language ? [`--lang=${language}`] : []),
     ...(testType ? ['--test-type'] : []),
     '--window-size=1280,800',
+    ...(background ? ['--headless=new'] : []),
     ...(platform === 'darwin' ? ['--use-mock-keychain'] : []),
     ...extraArgs,
     'about:blank',
@@ -138,17 +141,22 @@ export function qaBrowserArgs({
 
 export async function startQaSession({
   app,
+  background = true,
   disableDefaultApps = true,
   env = {},
   extraArgs = [],
   language = 'en-US',
   logDir,
   name,
+  nativeIdleSeconds = 60,
   profilePath,
   profileDirectory = 'Default',
   profilePreferences = null,
   testType = true,
 }) {
+  if (!background) {
+    await assertNativeUiIdle({ minimumIdleSeconds: nativeIdleSeconds })
+  }
   await fs.mkdir(profilePath, { recursive: true })
   await fs.mkdir(logDir, { recursive: true })
   await stopProfileProcesses(profilePath)
@@ -161,6 +169,7 @@ export async function startQaSession({
   }
   const port = await findFreePort()
   const args = qaBrowserArgs({
+    background,
     disableDefaultApps,
     extraArgs,
     language,
@@ -275,13 +284,18 @@ export async function startQaSession({
 
 export async function startQaExtensionSession({
   app,
+  background = true,
   env = {},
   extraArgs = [],
   logDir,
   name,
+  nativeIdleSeconds = 60,
   profilePath,
   profileDirectory = 'Default',
 }) {
+  if (!background) {
+    await assertNativeUiIdle({ minimumIdleSeconds: nativeIdleSeconds })
+  }
   await fs.mkdir(profilePath, { recursive: true })
   await fs.mkdir(logDir, { recursive: true })
   await stopProfileProcesses(profilePath)
@@ -314,12 +328,12 @@ export async function startQaExtensionSession({
     ],
     env: { ...process.env, ...env, CHROME_LOG_FILE: stderrFile },
     executablePath,
-    headless: false,
+    headless: background,
     ignoreDefaultArgs: [
       '--disable-component-extensions-with-background-pages',
       '--disable-extensions',
     ],
-    viewport: null,
+    viewport: background ? { height: 800, width: 1280 } : null,
   })
   const browser = context.browser()
   if (!browser) throw new Error('Extension CDP session has no browser')

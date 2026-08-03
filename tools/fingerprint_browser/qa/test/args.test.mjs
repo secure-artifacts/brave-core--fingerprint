@@ -21,6 +21,9 @@ test('parseArgs derives Brave Component defaults', () => {
     ),
   )
   assert.equal(parsed.prepareApp, true)
+  assert.equal(parsed.allowNativeFocus, false)
+  assert.equal(parsed.background, true)
+  assert.equal(parsed.nativeIdleSeconds, 60)
 })
 
 test('parseArgs rejects unknown modes and invalid soak durations', () => {
@@ -44,4 +47,22 @@ test('parseArgs recognizes gate flags', () => {
   assert.equal(parsed.prepareApp, false)
   assert.equal(parsed.skipCodeTests, true)
   assert.equal(parsed.keepProfile, true)
+})
+
+test('parseArgs requires explicit native focus permission', () => {
+  const parsed = parseArgs([
+    '--allow-native-focus',
+    '--native-idle-seconds',
+    '90',
+  ])
+  assert.equal(parsed.allowNativeFocus, true)
+  assert.equal(parsed.background, false)
+  assert.equal(parsed.nativeIdleSeconds, 90)
+})
+
+test('parseArgs rejects invalid native idle durations', () => {
+  assert.throws(
+    () => parseArgs(['--native-idle-seconds', '-1']),
+    /native-idle-seconds must be zero or greater/,
+  )
 })

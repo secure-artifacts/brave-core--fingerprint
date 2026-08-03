@@ -28,6 +28,21 @@ macOS Accessibility first, with post-event input as a fallback. The process
 running the QA command therefore needs Screen Recording, Accessibility, and
 Input Monitoring permission.
 
+QA runs headless by default. It does not open a visible Brave window or send
+mouse and keyboard events. Native toolbar, menu, confirmation, recovery, and
+save-dialog coverage is deferred in this mode.
+
+Foreground native automation requires explicit permission. It starts only
+after the user has been idle for 60 seconds, stops if the user changes focus,
+and restores the previously active application when the native session ends:
+
+```bash
+node run_qa.mjs --mode full --allow-native-focus
+```
+
+Use `--native-idle-seconds <n>` to change the idle threshold for a scheduled
+foreground run. Do not use zero while the computer is being used.
+
 Unofficial development builds have no Brave Services key. Those builds use
 Chromium's default Chrome Web Store update URL so public extensions remain
 installable. Keyed builds continue to use the Brave component-updater URL.
@@ -46,6 +61,7 @@ uses the production Brave Crashpad database:
 
 ```bash
 npm run crash-diagnostics -- \
+  --allow-native-focus \
   --results-dir ../../../../out/Component_arm64/qa-results
 ```
 

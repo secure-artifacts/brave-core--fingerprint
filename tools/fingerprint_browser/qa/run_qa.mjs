@@ -64,6 +64,7 @@ async function main() {
     console.log(usage())
     return
   }
+  process.env.FP_QA_ALLOW_NATIVE_FOCUS = config.allowNativeFocus ? '1' : '0'
 
   const runId = `${safeRunId()}-${process.pid}`
   const runDir = path.join(config.resultsDir, runId)
@@ -80,9 +81,12 @@ async function main() {
   const report = {
     artifacts: null,
     config: {
+      allowNativeFocus: config.allowNativeFocus,
       app: config.app,
+      background: config.background,
       baselineDir: config.baselineDir,
       durationMinutes: config.durationMinutes,
+      nativeIdleSeconds: config.nativeIdleSeconds,
       prepareApp: config.prepareApp,
       proxyFixtures: config.proxyFixtures,
       skipCodeTests: config.skipCodeTests,
@@ -231,8 +235,10 @@ async function main() {
     )
     smokeSession = await startQaSession({
       app: config.app,
+      background: config.background,
       logDir: dirs.logs,
       name: 'smoke',
+      nativeIdleSeconds: config.nativeIdleSeconds,
       profilePath: path.join(profileRoot, 'smoke'),
     })
     const smokeScenarioIndex = report.scenarios.length
