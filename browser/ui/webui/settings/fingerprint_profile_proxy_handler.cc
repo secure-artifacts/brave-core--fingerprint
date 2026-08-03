@@ -11,8 +11,10 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_ui_strings.h"
 #include "brave/components/fingerprint_browser/browser/pref_names.h"
 #include "chrome/browser/profiles/profile.h"
 
@@ -21,6 +23,8 @@ namespace {
 constexpr char kStateKey[] = "state";
 constexpr char kStatusMessageKey[] = "statusMessage";
 constexpr char kChangeWarningKey[] = "changeWarning";
+constexpr char kStatusCodeKey[] = "statusCode";
+constexpr char kWarningCodeKey[] = "warningCode";
 constexpr char kEnabledKey[] = "enabled";
 constexpr char kSchemeKey[] = "scheme";
 constexpr char kHostKey[] = "host";
@@ -43,6 +47,8 @@ constexpr char kAcceptLanguagesKey[] = "acceptLanguages";
 constexpr char kSuccessKey[] = "success";
 constexpr char kVerificationIdKey[] = "verificationId";
 constexpr char kErrorKey[] = "error";
+constexpr char kErrorCodeKey[] = "errorCode";
+constexpr char kNetErrorKey[] = "netError";
 
 std::string TrimString(std::string value) {
   base::TrimWhitespaceASCII(value, base::TRIM_ALL, &value);
@@ -113,7 +119,7 @@ void FingerprintProfileProxyHandler::VerifyDraft(const base::ListValue& args) {
 
   if (!service_) {
     fingerprint_browser::ProxyVerificationResult result;
-    result.error = "Profile proxy is unavailable in this window.";
+    result.error_code = fingerprint_browser::kProxyMessageProfileUnavailable;
     OnVerificationComplete(args[0].Clone(), std::move(result));
     return;
   }
@@ -146,7 +152,7 @@ void FingerprintProfileProxyHandler::ApplyVerified(
 
   if (!service_) {
     fingerprint_browser::ProxyApplyResult result;
-    result.error = "Profile proxy is unavailable in this window.";
+    result.error_code = fingerprint_browser::kProxyMessageProfileUnavailable;
     OnApplyComplete(args[0].Clone(), std::move(result));
     return;
   }
@@ -162,7 +168,7 @@ void FingerprintProfileProxyHandler::Revalidate(const base::ListValue& args) {
 
   if (!service_) {
     fingerprint_browser::ProxyVerificationResult result;
-    result.error = "Profile proxy is unavailable in this window.";
+    result.error_code = fingerprint_browser::kProxyMessageProfileUnavailable;
     OnVerificationComplete(args[0].Clone(), std::move(result));
     return;
   }
@@ -196,7 +202,10 @@ void FingerprintProfileProxyHandler::OnApplyComplete(
     fingerprint_browser::ProxyApplyResult result) {
   base::DictValue value;
   value.Set(kSuccessKey, result.success);
-  value.Set(kErrorKey, result.error);
+  value.Set(kErrorCodeKey, result.error_code);
+  value.Set(kNetErrorKey, result.net_error);
+  value.Set(kErrorKey, base::UTF16ToUTF8(fingerprint_browser::GetProxyUiMessage(
+                           result.error_code, result.net_error)));
   ResolveJavascriptCallback(callback_id, base::Value(std::move(value)));
 }
 
@@ -204,6 +213,8 @@ void FingerprintProfileProxyHandler::OnDisableComplete(
     base::Value callback_id) {
   base::DictValue value;
   value.Set(kSuccessKey, true);
+  value.Set(kErrorCodeKey, fingerprint_browser::kProxyMessageNone);
+  value.Set(kNetErrorKey, 0);
   value.Set(kErrorKey, std::string());
   ResolveJavascriptCallback(callback_id, base::Value(std::move(value)));
 }
@@ -219,8 +230,14 @@ base::DictValue FingerprintProfileProxyHandler::BuildState() const {
   base::DictValue value;
   if (!service_) {
     value.Set(kStateKey, fingerprint_browser::kProxyStateConflict);
+    value.Set(kStatusCodeKey,
+              fingerprint_browser::kProxyMessageProfileUnavailable);
+    value.Set(kWarningCodeKey, fingerprint_browser::kProxyWarningNone);
+    value.Set(kNetErrorKey, 0);
     value.Set(kStatusMessageKey,
-              "Profile proxy is unavailable in this window.");
+              base::UTF16ToUTF8(fingerprint_browser::GetProxyUiMessage(
+                  fingerprint_browser::kProxyMessageProfileUnavailable)));
+    value.Set(kChangeWarningKey, std::string());
     value.Set(kEnabledKey, false);
     value.Set(kHasSavedPasswordKey, false);
     return value;
@@ -228,8 +245,15 @@ base::DictValue FingerprintProfileProxyHandler::BuildState() const {
 
   const fingerprint_browser::FingerprintProxyState state = service_->GetState();
   value.Set(kStateKey, state.state);
-  value.Set(kStatusMessageKey, state.status_message);
-  value.Set(kChangeWarningKey, state.change_warning);
+  value.Set(kStatusCodeKey, state.status_code);
+  value.Set(kWarningCodeKey, state.warning_code);
+  value.Set(kNetErrorKey, state.net_error);
+  value.Set(kStatusMessageKey,
+            base::UTF16ToUTF8(fingerprint_browser::GetProxyUiMessage(
+                state.status_code, state.net_error)));
+  value.Set(kChangeWarningKey,
+            base::UTF16ToUTF8(
+                fingerprint_browser::GetProxyUiMessage(state.warning_code)));
   value.Set(kEnabledKey, state.enabled);
   value.Set(kSchemeKey, state.scheme);
   value.Set(kHostKey, state.host);
@@ -253,7 +277,10 @@ base::DictValue FingerprintProfileProxyHandler::BuildVerificationResult(
   base::DictValue value;
   value.Set(kSuccessKey, result.success);
   value.Set(kVerificationIdKey, result.verification_id);
-  value.Set(kErrorKey, result.error);
+  value.Set(kErrorCodeKey, result.error_code);
+  value.Set(kNetErrorKey, result.net_error);
+  value.Set(kErrorKey, base::UTF16ToUTF8(fingerprint_browser::GetProxyUiMessage(
+                           result.error_code, result.net_error)));
   value.Set(kEgressIpKey, result.egress_ip);
   value.Set(kGeoProviderKey, result.geo_provider);
   if (result.geo) {
@@ -266,7 +293,8 @@ base::DictValue FingerprintProfileProxyHandler::BuildGeo(
     const fingerprint_browser::ProfileProxyGeo& geo) const {
   base::DictValue value;
   value.Set(kCountryCodeKey, geo.country_code);
-  value.Set(kCountryNameKey, geo.country_name);
+  value.Set(kCountryNameKey, fingerprint_browser::GetChineseCountryName(
+                                 geo.country_code, geo.country_name));
   value.Set(kRegionNameKey, geo.region_name);
   value.Set(kCityNameKey, geo.city_name);
   value.Set(kTimezoneKey, geo.timezone);

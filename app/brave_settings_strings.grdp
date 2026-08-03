@@ -1294,25 +1294,25 @@
     Media router enables cast feature in the browser
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_TITLE" desc="The title for the per-profile proxy settings section">
-    Profile proxy
+    用户配置文件代理
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_ENABLED_LABEL" desc="The label for enabling the per-profile proxy feature">
-    Enable profile proxy
+    启用用户配置文件代理
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_ENABLED_DESC" desc="The description for enabling the per-profile proxy feature">
-    Route this profile through a separate HTTP, HTTPS, or SOCKS5 proxy.
+    让当前用户配置文件通过独立的 HTTP、HTTPS 或 SOCKS5 代理连接网络。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_NO_PROXY_RISK_TITLE" desc="The title shown when a fingerprint persona is active but the per-profile proxy is disabled">
-    Profile proxy is off
+    代理尚未配置
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_NO_PROXY_RISK_DESC" desc="The warning shown when a fingerprint persona is active but the per-profile proxy is disabled">
-    Fingerprint surfaces still use this profile's persona, but traffic exits through your real network. Geographic consistency cannot be guaranteed.
+    浏览器身份仍然生效，但网络流量会从真实网络出口发送，无法保证国家、时区和位置一致。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SCHEME_LABEL" desc="The label for selecting the per-profile proxy protocol">
-    Proxy type
+    代理类型
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SCHEME_DESC" desc="The description for the per-profile proxy protocol selector">
-    HTTP, HTTPS, and SOCKS5 proxies are supported.
+    支持 HTTP、HTTPS 和 SOCKS5 代理。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTP" desc="The HTTP proxy type option">
     HTTP
@@ -1324,91 +1324,91 @@
     SOCKS5
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HOST_LABEL" desc="The label for the per-profile proxy host input">
-    Host
+    代理地址
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PORT_LABEL" desc="The label for the per-profile proxy port input">
-    Port
+    端口
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_USERNAME_LABEL" desc="The label for the per-profile proxy username input">
-    Username
+    用户名
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_LABEL" desc="The label for the per-profile proxy password input">
-    Password
+    密码
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SAVE" desc="The label for the button that saves per-profile proxy settings">
-    Save
+    保存
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HOST_REQUIRED" desc="Validation error shown when a profile proxy is enabled without a host">
-    Host is required when proxy is enabled.
+    启用代理时必须填写代理地址。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PORT_INVALID" desc="Validation error shown when a profile proxy port is missing or out of range">
-    Port must be between 1 and 65535.
+    端口必须在 1 到 65535 之间。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_RUNTIME_ERROR_TITLE" desc="The title shown above a runtime per-profile proxy failure">
-    Proxy error
+    代理错误
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_CONFLICT_WARNING_TITLE" desc="The title shown above a per-profile proxy conflict warning">
-    Proxy controlled elsewhere
+    代理配置被其他功能接管
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SAVED" desc="Confirmation text shown after saving per-profile proxy settings">
-    Profile proxy settings saved.
+    代理设置已保存。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_VERIFY" desc="Button that verifies a profile proxy without applying it">
-    Verify proxy
+    验证代理
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_CONFIRM_APPLY" desc="Button that confirms a verified profile proxy and applies it">
-    Confirm and apply
+    确认并应用
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_MODIFY" desc="Button that returns to editing a verified profile proxy">
-    Modify
+    修改
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_REVALIDATE" desc="Button that immediately revalidates the active profile proxy">
-    Check now
+    立即复检
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_DISABLE" desc="Button that disables the active profile proxy">
-    Disable proxy
+    禁用代理
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LOCATION" desc="Label for the verified proxy location">
-    Location
+    位置
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_TIMEZONE" desc="Label for the verified proxy time zone">
-    Time zone
+    时区
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_COORDINATES" desc="Label for the verified proxy coordinates">
-    Coordinates
+    坐标
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LANGUAGE" desc="Label for the language derived from the verified proxy country">
-    Language
+    语言
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_WEBRTC" desc="Label for the WebRTC proxy protection status">
     WebRTC
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_WEBRTC_PROXY_ONLY" desc="Status shown when WebRTC non-proxied UDP is disabled">
-    Non-proxied UDP disabled
+    已禁止非代理 UDP
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_LAST_VERIFIED" desc="Label for the last successful profile proxy verification time">
-    Last verified
+    最后验证时间
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_SAVED_HINT" desc="Hint shown when an encrypted profile proxy password is already saved">
-    Leave blank to keep the saved password
+    留空可继续使用已保存的密码
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_PASSWORD_OPTIONAL_HINT" desc="Hint shown when a profile proxy password is optional">
-    Optional
+    可选
   </message>
   <message name="IDS_FINGERPRINT_PROFILE_PROXY_TOOLBAR_NAME" desc="Accessible name for the profile proxy toolbar button">
-    Profile proxy
+    用户配置文件代理
   </message>
   <message name="IDS_FINGERPRINT_PROFILE_PROXY_BUBBLE_TITLE" desc="Title of the profile proxy toolbar bubble">
-    Profile proxy
+    用户配置文件代理
   </message>
   <message name="IDS_FINGERPRINT_PROFILE_PROXY_CONFIGURE" desc="Button that opens profile proxy settings">
-    Configure
+    配置
   </message>
   <message name="IDS_FINGERPRINT_PROFILE_PROXY_REVALIDATE" desc="Button that immediately revalidates the active profile proxy">
-    Check now
+    立即复检
   </message>
   <message name="IDS_FINGERPRINT_PROFILE_PROXY_DISABLE" desc="Button that disables the active profile proxy">
-    Disable
+    禁用
   </message>
   <message name="IDS_SETTINGS_RESOLVE_UNSTOPPABLE_DOMAINS_DESC" desc="The description for how to handle Unstoppable Domains">
     Resolve Unstoppable Domains domain names

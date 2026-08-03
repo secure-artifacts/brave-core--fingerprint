@@ -769,6 +769,9 @@ export async function runUiMatrix({ config, dirs, probe, runId }) {
     ['settings', 'brave://settings/'],
     ['proxy', 'brave://settings/fingerprintProfileProxy'],
     ['fingerprint', 'brave://fingerprint-test/'],
+    ['guide', 'brave://fingerprint-guide/'],
+    ['diagnostics', 'brave://diagnostics/'],
+    ['crashes', 'brave://crashes/'],
   ]
   const screenshots = []
   for (const theme of ['light', 'dark']) {
@@ -811,10 +814,22 @@ export async function runUiMatrix({ config, dirs, probe, runId }) {
             page: targetPage,
             screenshot: pageScreenshot,
             url,
-            validateContrast:
-              name === 'fingerprint' || name === 'settings' || name === 'proxy',
-            validateLayout:
-              name === 'fingerprint' || name === 'settings' || name === 'proxy',
+            validateContrast: [
+              'crashes',
+              'diagnostics',
+              'fingerprint',
+              'guide',
+              'proxy',
+              'settings',
+            ].includes(name),
+            validateLayout: [
+              'crashes',
+              'diagnostics',
+              'fingerprint',
+              'guide',
+              'proxy',
+              'settings',
+            ].includes(name),
           })
           if (
             result.componentContrastFailures.length > 0
@@ -837,6 +852,9 @@ export async function runUiMatrix({ config, dirs, probe, runId }) {
           screenshots.push(pageScreenshot)
           if (
             name === 'fingerprint'
+            || name === 'guide'
+            || name === 'diagnostics'
+            || name === 'crashes'
             || name === 'settings'
             || name === 'proxy'
           ) {
@@ -876,18 +894,16 @@ export async function runUiMatrix({ config, dirs, probe, runId }) {
                 const row = document.querySelector('.row-status')
                 status.dataset.state = 'fail'
                 if (visualState === 'fail') {
-                  status.textContent =
-                    "8 of 9 values match this profile's Persona."
+                  status.textContent = '9 项中有 8 项与当前浏览器身份匹配。'
                   if (row) {
                     row.dataset.state = 'fail'
-                    row.textContent = 'Different'
+                    row.textContent = '不同'
                   }
                 } else {
-                  status.textContent =
-                    'Could not load fingerprint data: Persona is unavailable.'
+                  status.textContent = '无法加载指纹数据：浏览器身份不可用。'
                   if (row) {
                     row.dataset.state = 'na'
-                    row.textContent = 'Unavailable'
+                    row.textContent = '不可用'
                   }
                 }
               }, visualState)
@@ -954,7 +970,7 @@ export async function runProxyToolbarFlow({ config, dirs, runId }) {
     await captureNativeScreenshot(toolbarScreenshot, session.process.child.pid)
     await clickNativeText(
       toolbarScreenshot,
-      'Profile proxy',
+      '用户配置文件代理',
       session.process.child.pid,
     ).catch(
       async () =>
@@ -967,17 +983,18 @@ export async function runProxyToolbarFlow({ config, dirs, runId }) {
       'full-proxy-toolbar-bubble.png',
     )
     await captureNativeScreenshot(bubbleScreenshot, session.process.child.pid)
-    if (
-      !(await nativeScreenshotHasText(bubbleScreenshot, 'Profile proxy'))
-      || !(await nativeScreenshotHasText(bubbleScreenshot, 'Configure'))
-    ) {
+    const bubbleIsVisible = async () =>
+      (await nativeScreenshotHasText(bubbleScreenshot, '用户配置文件代理'))
+      && (await nativeScreenshotHasText(bubbleScreenshot, '配置'))
+    if (!(await bubbleIsVisible())) {
+      await clickNativeWindowOffset(50, 60, session.process.child.pid)
+      await page.waitForTimeout(500)
+      await captureNativeScreenshot(bubbleScreenshot, session.process.child.pid)
+    }
+    if (!(await bubbleIsVisible())) {
       throw new Error('Profile proxy toolbar bubble was not visible')
     }
-    await clickNativeText(
-      bubbleScreenshot,
-      'Configure',
-      session.process.child.pid,
-    )
+    await clickNativeText(bubbleScreenshot, '配置', session.process.child.pid)
     await page.waitForTimeout(700)
 
     const afterConfigureScreenshot = path.join(
@@ -988,7 +1005,7 @@ export async function runProxyToolbarFlow({ config, dirs, runId }) {
       afterConfigureScreenshot,
       session.process.child.pid,
     )
-    if (await nativeScreenshotHasText(afterConfigureScreenshot, 'Configure')) {
+    if (await nativeScreenshotHasText(afterConfigureScreenshot, '配置')) {
       await clickNativeWindowOffset(270, 282, session.process.child.pid)
     }
 

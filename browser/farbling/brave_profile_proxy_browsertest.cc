@@ -18,6 +18,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_service.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_ui_strings.h"
 #include "brave/browser/fingerprint_browser/persona_service_factory.h"
 #include "brave/browser/ui/webui/brave_settings_ui.h"
 #include "brave/components/fingerprint_browser/browser/persona.h"
@@ -30,6 +31,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_metrics.h"
+#include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -146,7 +148,7 @@ bool SettingsNoProxyRiskMatches(content::WebContents* web_contents,
         if ($1) {
           if (risk &&
               risk.getAttribute('role') === 'alert' &&
-              text.includes('real network')) {
+              text.includes('真实网络出口')) {
             return true;
           }
         } else if (!risk || getComputedStyle(risk).display === 'none') {
@@ -231,9 +233,9 @@ class FingerprintBrowserProfileProxyBrowserTest
                   .port = ProxyPort(),
                   .username = "foo",
                   .password = "bar"});
-    ASSERT_TRUE(verification.success) << verification.error;
+    ASSERT_TRUE(verification.success) << verification.error_code;
     const auto apply = ApplyVerified(profile, verification.verification_id);
-    ASSERT_TRUE(apply.success) << apply.error;
+    ASSERT_TRUE(apply.success) << apply.error_code;
   }
 
   void ConfigureProfileProxyManualGeo(Profile* profile,
@@ -471,7 +473,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                                            GURL("brave://settings/privacy")));
   EXPECT_TRUE(SettingsRuntimeErrorIsVisible(
       proxied_browser->tab_strip_model()->GetActiveWebContents(),
-      "Proxy authentication failed. Check username/password."));
+      "代理连接或认证失败。"));
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
@@ -495,6 +497,20 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       GuestProfileKeepsProxySettingsUnavailable) {
+  profiles::SwitchToGuestProfile();
+  Browser* guest_browser = ui_test_utils::WaitForBrowserToOpen();
+  ASSERT_TRUE(guest_browser);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      guest_browser, GURL("brave://settings/fingerprintProfileProxy")));
+  EXPECT_FALSE(GetProxyService(guest_browser->profile()));
+  EXPECT_EQ(guest_browser->tab_strip_model()
+                ->GetActiveWebContents()
+                ->GetLastCommittedURL(),
+            GURL("chrome://settings/"));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                        VerificationFallsBackAppliesAndRevalidates) {
   Profile* profile = CreateTestProfile();
   auto* service = GetProxyService(profile);
@@ -510,7 +526,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
       .username = "foo",
       .password = "bar"};
   const auto verification = VerifyDraft(profile, draft);
-  ASSERT_TRUE(verification.success) << verification.error;
+  ASSERT_TRUE(verification.success) << verification.error_code;
   EXPECT_EQ("ipwhois", verification.geo_provider);
   EXPECT_EQ("8.8.4.4", verification.egress_ip);
   ASSERT_TRUE(verification.geo);
@@ -523,7 +539,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   EXPECT_TRUE(ProxySawTargetContaining("/geo-fallback"));
 
   const auto apply = ApplyVerified(profile, verification.verification_id);
-  ASSERT_TRUE(apply.success) << apply.error;
+  ASSERT_TRUE(apply.success) << apply.error_code;
   EXPECT_EQ(fingerprint_browser::kProxyStateActive, service->GetState().state);
   EXPECT_TRUE(profile->GetPrefs()->GetBoolean(
       fingerprint_browser::prefs::kProfileProxyEnabled));
@@ -555,16 +571,16 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   SetGeoResponses(net::HTTP_TOO_MANY_REQUESTS, "rate limited", net::HTTP_OK,
                   kIpWhoIsAustralia);
   const auto revalidation = Revalidate(profile);
-  ASSERT_TRUE(revalidation.success) << revalidation.error;
+  ASSERT_TRUE(revalidation.success) << revalidation.error_code;
   const auto state = service->GetState();
   ASSERT_TRUE(state.geo);
   EXPECT_EQ("AU", state.geo->country_code);
   EXPECT_EQ("1.0.0.1", state.egress_ip);
-  EXPECT_FALSE(state.change_warning.empty());
+  EXPECT_NE(state.warning_code, fingerprint_browser::kProxyWarningNone);
 
   const auto stable_revalidation = Revalidate(profile);
-  ASSERT_TRUE(stable_revalidation.success) << stable_revalidation.error;
-  EXPECT_EQ(state.change_warning, service->GetState().change_warning);
+  ASSERT_TRUE(stable_revalidation.success) << stable_revalidation.error_code;
+  EXPECT_EQ(state.warning_code, service->GetState().warning_code);
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
@@ -610,7 +626,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
        .port = ProxyPort(),
        .username = "foo",
        .password = "bar"});
-  ASSERT_TRUE(verification.success) << verification.error;
+  ASSERT_TRUE(verification.success) << verification.error_code;
   GetProxyService(expired_profile)->ExpirePendingVerificationForTesting();
   const auto apply =
       ApplyVerified(expired_profile, verification.verification_id);
@@ -628,7 +644,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                 .port = ProxyPort(),
                 .username = "foo",
                 .password = "bar"});
-  ASSERT_TRUE(first.success) << first.error;
+  ASSERT_TRUE(first.success) << first.error_code;
 
   const auto second = VerifyDraft(
       profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeHttp,
@@ -636,7 +652,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                 .port = ProxyPort(),
                 .username = "foo",
                 .password = "bar"});
-  ASSERT_TRUE(second.success) << second.error;
+  ASSERT_TRUE(second.success) << second.error_code;
   EXPECT_FALSE(ApplyVerified(profile, first.verification_id).success);
   EXPECT_TRUE(ApplyVerified(profile, second.verification_id).success);
   EXPECT_EQ("localhost", GetProxyService(profile)->GetState().host);
@@ -654,8 +670,8 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                 .port = ProxyPort(),
                 .username = "foo"});
   EXPECT_FALSE(changed_proxy.success);
-  EXPECT_EQ("Enter the proxy password again after changing proxy details.",
-            changed_proxy.error);
+  EXPECT_EQ(fingerprint_browser::kProxyMessagePasswordRequired,
+            changed_proxy.error_code);
   EXPECT_EQ(requests_before_changed_draft, ProxyRequestCount());
 
   const auto same_proxy = VerifyDraft(
@@ -663,7 +679,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                 .host = "127.0.0.1",
                 .port = ProxyPort(),
                 .username = "foo"});
-  EXPECT_TRUE(same_proxy.success) << same_proxy.error;
+  EXPECT_TRUE(same_proxy.success) << same_proxy.error_code;
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
@@ -685,8 +701,8 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
 
   const auto after = GetProxyService(profile)->GetState();
   EXPECT_EQ(before.state, after.state);
-  EXPECT_EQ(before.status_message, after.status_message);
-  EXPECT_EQ(before.change_warning, after.change_warning);
+  EXPECT_EQ(before.status_code, after.status_code);
+  EXPECT_EQ(before.warning_code, after.warning_code);
   EXPECT_EQ(before.egress_ip, after.egress_ip);
   EXPECT_EQ(before.host, after.host);
   EXPECT_TRUE(after.enabled);
@@ -859,7 +875,7 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
                 .port = ProxyPort(),
                 .username = "foo",
                 .password = "bar"});
-  ASSERT_TRUE(changed.success) << changed.error;
+  ASSERT_TRUE(changed.success) << changed.error_code;
   ASSERT_TRUE(ApplyVerified(profile, changed.verification_id).success);
   EXPECT_EQ("localhost",
             GetProxyService(incognito_browser->profile())->GetState().host);
@@ -1053,5 +1069,6 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       tor_browser, OriginUrl("tor-profile.test", "/tor-profile")));
   EXPECT_FALSE(ProxySawTargetContaining("/tor-profile"));
+  EXPECT_FALSE(GetProxyService(tor_browser->profile()));
 }
 #endif

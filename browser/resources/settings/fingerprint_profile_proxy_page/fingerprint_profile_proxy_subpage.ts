@@ -55,6 +55,8 @@ class SettingsFingerprintProfileProxySubpageElement extends
   static get properties() {
     return {
       state_: {type: String, value: 'unconfigured'},
+      statusCode_: {type: String, value: 'none'},
+      warningCode_: {type: String, value: 'none'},
       statusMessage_: {type: String, value: ''},
       changeWarning_: {type: String, value: ''},
       enabled_: {type: Boolean, value: false},
@@ -78,6 +80,8 @@ class SettingsFingerprintProfileProxySubpageElement extends
   }
 
   private declare state_: string
+  private declare statusCode_: string
+  private declare warningCode_: string
   private declare statusMessage_: string
   private declare changeWarning_: string
   private declare enabled_: boolean
@@ -122,6 +126,8 @@ class SettingsFingerprintProfileProxySubpageElement extends
 
   private setState_(state: ProfileProxyState) {
     this.state_ = state.state || 'unconfigured'
+    this.statusCode_ = state.statusCode || 'unknown'
+    this.warningCode_ = state.warningCode || 'none'
     this.statusMessage_ = state.statusMessage || ''
     this.changeWarning_ = state.changeWarning || ''
     this.enabled_ = state.enabled
@@ -192,10 +198,12 @@ class SettingsFingerprintProfileProxySubpageElement extends
         return
       }
       if (!result.success) {
-        this.actionError_ = result.error
+        this.actionError_ = this.resultError_(result)
         return
       }
       this.verification_ = result
+    } catch {
+      this.actionError_ = '代理验证失败，请稍后重试。'
     } finally {
       this.isBusy_ = false
     }
@@ -210,13 +218,15 @@ class SettingsFingerprintProfileProxySubpageElement extends
       const result = await this.browserProxy_.applyVerified(
         this.verification_.verificationId)
       if (!result.success) {
-        this.actionError_ = result.error
+        this.actionError_ = this.resultError_(result)
         this.verification_ = null
         return
       }
       this.password_ = ''
       this.verification_ = null
       await this.refreshState_()
+    } catch {
+      this.actionError_ = '无法应用代理，请重新验证后再试。'
     } finally {
       this.isBusy_ = false
     }
@@ -228,9 +238,11 @@ class SettingsFingerprintProfileProxySubpageElement extends
     try {
       const result = await this.browserProxy_.revalidate()
       if (!result.success) {
-        this.actionError_ = result.error
+        this.actionError_ = this.resultError_(result)
       }
       await this.refreshState_()
+    } catch {
+      this.actionError_ = '代理复检失败，请稍后重试。'
     } finally {
       this.isBusy_ = false
     }
@@ -242,11 +254,13 @@ class SettingsFingerprintProfileProxySubpageElement extends
     try {
       const result = await this.browserProxy_.disable()
       if (!result.success) {
-        this.actionError_ = result.error
+        this.actionError_ = this.resultError_(result)
         return
       }
       this.verification_ = null
       await this.refreshState_()
+    } catch {
+      this.actionError_ = '无法禁用代理，请稍后重试。'
     } finally {
       this.isBusy_ = false
     }
@@ -258,6 +272,15 @@ class SettingsFingerprintProfileProxySubpageElement extends
 
   private isNonEmpty_(value: string) {
     return value.length > 0
+  }
+
+  private resultError_(result: {error?: string, netError?: number}) {
+    if (result.error && /[\u3400-\u9fff]/.test(result.error)) {
+      return result.error
+    }
+    return result.netError ?
+      `代理操作失败（网络错误：${result.netError}）` :
+      '代理操作失败，请稍后重试。'
   }
 
   private isActive_(state: string, geo: ProfileProxyGeo|null) {

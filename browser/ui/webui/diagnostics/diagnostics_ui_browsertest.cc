@@ -11,6 +11,7 @@
 #include "base/test/run_until.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -99,6 +100,7 @@ IN_PROC_BROWSER_TEST_F(DiagnosticsUIBrowserTest,
             availability: document.querySelector('#availability').textContent.trim(),
             confirmationChecked: confirmation.checked,
             exportDisabled: document.querySelector('#export').disabled,
+            guide: document.querySelector('a[href="brave://fingerprint-guide/"]')?.textContent.trim(),
             title: document.querySelector('h1').textContent.trim(),
           };
         }
@@ -108,7 +110,8 @@ IN_PROC_BROWSER_TEST_F(DiagnosticsUIBrowserTest,
     })()
   )");
   const base::DictValue& state = result.ExtractDict();
-  EXPECT_EQ(*state.FindString("title"), "Diagnostics");
+  EXPECT_EQ(*state.FindString("title"), "导出诊断信息");
+  EXPECT_EQ(*state.FindString("guide"), "使用指南");
   const std::string* availability = state.FindString("availability");
   ASSERT_TRUE(availability);
   EXPECT_FALSE(availability->empty());
@@ -176,8 +179,9 @@ IN_PROC_BROWSER_TEST_F(DiagnosticsUIBrowserTest, CrashesPageShowsLocalActions) {
   ASSERT_TRUE(content::WaitForLoadStop(contents));
   EXPECT_TRUE(content::EvalJs(contents, R"(
     !document.querySelector('#localDiagnosticsActions').hidden &&
-        Boolean(document.querySelector('#exportDiagnostics')) &&
-        Boolean(document.querySelector('#openCrashFolder'))
+        !document.querySelector('#exportDiagnostics').hidden &&
+        !document.querySelector('#openCrashFolder').hidden &&
+        Boolean(document.querySelector('#fingerprintGuide'))
   )")
                   .ExtractBool());
   const auto crashpad_path = crash_reporter::GetCrashpadDatabasePath();
@@ -187,6 +191,27 @@ IN_PROC_BROWSER_TEST_F(DiagnosticsUIBrowserTest, CrashesPageShowsLocalActions) {
                             ".textContent.trim()")
                 .ExtractString(),
             base::UTF16ToUTF8(crashpad_path->LossyDisplayName()));
+}
+
+IN_PROC_BROWSER_TEST_F(DiagnosticsUIBrowserTest,
+                       GuestCrashesPageKeepsChineseGuide) {
+  profiles::SwitchToGuestProfile();
+  Browser* guest_browser = ui_test_utils::WaitForBrowserToOpen();
+  ASSERT_TRUE(guest_browser);
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(guest_browser, GURL("brave://crashes/")));
+  content::WebContents* contents =
+      guest_browser->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  EXPECT_TRUE(content::EvalJs(contents, R"(
+    document.querySelector('#exportDiagnostics').hidden &&
+        document.querySelector('#openCrashFolder').hidden &&
+        document.querySelector('#crashFolderPath').hidden &&
+        !document.querySelector('#fingerprintGuide').hidden &&
+        document.querySelector('#fingerprintGuide').textContent.trim() ===
+            '指纹浏览器使用指南'
+  )")
+                  .ExtractBool());
 }
 
 }  // namespace

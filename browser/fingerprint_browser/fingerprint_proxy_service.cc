@@ -14,6 +14,7 @@
 #include "base/strings/string_util.h"
 #include "base/uuid.h"
 #include "brave/browser/fingerprint_browser/diagnostics/diagnostics_event_journal.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_ui_strings.h"
 #include "brave/components/fingerprint_browser/browser/pref_names.h"
 #include "brave/net/proxy_resolution/profile_proxy_config_service.h"
 #include "chrome/browser/browser_process.h"
@@ -156,6 +157,7 @@ void WriteTimePref(PrefService& prefs, const char* pref_name, base::Time time) {
 
 FingerprintProxyService::FingerprintProxyService(Profile* profile)
     : profile_(profile), prefs_(profile->GetPrefs()) {
+  MigrateProxyUiMessagePrefs(*prefs_);
   content::GetNetworkConnectionTracker()->AddNetworkConnectionObserver(this);
   proxy_control_pref_change_registrar_.Init(prefs_);
   const auto proxy_control_changed = base::BindRepeating(
@@ -172,11 +174,11 @@ FingerprintProxyService::FingerprintProxyService(Profile* profile)
   if (conflict != ProfileProxyConfigConflict::kNone) {
     SyncProfileProxyWebRTCPolicy(*prefs_);
     ClearVerifiedProfileProxyGeo(*prefs_);
-    SetState(kProxyStateConflict, ProfileProxyConfigConflictWarning(conflict));
+    SetState(kProxyStateConflict, ProxyConflictMessageCode(conflict));
   } else if (prefs_->GetBoolean(prefs::kProfileProxyEnabled)) {
-    SetState(kProxyStateStale, "Proxy is waiting for verification.");
+    SetState(kProxyStateStale, kProxyMessageWaiting);
   } else {
-    SetState(kProxyStateUnconfigured, std::string_view());
+    SetState(kProxyStateUnconfigured, kProxyMessageNone);
   }
 }
 
@@ -187,8 +189,10 @@ FingerprintProxyService::~FingerprintProxyService() {
 FingerprintProxyState FingerprintProxyService::GetState() const {
   FingerprintProxyState state;
   state.state = prefs_->GetString(prefs::kProfileProxyState);
-  state.status_message = prefs_->GetString(prefs::kProfileProxyStatusMessage);
-  state.change_warning = prefs_->GetString(prefs::kProfileProxyChangeWarning);
+  state.status_code = std::string(NormalizeProxyStatusCode(
+      prefs_->GetString(prefs::kProfileProxyStatusMessage)));
+  state.warning_code = std::string(NormalizeProxyWarningCode(
+      prefs_->GetString(prefs::kProfileProxyChangeWarning)));
   state.scheme = prefs_->GetString(prefs::kProfileProxyScheme);
   state.host = prefs_->GetString(prefs::kProfileProxyHost);
   state.port = prefs_->GetInteger(prefs::kProfileProxyPort);
@@ -207,9 +211,11 @@ FingerprintProxyState FingerprintProxyService::GetState() const {
       GetProfileProxyConfigConflict(*prefs_);
   if (conflict != ProfileProxyConfigConflict::kNone) {
     state.state = kProxyStateConflict;
-    state.status_message =
-        std::string(ProfileProxyConfigConflictWarning(conflict));
+    state.status_code = std::string(ProxyConflictMessageCode(conflict));
   }
+  state.net_error = state.state == kProxyStateError
+                        ? prefs_->GetInteger(prefs::kProfileProxyLastErrorCode)
+                        : 0;
   return state;
 }
 
@@ -219,15 +225,14 @@ void FingerprintProxyService::VerifyDraft(ProfileProxyDraft draft,
   if (draft.password.empty() && HasSavedProxyPassword(*prefs_)) {
     if (!DraftMatchesSavedProxyIdentity(draft, *prefs_)) {
       ProxyVerificationResult result;
-      result.error =
-          "Enter the proxy password again after changing proxy details.";
+      result.error_code = kProxyMessagePasswordRequired;
       std::move(callback).Run(std::move(result));
       return;
     }
     const std::optional<std::string> saved_password = GetSavedPassword();
     if (HasCredentialFailure()) {
       ProxyVerificationResult result;
-      result.error = "Saved proxy credentials could not be unlocked.";
+      result.error_code = kProxyMessageCredentialsUnavailable;
       std::move(callback).Run(std::move(result));
       return;
     }
@@ -236,7 +241,7 @@ void FingerprintProxyService::VerifyDraft(ProfileProxyDraft draft,
 
   if (!BuildProfileProxyServer(draft)) {
     ProxyVerificationResult result;
-    result.error = "Enter a valid proxy protocol, host, and port.";
+    result.error_code = kProxyMessageInvalidConfig;
     std::move(callback).Run(std::move(result));
     return;
   }
@@ -244,9 +249,9 @@ void FingerprintProxyService::VerifyDraft(ProfileProxyDraft draft,
   const ProfileProxyConfigConflict conflict =
       GetProfileProxyConfigConflict(*prefs_);
   if (conflict != ProfileProxyConfigConflict::kNone) {
-    SetState(kProxyStateConflict, ProfileProxyConfigConflictWarning(conflict));
+    SetState(kProxyStateConflict, ProxyConflictMessageCode(conflict));
     ProxyVerificationResult result;
-    result.error = std::string(ProfileProxyConfigConflictWarning(conflict));
+    result.error_code = ProxyConflictMessageCode(conflict);
     std::move(callback).Run(std::move(result));
     return;
   }
@@ -259,13 +264,13 @@ void FingerprintProxyService::ApplyVerified(std::string verification_id,
                                             ApplyCallback callback) {
   ProxyApplyResult result;
   if (!pending_verification_ || pending_verification_->id != verification_id) {
-    result.error = "Verification is missing or was already used.";
+    result.error_code = kProxyMessageVerificationMissing;
     std::move(callback).Run(std::move(result));
     return;
   }
   if (base::TimeTicks::Now() >= pending_verification_->expires_at) {
     pending_verification_.reset();
-    result.error = "Verification expired. Verify the proxy again.";
+    result.error_code = kProxyMessageVerificationExpired;
     std::move(callback).Run(std::move(result));
     return;
   }
@@ -273,21 +278,21 @@ void FingerprintProxyService::ApplyVerified(std::string verification_id,
       GetProfileProxyConfigConflict(*prefs_);
   if (conflict != ProfileProxyConfigConflict::kNone) {
     pending_verification_.reset();
-    SetState(kProxyStateConflict, ProfileProxyConfigConflictWarning(conflict));
-    result.error = std::string(ProfileProxyConfigConflictWarning(conflict));
+    SetState(kProxyStateConflict, ProxyConflictMessageCode(conflict));
+    result.error_code = ProxyConflictMessageCode(conflict);
     std::move(callback).Run(std::move(result));
     return;
   }
 
   if (!BuildProfileProxyServer(pending_verification_->draft)) {
-    result.error = "Verified proxy configuration is no longer valid.";
+    result.error_code = kProxyMessageInvalidConfig;
     std::move(callback).Run(std::move(result));
     return;
   }
   const std::optional<std::string> encrypted_password =
       EncryptPassword(pending_verification_->draft.password);
   if (!encrypted_password) {
-    result.error = "Proxy credentials could not be encrypted.";
+    result.error_code = kProxyMessageCredentialEncryptionFailed;
     std::move(callback).Run(std::move(result));
     return;
   }
@@ -318,7 +323,7 @@ void FingerprintProxyService::ApplyVerified(std::string verification_id,
   prefs_->SetInteger(
       prefs::kProfileProxyCredentialGeneration,
       prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
-  SetState(kProxyStateActive, "Proxy is active.", change_warning);
+  SetState(kProxyStateActive, kProxyMessageActive, change_warning);
   content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
   ScheduleRevalidation();
 
@@ -329,7 +334,7 @@ void FingerprintProxyService::ApplyVerified(std::string verification_id,
 void FingerprintProxyService::Revalidate(VerificationCallback callback) {
   if (!prefs_->GetBoolean(prefs::kProfileProxyEnabled)) {
     ProxyVerificationResult result;
-    result.error = "No active proxy is configured.";
+    result.error_code = kProxyMessageNoActiveProxy;
     if (callback) {
       std::move(callback).Run(std::move(result));
     }
@@ -338,9 +343,9 @@ void FingerprintProxyService::Revalidate(VerificationCallback callback) {
 
   ProfileProxyDraft draft = GetAppliedDraft();
   if (HasCredentialFailure() || !BuildProfileProxyServer(draft)) {
-    SetState(kProxyStateError, "Saved proxy credentials are unavailable.");
+    SetState(kProxyStateError, kProxyMessageCredentialsUnavailable);
     ProxyVerificationResult result;
-    result.error = "Saved proxy credentials are unavailable.";
+    result.error_code = kProxyMessageCredentialsUnavailable;
     if (callback) {
       std::move(callback).Run(std::move(result));
     }
@@ -356,7 +361,7 @@ void FingerprintProxyService::Disable(DisableCallback callback) {
   verification_network_context_.reset();
   verification_in_progress_ = false;
   ProxyVerificationResult cancelled;
-  cancelled.error = "Proxy verification was cancelled.";
+  cancelled.error_code = kProxyMessageVerificationCancelled;
   RunVerificationCallbacks(std::move(cancelled));
   revalidation_timer_.Stop();
 
@@ -364,7 +369,7 @@ void FingerprintProxyService::Disable(DisableCallback callback) {
   ClearProfileProxyLastError(*prefs_);
   SyncProfileProxyWebRTCPolicy(*prefs_);
   ClearVerifiedProfileProxyGeo(*prefs_);
-  SetState(kProxyStateUnconfigured, std::string_view());
+  SetState(kProxyStateUnconfigured, kProxyMessageNone);
   prefs_->SetInteger(
       prefs::kProfileProxyCredentialGeneration,
       prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
@@ -398,7 +403,7 @@ void FingerprintProxyService::ReportProxyError(int net_error) {
     return;
   }
   SetProfileProxyLastError(*prefs_, net_error);
-  SetState(kProxyStateError, prefs_->GetString(prefs::kProfileProxyLastError));
+  SetState(kProxyStateError, kProxyMessageConnectionFailed);
   ScheduleRevalidation();
 }
 
@@ -444,8 +449,7 @@ void FingerprintProxyService::OnEncryptorReady(
   if (!MigratePlaintextPassword()) {
     credential_failure_ = true;
     if (prefs_->GetBoolean(prefs::kProfileProxyEnabled)) {
-      SetState(kProxyStateError,
-               "Saved proxy credentials could not be encrypted.");
+      SetState(kProxyStateError, kProxyMessageCredentialEncryptionFailed);
     }
     return;
   }
@@ -455,8 +459,7 @@ void FingerprintProxyService::OnEncryptorReady(
   if (!encrypted.empty() && !GetSavedPassword()) {
     credential_failure_ = true;
     if (prefs_->GetBoolean(prefs::kProfileProxyEnabled)) {
-      SetState(kProxyStateError,
-               "Saved proxy credentials could not be unlocked.");
+      SetState(kProxyStateError, kProxyMessageCredentialsUnavailable);
     }
     return;
   }
@@ -553,7 +556,7 @@ void FingerprintProxyService::StartVerification(ProfileProxyDraft draft,
       return;
     }
     ProxyVerificationResult result;
-    result.error = "Another proxy verification is already running.";
+    result.error_code = kProxyMessageVerificationBusy;
     if (callback) {
       std::move(callback).Run(std::move(result));
     }
@@ -572,7 +575,7 @@ void FingerprintProxyService::StartVerification(ProfileProxyDraft draft,
   if (callback) {
     verification_callbacks_.push_back(std::move(callback));
   }
-  SetState(kProxyStateVerifying, "Checking proxy exit location.");
+  SetState(kProxyStateVerifying, kProxyMessageChecking);
   CreateVerificationNetworkContext(verification_draft_);
   StartLookup(ProxyGeoProvider::kFreeIpApi);
 }
@@ -664,14 +667,13 @@ void FingerprintProxyService::OnLookupComplete(
     StartLookup(ProxyGeoProvider::kIpWhoIs);
     return;
   }
-  FinishLookupFailure(
-      IsProxyConnectionError(net_error)
-          ? "Proxy connection or authentication failed."
-          : "Proxy location services are temporarily unavailable.",
-      net_error);
+  FinishLookupFailure(IsProxyConnectionError(net_error)
+                          ? kProxyMessageConnectionFailed
+                          : kProxyMessageGeoUnavailable,
+                      net_error);
 }
 
-void FingerprintProxyService::FinishLookupFailure(std::string error,
+void FingerprintProxyService::FinishLookupFailure(std::string_view error_code,
                                                   int net_error) {
   verification_loader_.reset();
   verification_url_loader_factory_.reset();
@@ -681,9 +683,9 @@ void FingerprintProxyService::FinishLookupFailure(std::string error,
   if (verification_is_revalidation_) {
     if (IsProxyConnectionError(net_error)) {
       SetProfileProxyLastError(*prefs_, net_error);
-      SetState(kProxyStateError, error);
+      SetState(kProxyStateError, error_code);
     } else {
-      SetState(kProxyStateStale, error);
+      SetState(kProxyStateStale, error_code);
     }
     ScheduleRevalidation();
   } else if (prefs_->GetBoolean(prefs::kProfileProxyEnabled) &&
@@ -691,11 +693,12 @@ void FingerprintProxyService::FinishLookupFailure(std::string error,
     SetState(state_before_verification_, status_before_verification_,
              warning_before_verification_);
   } else {
-    SetState(kProxyStateError, error);
+    SetState(kProxyStateError, error_code);
   }
 
   ProxyVerificationResult result;
-  result.error = std::move(error);
+  result.error_code = error_code;
+  result.net_error = net_error;
   RunVerificationCallbacks(std::move(result));
 }
 
@@ -707,8 +710,7 @@ void FingerprintProxyService::FinishLookupSuccess(ProxyGeoLookupResult lookup) {
 
   ProfileProxyGeo geo = ToProfileProxyGeo(lookup);
   if (geo.accept_languages.empty()) {
-    FinishLookupFailure("Proxy country could not be mapped to a language.",
-                        net::ERR_FAILED);
+    FinishLookupFailure(kProxyMessageLanguageUnavailable, net::ERR_FAILED);
     return;
   }
 
@@ -719,8 +721,8 @@ void FingerprintProxyService::FinishLookupSuccess(ProxyGeoLookupResult lookup) {
   result.geo = geo;
 
   if (verification_is_revalidation_) {
-    ApplyLookup(lookup, geo, true);
     ClearProfileProxyLastError(*prefs_);
+    ApplyLookup(lookup, geo, true);
     ScheduleRevalidation();
   } else {
     PendingVerification pending;
@@ -732,7 +734,7 @@ void FingerprintProxyService::FinishLookupSuccess(ProxyGeoLookupResult lookup) {
     result.verification_id = pending.id;
     pending_verification_ = std::move(pending);
     SetState(kProxyStateAwaitingConfirmation,
-             "Proxy verified. Confirm to apply it.");
+             kProxyMessageAwaitingConfirmation);
   }
   RunVerificationCallbacks(std::move(result));
 }
@@ -768,11 +770,10 @@ std::string FingerprintProxyService::StoreLookupResult(
     const std::string& previous_country =
         prefs_->GetString(prefs::kProfileProxyDerivedGeoCountryCode);
     if (!previous_country.empty() && previous_country != geo.country_code) {
-      change_warning = "Proxy country changed. Fingerprint settings updated.";
+      change_warning = kProxyWarningCountryChanged;
     } else if (!previous_ip.empty() && previous_ip != lookup.ip_address) {
-      change_warning = "Proxy exit IP changed.";
-    } else if (base::StartsWith(warning_before_verification_,
-                                "Proxy country changed.")) {
+      change_warning = kProxyWarningIpChanged;
+    } else if (warning_before_verification_ == kProxyWarningCountryChanged) {
       change_warning = warning_before_verification_;
     }
   }
@@ -791,16 +792,18 @@ void FingerprintProxyService::ApplyLookup(const ProxyGeoLookupResult& lookup,
   const std::string change_warning =
       StoreLookupResult(lookup, geo, show_change_warning);
   PrepareVerifiedProfileProxyDerivedPrefs(*prefs_, geo);
-  SetState(kProxyStateActive, "Proxy is active.", change_warning);
+  SetState(kProxyStateActive, kProxyMessageActive, change_warning);
   content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
 }
 
 void FingerprintProxyService::SetState(std::string_view state,
-                                       std::string_view message,
-                                       std::string_view change_warning) {
+                                       std::string_view status_code,
+                                       std::string_view warning_code) {
   prefs_->SetString(prefs::kProfileProxyState, state);
-  prefs_->SetString(prefs::kProfileProxyStatusMessage, message);
-  prefs_->SetString(prefs::kProfileProxyChangeWarning, change_warning);
+  prefs_->SetString(prefs::kProfileProxyStatusMessage,
+                    NormalizeProxyStatusCode(status_code));
+  prefs_->SetString(prefs::kProfileProxyChangeWarning,
+                    NormalizeProxyWarningCode(warning_code));
   diagnostics::DiagnosticsEventFields fields;
   fields.status = std::string(state);
   const FingerprintProxyState current = GetState();
@@ -848,11 +851,11 @@ void FingerprintProxyService::OnProxyControlChanged() {
     prefs_->SetInteger(
         prefs::kProfileProxyCredentialGeneration,
         prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
-    SetState(kProxyStateConflict, ProfileProxyConfigConflictWarning(conflict));
+    SetState(kProxyStateConflict, ProxyConflictMessageCode(conflict));
     content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
     if (was_verifying) {
       ProxyVerificationResult result;
-      result.error = std::string(ProfileProxyConfigConflictWarning(conflict));
+      result.error_code = ProxyConflictMessageCode(conflict);
       RunVerificationCallbacks(std::move(result));
     }
     return;
@@ -862,7 +865,7 @@ void FingerprintProxyService::OnProxyControlChanged() {
     SyncProfileProxyWebRTCPolicy(*prefs_);
     ClearVerifiedProfileProxyGeo(*prefs_);
     content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
-    SetState(kProxyStateUnconfigured, std::string_view());
+    SetState(kProxyStateUnconfigured, kProxyMessageNone);
     return;
   }
 
@@ -871,7 +874,7 @@ void FingerprintProxyService::OnProxyControlChanged() {
       prefs::kProfileProxyCredentialGeneration,
       prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
   content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
-  SetState(kProxyStateStale, "Proxy control changed. Revalidating.");
+  SetState(kProxyStateStale, kProxyMessageControlChanged);
   if (encryptor_) {
     Revalidate(VerificationCallback());
   }

@@ -21,6 +21,7 @@ namespace brave {
 void ShowBraveAdblock(BrowserWindowInterface* browser);
 void ShowDiagnostics(BrowserWindowInterface* browser,
                      bool latest_incident = false);
+void ShowFingerprintGuide(BrowserWindowInterface* browser);
 void ShowWebcompatReporter(BrowserWindowInterface* browser);
 void ShowBraveRewards(BrowserWindowInterface* browser);
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)

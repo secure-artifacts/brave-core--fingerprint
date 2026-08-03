@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>指纹浏览器使用指南</title>
+  <link rel="stylesheet" href="chrome://resources/css/text_defaults.css">
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0;
+      background: var(--color-new-tab-page-background, Canvas);
+      color: var(--color-new-tab-page-foreground, CanvasText);
+    }
+    main {
+      box-sizing: border-box;
+      margin: 0 auto;
+      max-width: 960px;
+      padding: 32px 24px 56px;
+    }
+    header {
+      border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+      padding-bottom: 24px;
+    }
+    h1 { font-size: 28px; margin: 0 0 10px; }
+    h2 { font-size: 19px; margin: 0 0 8px; }
+    p { line-height: 1.6; margin: 0; }
+    .intro { color: color-mix(in srgb, currentColor 72%, transparent); }
+    ol { list-style: none; margin: 24px 0 0; padding: 0; }
+    .step {
+      border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
+      padding: 22px 0;
+    }
+    .number {
+      align-items: center;
+      background: color-mix(in srgb, #1a73e8 14%, transparent);
+      border-radius: 50%;
+      color: #0b57d0;
+      display: flex;
+      font-size: 16px;
+      font-weight: 700;
+      height: 36px;
+      justify-content: center;
+      width: 36px;
+    }
+    .detail { color: color-mix(in srgb, currentColor 74%, transparent); }
+    .button {
+      align-self: center;
+      background: #0b57d0;
+      border: 1px solid #0b57d0;
+      border-radius: 4px;
+      color: white;
+      font-weight: 600;
+      padding: 9px 14px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .button:hover { background: #0842a0; }
+    .actions {
+      align-self: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .legend { margin-top: 30px; }
+    .states {
+      display: grid;
+      gap: 10px 18px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+    .state { align-items: center; display: flex; gap: 10px; min-width: 0; }
+    .dot { border-radius: 50%; flex: 0 0 auto; height: 10px; width: 10px; }
+    .neutral { background: #6b7280; }
+    .working { background: #0b57d0; }
+    .active { background: #188038; }
+    .warning { background: #b06000; }
+    .error { background: #b3261e; }
+    .conflict { background: #7c4dff; }
+    .privacy {
+      background: color-mix(in srgb, #b06000 10%, transparent);
+      border-left: 3px solid #b06000;
+      margin-top: 18px;
+      padding: 12px 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .number { color: #a8c7fa; }
+      .button { background: #a8c7fa; border-color: #a8c7fa; color: #062e6f; }
+      .button:hover { background: #d3e3fd; }
+    }
+    @media (max-width: 720px) {
+      main { padding: 24px 16px 40px; }
+      .step { grid-template-columns: 36px minmax(0, 1fr); }
+      .step > .button, .actions {
+        grid-column: 2;
+        justify-self: start;
+      }
+      .button { white-space: normal; }
+      .states { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>指纹浏览器使用指南</h1>
+      <p class="intro">按照下面的顺序完成配置。每个用户配置文件都拥有独立、稳定的浏览器身份。</p>
+    </header>
+
+    <ol>
+      <li class="step">
+        <span class="number">1</span>
+        <div><h2>创建独立用户配置文件</h2><p class="detail">不同账号请使用不同的用户配置文件，避免 Cookie、网站数据和浏览器身份互相影响。</p></div>
+        <a class="button" data-guide-target href="brave://profile-picker/">创建新用户配置文件</a>
+      </li>
+      <li class="step">
+        <span class="number">2</span>
+        <div><h2>配置代理</h2><p class="detail">选择 HTTP、HTTPS 或 SOCKS5，填写代理地址、端口、用户名和密码。未配置代理时，工具栏会显示警告。</p></div>
+        <a class="button" data-guide-target href="brave://settings/fingerprintProfileProxy">配置代理</a>
+      </li>
+      <li class="step">
+        <span class="number">3</span>
+        <div><h2>验证并确认应用</h2><p class="detail">验证会通过代理检查真实出口 IP、国家、时区、语言、位置和 WebRTC。确认结果无误后再应用。</p></div>
+      </li>
+      <li class="step">
+        <span class="number">4</span>
+        <div><h2>检测浏览器指纹</h2><p class="detail">先打开一个普通网站，再进入检测页。结果会显示“匹配”“不同”或“不可用”。</p></div>
+        <a class="button" data-guide-target href="brave://fingerprint-test/">检测指纹</a>
+      </li>
+      <li class="step">
+        <span class="number">5</span>
+        <div><h2>异常时导出诊断包</h2><p class="detail">浏览器崩溃或功能异常后，导出诊断包并发送给技术支持。也可以先查看本地崩溃记录。</p><p class="privacy">诊断包可能包含崩溃时的进程内存。发送前请确认接收方可信。</p></div>
+        <div class="actions">
+          <a class="button" data-guide-target href="brave://diagnostics/">导出诊断包</a>
+          <a class="button" data-guide-target href="brave://crashes/">查看崩溃记录</a>
+        </div>
+      </li>
+    </ol>
+
+    <section class="legend" aria-labelledby="proxy-status-title">
+      <h2 id="proxy-status-title">代理状态说明</h2>
+      <div class="states">
+        <div class="state"><span class="dot neutral"></span><span><strong>未配置：</strong>当前没有使用代理。</span></div>
+        <div class="state"><span class="dot working"></span><span><strong>验证中：</strong>正在检查代理出口和位置。</span></div>
+        <div class="state"><span class="dot active"></span><span><strong>已生效：</strong>代理和对应指纹设置已经应用。</span></div>
+        <div class="state"><span class="dot warning"></span><span><strong>结果过期：</strong>继续使用上次结果，建议立即复检。</span></div>
+        <div class="state"><span class="dot error"></span><span><strong>连接错误：</strong>代理不可用，不会自动改为直连。</span></div>
+        <div class="state"><span class="dot conflict"></span><span><strong>配置冲突：</strong>代理被策略或扩展接管，需要先解除冲突。</span></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

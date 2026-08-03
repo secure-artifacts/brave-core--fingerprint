@@ -48,6 +48,10 @@ void ShowDiagnostics(BrowserWindowInterface* browser, bool latest_incident) {
                            : "brave://diagnostics/"));
 }
 
+void ShowFingerprintGuide(BrowserWindowInterface* browser) {
+  ShowSingletonTabOverwritingNTP(browser, GURL("brave://fingerprint-guide/"));
+}
+
 void ShowSync(BrowserWindowInterface* browser) {
   ShowSingletonTabOverwritingNTP(
       browser, chrome::GetSettingsUrl(chrome::kSyncSetupSubPage));

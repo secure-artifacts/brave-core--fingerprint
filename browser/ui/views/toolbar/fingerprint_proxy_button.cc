@@ -18,6 +18,8 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_ui_strings.h"
+#include "brave/browser/ui/brave_pages.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -119,23 +121,31 @@ class FingerprintProxyBubble
     detail_label_->SetMultiLine(true);
     detail_label_->SetEnabledColor(ui::kColorLabelForegroundSecondary);
 
-    auto* actions = AddChildView(std::make_unique<views::View>());
-    actions->SetLayoutManager(std::make_unique<views::BoxLayout>(
+    auto* primary_actions = AddChildView(std::make_unique<views::View>());
+    primary_actions->SetLayoutManager(std::make_unique<views::BoxLayout>(
         views::BoxLayout::Orientation::kHorizontal, gfx::Insets(), 8));
     configure_button_ =
-        actions->AddChildView(std::make_unique<views::MdTextButton>(
+        primary_actions->AddChildView(std::make_unique<views::MdTextButton>(
             base::BindRepeating(&FingerprintProxyBubble::OpenSettings,
                                 base::Unretained(this)),
             l10n_util::GetStringUTF16(
                 IDS_FINGERPRINT_PROFILE_PROXY_CONFIGURE)));
+    primary_actions->AddChildView(std::make_unique<views::MdTextButton>(
+        base::BindRepeating(&FingerprintProxyBubble::OpenGuide,
+                            base::Unretained(this)),
+        l10n_util::GetStringUTF16(IDS_SHOW_FINGERPRINT_GUIDE)));
+
+    auto* state_actions = AddChildView(std::make_unique<views::View>());
+    state_actions->SetLayoutManager(std::make_unique<views::BoxLayout>(
+        views::BoxLayout::Orientation::kHorizontal, gfx::Insets(), 8));
     revalidate_button_ =
-        actions->AddChildView(std::make_unique<views::MdTextButton>(
+        state_actions->AddChildView(std::make_unique<views::MdTextButton>(
             base::BindRepeating(&FingerprintProxyBubble::Revalidate,
                                 base::Unretained(this)),
             l10n_util::GetStringUTF16(
                 IDS_FINGERPRINT_PROFILE_PROXY_REVALIDATE)));
     disable_button_ =
-        actions->AddChildView(std::make_unique<views::MdTextButton>(
+        state_actions->AddChildView(std::make_unique<views::MdTextButton>(
             base::BindRepeating(&FingerprintProxyBubble::Disable,
                                 base::Unretained(this)),
             l10n_util::GetStringUTF16(IDS_FINGERPRINT_PROFILE_PROXY_DISABLE)));
@@ -160,23 +170,26 @@ class FingerprintProxyBubble
   void Update() {
     const fingerprint_browser::FingerprintProxyState state =
         service_->GetState();
-    std::string status = state.status_message;
+    std::u16string status = fingerprint_browser::GetProxyUiMessage(
+        state.status_code, state.net_error);
     if (status.empty() &&
         state.state == fingerprint_browser::kProxyStateUnconfigured) {
-      status = l10n_util::GetStringUTF8(
+      status = l10n_util::GetStringUTF16(
           IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_NO_PROXY_RISK_DESC);
     }
-    if (!state.change_warning.empty()) {
-      status = base::StrCat({status, "\n", state.change_warning});
+    if (state.warning_code != fingerprint_browser::kProxyWarningNone) {
+      status = base::StrCat(
+          {status, u"\n",
+           fingerprint_browser::GetProxyUiMessage(state.warning_code)});
     }
-    status_label_->SetText(base::UTF8ToUTF16(status));
+    status_label_->SetText(status);
     if (GetColorProvider()) {
       const bool error = state.state == fingerprint_browser::kProxyStateError;
       const bool warning =
           state.state == fingerprint_browser::kProxyStateUnconfigured ||
           state.state == fingerprint_browser::kProxyStateStale ||
           state.state == fingerprint_browser::kProxyStateConflict ||
-          !state.change_warning.empty();
+          state.warning_code != fingerprint_browser::kProxyWarningNone;
       status_label_->SetEnabledColor(GetColorProvider()->GetColor(
           error     ? ui::kColorAlertHighSeverity
           : warning ? ui::kColorAlertMediumSeverityIcon
@@ -189,7 +202,9 @@ class FingerprintProxyBubble
     }
     if (state.geo) {
       details.push_back(base::UTF8ToUTF16(
-          base::StrCat({state.geo->country_name, ", ", state.geo->city_name})));
+          base::StrCat({fingerprint_browser::GetChineseCountryName(
+                            state.geo->country_code, state.geo->country_name),
+                        ", ", state.geo->city_name})));
       details.push_back(base::UTF8ToUTF16(state.geo->timezone));
     }
     if (!state.last_verified.is_null()) {
@@ -207,6 +222,11 @@ class FingerprintProxyBubble
   void OpenSettings() {
     chrome::ShowSettingsSubPageForProfile(browser_->profile(),
                                           "fingerprintProfileProxy");
+    GetWidget()->Close();
+  }
+
+  void OpenGuide() {
+    brave::ShowFingerprintGuide(browser_);
     GetWidget()->Close();
   }
 
@@ -293,7 +313,7 @@ void FingerprintProxyButton::UpdateButton() {
         CountryFlagImage(state.geo->country_code, gfx::Size(20, 15));
     if (!flag.isNull()) {
       if ((state.state == fingerprint_browser::kProxyStateStale ||
-           !state.change_warning.empty()) &&
+           state.warning_code != fingerprint_browser::kProxyWarningNone) &&
           GetColorProvider()) {
         const gfx::ImageSkia badge = gfx::CreateVectorIcon(
             vector_icons::kWarningIcon, 8,
@@ -343,7 +363,9 @@ std::u16string FingerprintProxyButton::GetStateTooltip() const {
   const fingerprint_browser::FingerprintProxyState state = service_->GetState();
   const std::u16string name =
       l10n_util::GetStringUTF16(IDS_FINGERPRINT_PROFILE_PROXY_TOOLBAR_NAME);
-  if (state.status_message.empty()) {
+  const std::u16string message = fingerprint_browser::GetProxyUiMessage(
+      state.status_code, state.net_error);
+  if (message.empty()) {
     if (state.state == fingerprint_browser::kProxyStateUnconfigured) {
       return base::StrCat(
           {name, u": ",
@@ -352,10 +374,11 @@ std::u16string FingerprintProxyButton::GetStateTooltip() const {
     }
     return name;
   }
-  std::u16string tooltip =
-      base::StrCat({name, u": ", base::UTF8ToUTF16(state.status_message)});
-  if (!state.change_warning.empty()) {
-    base::StrAppend(&tooltip, {u" ", base::UTF8ToUTF16(state.change_warning)});
+  std::u16string tooltip = base::StrCat({name, u": ", message});
+  if (state.warning_code != fingerprint_browser::kProxyWarningNone) {
+    base::StrAppend(
+        &tooltip,
+        {u" ", fingerprint_browser::GetProxyUiMessage(state.warning_code)});
   }
   return tooltip;
 }

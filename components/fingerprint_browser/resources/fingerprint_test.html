@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
-  <title>Fingerprint Test</title>
+  <title>指纹检测</title>
   <link rel="stylesheet" href="chrome://resources/css/text_defaults.css">
   <script src="chrome://resources/js/load_time_data_deprecated.js"></script>
   <script src="/strings.js"></script>
@@ -240,27 +240,28 @@
   <main>
     <header>
       <div>
-        <h1>Fingerprint test</h1>
-        <p>Compare this profile's assigned Persona with the most recently opened website.</p>
+        <h1>指纹检测</h1>
+        <p>比较当前用户配置文件的浏览器身份与最近打开的网站。</p>
       </div>
       <div class="actions">
-        <button id="refresh" type="button">Test last webpage</button>
-        <a class="button-link" href="brave://profile-picker">Create profile</a>
+        <button id="refresh" type="button">检测最近网页</button>
+        <a class="button-link" href="brave://profile-picker">创建用户配置文件</a>
+        <a class="button-link" href="brave://fingerprint-guide/">使用指南</a>
       </div>
     </header>
 
     <div class="summary" id="summary"></div>
 
     <section>
-      <h2>Verification</h2>
-      <div class="status" id="status" data-state="warn">Loading test data...</div>
+      <h2>检测结果</h2>
+      <div class="status" id="status" data-state="warn">正在加载检测数据...</div>
       <table>
         <thead>
           <tr>
-            <th>Field</th>
-            <th>Persona</th>
-            <th>Web page</th>
-            <th>Result</th>
+            <th>项目</th>
+            <th>浏览器身份</th>
+            <th>网页实际值</th>
+            <th>结果</th>
           </tr>
         </thead>
         <tbody id="comparison"></tbody>
@@ -268,12 +269,12 @@
     </section>
 
     <section>
-      <h2>Additional observed values</h2>
+      <h2>其他观测值</h2>
       <table>
         <thead>
           <tr>
-            <th>Field</th>
-            <th colspan="3">Web page value</th>
+            <th>项目</th>
+            <th colspan="3">网页实际值</th>
           </tr>
         </thead>
         <tbody id="observed"></tbody>

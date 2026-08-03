@@ -21,6 +21,11 @@ const PAGE_CASES = [
     url: 'https://www.wikipedia.org/',
   },
   { id: 'smoke-settings', name: 'settings', url: 'brave://settings/' },
+  {
+    id: 'smoke-fingerprint-guide',
+    name: 'fingerprint-guide',
+    url: 'brave://fingerprint-guide/',
+  },
 ]
 
 function fatalConsoleMessages(messages) {
@@ -44,8 +49,12 @@ export async function runSmoke({ config, dirs, probe, report, session }) {
         page,
         screenshot,
         url: item.url,
-        validateContrast: item.url.startsWith('brave://settings'),
-        validateLayout: item.url.startsWith('brave://settings'),
+        validateContrast:
+          item.url.startsWith('brave://settings')
+          || item.url.startsWith('brave://fingerprint-guide'),
+        validateLayout:
+          item.url.startsWith('brave://settings')
+          || item.url.startsWith('brave://fingerprint-guide'),
       })
       if (result.contrastFailures.length > 0) {
         throw Object.assign(

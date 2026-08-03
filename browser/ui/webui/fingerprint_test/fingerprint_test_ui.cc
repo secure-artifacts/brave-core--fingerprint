@@ -149,9 +149,8 @@ class FingerprintTestMessageHandler : public content::WebUIMessageHandler {
     content::WebContents* contents =
         FindLastWebPage(web_ui()->GetWebContents());
     if (!contents || !contents->GetPrimaryMainFrame()->IsRenderFrameLive()) {
-      ResolveJavascriptCallback(
-          callback_id,
-          base::Value(R"({"error":"Open a website in another tab first."})"));
+      ResolveJavascriptCallback(callback_id,
+                                base::Value(R"({"error":"no_web_page"})"));
       return;
     }
 
@@ -165,8 +164,7 @@ class FingerprintTestMessageHandler : public content::WebUIMessageHandler {
   void OnGotFingerprint(base::Value callback_id, base::Value result) {
     if (!result.is_string()) {
       ResolveJavascriptCallback(
-          callback_id,
-          base::Value(R"({"error":"The selected webpage did not respond."})"));
+          callback_id, base::Value(R"({"error":"page_unresponsive"})"));
       return;
     }
     ResolveJavascriptCallback(callback_id, std::move(result));

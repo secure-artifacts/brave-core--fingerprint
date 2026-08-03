@@ -1,5 +1,5 @@
 diff --git a/components/crash/core/browser/resources/crashes.ts b/components/crash/core/browser/resources/crashes.ts
-index 87a7170b4eb59cffb92e5a56ba9091c2809c4f95..7211100372248ea53dc29b75e66b30b70f11f674 100644
+index 87a7170b4eb59cffb92e5a56ba9091c2809c4f95..4ff19ba0155fa2c8445a114ec608d7d3df8e1ce0 100644
 --- a/components/crash/core/browser/resources/crashes.ts
 +++ b/components/crash/core/browser/resources/crashes.ts
 @@ -160,7 +160,7 @@ function updateCrashList({
@@ -11,20 +11,29 @@ index 87a7170b4eb59cffb92e5a56ba9091c2809c4f95..7211100372248ea53dc29b75e66b30b7
        } else {
          uploadIdValue.textContent = crash.id;
        }
-@@ -274,5 +274,16 @@ function toggleDevDetails(e: Event) {
+@@ -273,6 +273,25 @@ function toggleDevDetails(e: Event) {
+ 
  document.addEventListener('DOMContentLoaded', function() {
    addWebUiListener('update-crash-list', updateCrashList);
-+  const diagnosticsActions = getRequiredElement('localDiagnosticsActions');
-+  diagnosticsActions.hidden =
-+      !loadTimeData.getBoolean('diagnosticsExportAllowed');
-+  if (!diagnosticsActions.hidden) {
-+    getRequiredElement('exportDiagnostics').onclick = () => {
++  const diagnosticsExportAllowed =
++      loadTimeData.getBoolean('diagnosticsExportAllowed');
++  const exportDiagnostics = getRequiredElement('exportDiagnostics');
++  const openCrashFolder = getRequiredElement('openCrashFolder');
++  const crashFolderPath = getRequiredElement('crashFolderPath');
++  exportDiagnostics.hidden = !diagnosticsExportAllowed;
++  openCrashFolder.hidden = !diagnosticsExportAllowed;
++  crashFolderPath.hidden = !diagnosticsExportAllowed;
++  if (diagnosticsExportAllowed) {
++    exportDiagnostics.onclick = () => {
 +      window.location.href = 'brave://diagnostics/?scope=latest_incident';
 +    };
-+    getRequiredElement('openCrashFolder').onclick = () => {
++    openCrashFolder.onclick = () => {
 +      chrome.send('openCrashFolder');
 +    };
 +  }
++  getRequiredElement('fingerprintGuide').onclick = () => {
++    window.location.href = 'brave://fingerprint-guide/';
++  };
    getRequiredElement('uploadCrashes').onclick = requestCrashUpload;
    getRequiredElement('showDevDetails').onclick = toggleDevDetails;
    requestCrashes();

@@ -494,9 +494,9 @@ export async function runProfileLifecycle({ config, dirs, probe, runId }) {
       throw new Error(`Profile B Persona comparison failed: ${personaB.status}`)
     }
 
-    const idA = personaA.entries['Persona ID']
-    const restartedIdA = restartedPersonaA.entries['Persona ID']
-    const idB = personaB.entries['Persona ID']
+    const idA = personaA.entries['浏览器身份 ID']
+    const restartedIdA = restartedPersonaA.entries['浏览器身份 ID']
+    const idB = personaB.entries['浏览器身份 ID']
     if (!idA || idA !== restartedIdA) {
       throw new Error('Profile A Persona ID did not persist across restart')
     }
@@ -545,7 +545,7 @@ export async function runProfileLifecycle({ config, dirs, probe, runId }) {
       localStorage: localStorage.getItem('fp-qa-owner'),
     }))
     const recreatedPersonaA = await readPersona(recreatedPageA)
-    const recreatedIdA = recreatedPersonaA.entries['Persona ID']
+    const recreatedIdA = recreatedPersonaA.entries['浏览器身份 ID']
     if (
       recreatedPersonaA.state !== 'pass'
       || !recreatedIdA

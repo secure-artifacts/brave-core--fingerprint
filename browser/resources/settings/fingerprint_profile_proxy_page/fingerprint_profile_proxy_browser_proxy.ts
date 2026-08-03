@@ -18,6 +18,9 @@ export interface ProfileProxyGeo {
 
 export interface ProfileProxyState {
   state: string
+  statusCode: string
+  warningCode: string
+  netError: number
   statusMessage: string
   changeWarning: string
   enabled: boolean
@@ -43,6 +46,8 @@ export interface ProfileProxyDraft {
 export interface ProxyVerificationResult {
   success: boolean
   verificationId: string
+  errorCode: string
+  netError: number
   error: string
   egressIp: string
   geoProvider: string
@@ -51,6 +56,8 @@ export interface ProxyVerificationResult {
 
 export interface ProxyApplyResult {
   success: boolean
+  errorCode: string
+  netError: number
   error: string
 }
 
