@@ -17,7 +17,7 @@ export function usage() {
 Options:
   --app <path>              QA .app path
   --results-dir <path>      Parent results directory
-  --proxy-fixtures <path>   0600 JSON containing http and socks5 fixtures
+  --proxy-fixtures <path>   0600 JSON containing an HTTP proxy fixture
   --baseline-dir <path>     Approved screenshot baselines
   --duration-minutes <n>    Soak duration, default 60
   --keep-profile            Keep this run's temporary profiles

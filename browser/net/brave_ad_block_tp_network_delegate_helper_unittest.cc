@@ -350,7 +350,8 @@ TYPED_TEST(BraveAdBlockTPNetworkDelegateHelperTest,
   auto request_info = this->MakeRequest(url);
   request_info->set_request_identifier(1);
   request_info->set_resource_type(blink::mojom::ResourceType::kScript);
-  request_info->set_initiator_url(GURL("https://site.example"));
+  request_info->set_request_initiator(
+      url::Origin::Create(GURL("https://site.example")));
   request_info->set_browser_context(&profile);
 
   EXPECT_TRUE(this->CheckRequest(request_info));
@@ -367,7 +368,8 @@ TYPED_TEST(BraveAdBlockTPNetworkDelegateHelperTest,
   auto request_info = this->MakeRequest(url);
   request_info->set_request_identifier(1);
   request_info->set_resource_type(blink::mojom::ResourceType::kScript);
-  request_info->set_initiator_url(GURL("https://site.example"));
+  request_info->set_request_initiator(
+      url::Origin::Create(GURL("https://site.example")));
   request_info->set_browser_context(&profile);
 
   EXPECT_TRUE(this->CheckRequest(request_info));

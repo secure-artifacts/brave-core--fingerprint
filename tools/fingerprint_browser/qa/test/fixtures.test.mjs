@@ -24,7 +24,7 @@ function fixture() {
     timezone: 'America/New_York',
     username: 'qa',
   }
-  return { http: { ...base }, socks5: { ...base } }
+  return { http: { ...base } }
 }
 
 test('loadProxyFixtures requires explicit input', async () => {
@@ -41,24 +41,22 @@ test('loadProxyFixtures enforces 0600', async () => {
     const loaded = await loadProxyFixtures(file)
     assert.equal(loaded.status, 'PASS')
     assert.equal(loaded.http.scheme, 'http')
-    assert.equal(loaded.socks5.scheme, 'socks5')
   } finally {
     await fs.rm(directory, { recursive: true, force: true })
   }
 })
 
-test('loadProxyFixtures exposes available fixtures while blocking missing protocols', async () => {
+test('loadProxyFixtures requires the HTTP fixture', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-fixture-'))
   const file = path.join(directory, 'proxies.json')
   try {
-    await fs.writeFile(file, JSON.stringify({ http: fixture().http }), {
+    await fs.writeFile(file, JSON.stringify({}), {
       mode: 0o600,
     })
     const loaded = await loadProxyFixtures(file)
     assert.equal(loaded.status, 'BLOCKED')
-    assert.deepEqual(loaded.missing, ['socks5'])
-    assert.equal(loaded.http.scheme, 'http')
-    assert.equal(loaded.socks5, null)
+    assert.deepEqual(loaded.missing, ['http'])
+    assert.equal(loaded.http, null)
   } finally {
     await fs.rm(directory, { recursive: true, force: true })
   }

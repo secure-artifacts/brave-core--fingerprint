@@ -1,8 +1,12 @@
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import {spawn} from 'node:child_process'
+import { spawn } from 'node:child_process'
 
-import {contrastRatio} from './visual.mjs'
+import { contrastRatio } from './visual.mjs'
 import {
   findFreePort,
   listProcesses,
@@ -11,8 +15,13 @@ import {
   waitForJson,
 } from './system.mjs'
 
-async function launchProcess({app, args, env, logDir, name}) {
-  const executable = path.join(app, 'Contents', 'MacOS', 'Brave Browser Development')
+async function launchProcess({ app, args, env, logDir, name }) {
+  const executable = path.join(
+    app,
+    'Contents',
+    'MacOS',
+    'Brave Browser Development',
+  )
   const stdoutFile = path.join(logDir, `${name}-stdout.log`)
   const stderrFile = path.join(logDir, `${name}-stderr.log`)
   const [stdout, stderr] = await Promise.all([
@@ -21,12 +30,12 @@ async function launchProcess({app, args, env, logDir, name}) {
   ])
   const child = spawn(executable, args, {
     detached: false,
-    env: {...process.env, ...env},
+    env: { ...process.env, ...env },
     stdio: ['ignore', stdout.fd, stderr.fd],
   })
   const exit = new Promise((resolve, reject) => {
     child.once('error', reject)
-    child.once('exit', (code, signal) => resolve({code, signal}))
+    child.once('exit', (code, signal) => resolve({ code, signal }))
   })
   return {
     child,
@@ -42,7 +51,7 @@ function attachPageMonitor(page, events) {
     return
   }
   page.__fingerprintQaMonitored = true
-  page.on('console', message => {
+  page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
       events.console.push({
         location: message.location(),
@@ -52,12 +61,16 @@ function attachPageMonitor(page, events) {
       })
     }
   })
-  page.on('crash', () => events.crashes.push({page: page.url(), time: new Date().toISOString()}))
-  page.on('pageerror', error => events.pageErrors.push({
-    message: error.message,
-    page: page.url(),
-    stack: error.stack,
-  }))
+  page.on('crash', () =>
+    events.crashes.push({ page: page.url(), time: new Date().toISOString() }),
+  )
+  page.on('pageerror', (error) =>
+    events.pageErrors.push({
+      message: error.message,
+      page: page.url(),
+      stack: error.stack,
+    }),
+  )
 }
 
 function mergePreferenceTree(target, updates) {
@@ -84,7 +97,7 @@ export async function seedProfilePreferences(
 ) {
   const directory = path.join(profilePath, profileDirectory)
   const file = path.join(directory, 'Preferences')
-  await fs.mkdir(directory, {recursive: true})
+  await fs.mkdir(directory, { recursive: true })
   let preferences = {}
   try {
     preferences = JSON.parse(await fs.readFile(file, 'utf8'))
@@ -96,6 +109,7 @@ export async function seedProfilePreferences(
 }
 
 export function qaBrowserArgs({
+  disableDefaultApps = true,
   extraArgs = [],
   language = 'en-US',
   platform = process.platform,
@@ -111,7 +125,7 @@ export function qaBrowserArgs({
     '--remote-debugging-address=127.0.0.1',
     '--no-first-run',
     '--no-default-browser-check',
-    '--disable-default-apps',
+    ...(disableDefaultApps ? ['--disable-default-apps'] : []),
     '--disable-component-update',
     ...(language ? [`--lang=${language}`] : []),
     ...(testType ? ['--test-type'] : []),
@@ -124,6 +138,7 @@ export function qaBrowserArgs({
 
 export async function startQaSession({
   app,
+  disableDefaultApps = true,
   env = {},
   extraArgs = [],
   language = 'en-US',
@@ -134,8 +149,8 @@ export async function startQaSession({
   profilePreferences = null,
   testType = true,
 }) {
-  await fs.mkdir(profilePath, {recursive: true})
-  await fs.mkdir(logDir, {recursive: true})
+  await fs.mkdir(profilePath, { recursive: true })
+  await fs.mkdir(logDir, { recursive: true })
   await stopProfileProcesses(profilePath)
   if (profilePreferences) {
     await seedProfilePreferences(
@@ -146,6 +161,7 @@ export async function startQaSession({
   }
   const port = await findFreePort()
   const args = qaBrowserArgs({
+    disableDefaultApps,
     extraArgs,
     language,
     port,
@@ -153,13 +169,15 @@ export async function startQaSession({
     profilePath,
     testType,
   })
-  const process = await launchProcess({app, args, env, logDir, name})
+  const process = await launchProcess({ app, args, env, logDir, name })
   let version
   try {
     version = await Promise.race([
       waitForJson(`http://127.0.0.1:${port}/json/version`, 45000),
-      process.exit.then(result => {
-        throw new Error(`Brave exited before CDP connected: ${JSON.stringify(result)}`)
+      process.exit.then((result) => {
+        throw new Error(
+          `Brave exited before CDP connected: ${JSON.stringify(result)}`,
+        )
       }),
     ])
   } catch (error) {
@@ -172,7 +190,7 @@ export async function startQaSession({
   let browserSession
   let context
   try {
-    const {chromium} = await import('playwright-core')
+    const { chromium } = await import('playwright-core')
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
     browserSession = await browser.newBrowserCDPSession()
     context = browser.contexts()[0]
@@ -194,27 +212,30 @@ export async function startQaSession({
   }
   let closing = false
   process.exit.then(
-    result => {
+    (result) => {
       if (!closing) {
-        events.browserExits.push({...result, time: new Date().toISOString()})
+        events.browserExits.push({ ...result, time: new Date().toISOString() })
       }
     },
-    error => {
+    (error) => {
       if (!closing) {
-        events.browserExits.push({error: error.message, time: new Date().toISOString()})
+        events.browserExits.push({
+          error: error.message,
+          time: new Date().toISOString(),
+        })
       }
     },
   )
   browser.on('disconnected', () => {
     if (!closing) {
-      events.disconnected.push({time: new Date().toISOString()})
+      events.disconnected.push({ time: new Date().toISOString() })
     }
   })
   for (const page of context.pages()) {
-    await page.emulateMedia({colorScheme: null})
+    await page.emulateMedia({ colorScheme: null })
     attachPageMonitor(page, events)
   }
-  context.on('page', page => attachPageMonitor(page, events))
+  context.on('page', (page) => attachPageMonitor(page, events))
 
   return {
     browser,
@@ -231,13 +252,14 @@ export async function startQaSession({
       try {
         await browserSession.send('Browser.close')
       } catch {
+        // The process health check below handles an already closed CDP socket.
       }
       let exited = false
       await Promise.race([
         process.exit.then(() => {
           exited = true
         }),
-        new Promise(resolve => setTimeout(resolve, 5000)),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
       ])
       if (!exited) {
         await stopProfileProcesses(profilePath)
@@ -260,18 +282,22 @@ export async function startQaExtensionSession({
   profilePath,
   profileDirectory = 'Default',
 }) {
-  await fs.mkdir(profilePath, {recursive: true})
-  await fs.mkdir(logDir, {recursive: true})
+  await fs.mkdir(profilePath, { recursive: true })
+  await fs.mkdir(logDir, { recursive: true })
   await stopProfileProcesses(profilePath)
   const executablePath = path.join(
-    app, 'Contents', 'MacOS', 'Brave Browser Development')
+    app,
+    'Contents',
+    'MacOS',
+    'Brave Browser Development',
+  )
   const stdoutFile = path.join(logDir, `${name}-stdout.log`)
   const stderrFile = path.join(logDir, `${name}-stderr.log`)
   await Promise.all([
     fs.writeFile(stdoutFile, ''),
     fs.writeFile(stderrFile, ''),
   ])
-  const {chromium} = await import('playwright-core')
+  const { chromium } = await import('playwright-core')
   const context = await chromium.launchPersistentContext(profilePath, {
     args: [
       `--profile-directory=${profileDirectory}`,
@@ -286,7 +312,7 @@ export async function startQaExtensionSession({
       '--enable-logging',
       ...extraArgs,
     ],
-    env: {...process.env, ...env, CHROME_LOG_FILE: stderrFile},
+    env: { ...process.env, ...env, CHROME_LOG_FILE: stderrFile },
     executablePath,
     headless: false,
     ignoreDefaultArgs: [
@@ -307,35 +333,37 @@ export async function startQaExtensionSession({
   }
   let closing = false
   browser.on('disconnected', () => {
-    if (!closing) events.disconnected.push({time: new Date().toISOString()})
+    if (!closing) events.disconnected.push({ time: new Date().toISOString() })
   })
   for (const page of context.pages()) {
-    await page.emulateMedia({colorScheme: null})
+    await page.emulateMedia({ colorScheme: null })
     attachPageMonitor(page, events)
   }
-  context.on('page', page => attachPageMonitor(page, events))
+  context.on('page', (page) => attachPageMonitor(page, events))
   const version = await browserSession.send('Browser.getVersion')
   const processes = processesForProfile(await listProcesses(), profilePath)
-  const mainProcess = processes.find(item =>
-    !item.command.includes('Brave Browser Development Helper'))
+  const mainProcess = processes.find(
+    (item) => !item.command.includes('Brave Browser Development Helper'),
+  )
 
   return {
     browser,
     browserSession,
     context,
     events,
-    process: {child: {pid: mainProcess?.pid || null}},
+    process: { child: { pid: mainProcess?.pid || null } },
     profileDirectory,
     profilePath,
     version,
     async close() {
       closing = true
-      const disconnected = new Promise(resolve =>
-        browser.once('disconnected', resolve))
+      const disconnected = new Promise((resolve) =>
+        browser.once('disconnected', resolve),
+      )
       await browserSession.send('Browser.close').catch(() => {})
       await Promise.race([
         disconnected,
-        new Promise(resolve => setTimeout(resolve, 5000)),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
       ])
       await stopProfileProcesses(profilePath).catch(() => {})
       await context.close().catch(() => {})
@@ -357,7 +385,8 @@ async function visibleTextContrast(page) {
     }
     function parseColor(value) {
       const match = value.match(
-        /^rgba?\(\s*([\d.]+)[, ]+\s*([\d.]+)[, ]+\s*([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/)
+        /^rgba?\(\s*([\d.]+)[, ]+\s*([\d.]+)[, ]+\s*([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/,
+      )
       if (!match) return null
       return {
         a: match[4] === undefined ? 1 : Number(match[4]),
@@ -368,7 +397,7 @@ async function visibleTextContrast(page) {
     }
     function composite(top, bottom) {
       const alpha = top.a + bottom.a * (1 - top.a)
-      if (alpha === 0) return {a: 0, b: 0, g: 0, r: 0}
+      if (alpha === 0) return { a: 0, b: 0, g: 0, r: 0 }
       return {
         a: alpha,
         b: (top.b * top.a + bottom.b * bottom.a * (1 - top.a)) / alpha,
@@ -377,7 +406,7 @@ async function visibleTextContrast(page) {
       }
     }
     function background(element) {
-      let accumulated = {a: 0, b: 0, g: 0, r: 0}
+      let accumulated = { a: 0, b: 0, g: 0, r: 0 }
       let current = element
       while (current) {
         const layer = parseColor(getComputedStyle(current).backgroundColor)
@@ -386,47 +415,62 @@ async function visibleTextContrast(page) {
         current = current.parentElement || current.getRootNode()?.host || null
       }
       if (accumulated.a < 0.999) {
-        accumulated = composite(accumulated, {a: 1, b: 255, g: 255, r: 255})
+        accumulated = composite(accumulated, { a: 1, b: 255, g: 255, r: 255 })
       }
       return `rgb(${Math.round(accumulated.r)}, ${Math.round(accumulated.g)}, ${Math.round(accumulated.b)})`
     }
     function inactive(element) {
       let current = element
       while (current) {
-        if (current.matches?.(':disabled') || current.hasAttribute?.('disabled') ||
-            current.hasAttribute?.('inert') ||
-            current.getAttribute?.('aria-disabled') === 'true') {
+        if (
+          current.matches?.(':disabled')
+          || current.hasAttribute?.('disabled')
+          || current.hasAttribute?.('inert')
+          || current.getAttribute?.('aria-disabled') === 'true'
+        ) {
           return true
         }
         current = current.parentElement || current.getRootNode()?.host || null
       }
       return false
     }
-    return allElements(document.body).flatMap(element => {
+    return allElements(document.body).flatMap((element) => {
       const style = getComputedStyle(element)
       const rect = element.getBoundingClientRect()
       const text = [...element.childNodes]
-        .filter(node => node.nodeType === Node.TEXT_NODE)
-        .map(node => node.textContent.trim())
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent.trim())
         .filter(Boolean)
         .join(' ')
-      if (!text || inactive(element) || style.visibility === 'hidden' || style.display === 'none' ||
-          rect.width === 0 || rect.height === 0) {
+      if (
+        !text
+        || inactive(element)
+        || style.visibility === 'hidden'
+        || style.display === 'none'
+        || rect.width === 0
+        || rect.height === 0
+      ) {
         return []
       }
-      return [{
-        background: background(element),
-        color: style.color,
-        fontSize: style.fontSize,
-        selector: element.id ? `#${element.id}` : element.tagName.toLowerCase(),
-        text: text.slice(0, 100),
-      }]
+      return [
+        {
+          background: background(element),
+          color: style.color,
+          fontSize: style.fontSize,
+          selector: element.id
+            ? `#${element.id}`
+            : element.tagName.toLowerCase(),
+          text: text.slice(0, 100),
+        },
+      ]
     })
   })
-  return values.map(value => ({
-    ...value,
-    ratio: contrastRatio(value.color, value.background),
-  })).filter(value => value.ratio !== null && value.ratio < 4.5)
+  return values
+    .map((value) => ({
+      ...value,
+      ratio: contrastRatio(value.color, value.background),
+    }))
+    .filter((value) => value.ratio !== null && value.ratio < 4.5)
 }
 
 async function visibleComponentContrast(page) {
@@ -440,7 +484,8 @@ async function visibleComponentContrast(page) {
     }
     function parseColor(value) {
       const match = value.match(
-        /^rgba?\(\s*([\d.]+)[, ]+\s*([\d.]+)[, ]+\s*([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/)
+        /^rgba?\(\s*([\d.]+)[, ]+\s*([\d.]+)[, ]+\s*([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/,
+      )
       if (!match) return null
       return {
         a: match[4] === undefined ? 1 : Number(match[4]),
@@ -451,7 +496,7 @@ async function visibleComponentContrast(page) {
     }
     function composite(top, bottom) {
       const alpha = top.a + bottom.a * (1 - top.a)
-      if (alpha === 0) return {a: 0, b: 0, g: 0, r: 0}
+      if (alpha === 0) return { a: 0, b: 0, g: 0, r: 0 }
       return {
         a: alpha,
         b: (top.b * top.a + bottom.b * bottom.a * (1 - top.a)) / alpha,
@@ -460,7 +505,7 @@ async function visibleComponentContrast(page) {
       }
     }
     function background(element) {
-      let accumulated = {a: 0, b: 0, g: 0, r: 0}
+      let accumulated = { a: 0, b: 0, g: 0, r: 0 }
       let current = element.parentElement || element.getRootNode()?.host || null
       while (current) {
         const layer = parseColor(getComputedStyle(current).backgroundColor)
@@ -469,58 +514,80 @@ async function visibleComponentContrast(page) {
         current = current.parentElement || current.getRootNode()?.host || null
       }
       if (accumulated.a < 0.999) {
-        accumulated = composite(accumulated, {a: 1, b: 255, g: 255, r: 255})
+        accumulated = composite(accumulated, { a: 1, b: 255, g: 255, r: 255 })
       }
       return `rgb(${Math.round(accumulated.r)}, ${Math.round(accumulated.g)}, ${Math.round(accumulated.b)})`
     }
     function visible(element) {
       const style = getComputedStyle(element)
       const rect = element.getBoundingClientRect()
-      return style.display !== 'none' && style.visibility !== 'hidden' &&
-        Number(style.opacity) > 0 && rect.width > 0 && rect.height > 0
+      return (
+        style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && Number(style.opacity) > 0
+        && rect.width > 0
+        && rect.height > 0
+      )
     }
     function inactive(element) {
       let current = element
       while (current) {
-        if (current.matches?.(':disabled') || current.hasAttribute?.('disabled') ||
-            current.hasAttribute?.('inert') ||
-            current.getAttribute?.('aria-disabled') === 'true') {
+        if (
+          current.matches?.(':disabled')
+          || current.hasAttribute?.('disabled')
+          || current.hasAttribute?.('inert')
+          || current.getAttribute?.('aria-disabled') === 'true'
+        ) {
           return true
         }
         current = current.parentElement || current.getRootNode()?.host || null
       }
       return false
     }
-    return allElements(document.body).flatMap(element => {
+    return allElements(document.body).flatMap((element) => {
       if (!visible(element) || inactive(element)) return []
       const style = getComputedStyle(element)
       const selector = element.id
         ? `${element.tagName.toLowerCase()}#${element.id}`
         : element.tagName.toLowerCase()
       if (element.matches('path, svg, cr-icon, iron-icon')) {
-        const paint = style.stroke && style.stroke !== 'none'
-          ? style.stroke
-          : style.fill && style.fill !== 'none' ? style.fill : style.color
-        return [{background: background(element), color: paint, selector, type: 'icon'}]
+        const paint =
+          style.stroke && style.stroke !== 'none'
+            ? style.stroke
+            : style.fill && style.fill !== 'none'
+              ? style.fill
+              : style.color
+        return [
+          {
+            background: background(element),
+            color: paint,
+            selector,
+            type: 'icon',
+          },
+        ]
       }
       if (element.matches('button, cr-button, input, select, textarea')) {
         const borderWidth = Number.parseFloat(style.borderTopWidth)
         if (borderWidth > 0 && style.borderTopStyle !== 'none') {
-          return [{
-            background: background(element),
-            color: style.borderTopColor,
-            selector,
-            type: 'control-border',
-          }]
+          return [
+            {
+              background: background(element),
+              color: style.borderTopColor,
+              selector,
+              type: 'control-border',
+            },
+          ]
         }
       }
       return []
     })
   })
-  return values.map(value => ({
-    ...value,
-    ratio: contrastRatio(value.color, value.background),
-  })).filter(value => value.ratio !== null && value.ratio < 3)
+  return values
+    .map((value) => ({
+      ...value,
+      ratio: contrastRatio(value.color, value.background),
+    }))
+    .filter((value) => value.ratio !== null && value.ratio < 3)
 }
 
 async function layoutFailures(page) {
@@ -539,8 +606,13 @@ async function layoutFailures(page) {
     function visible(element) {
       const style = getComputedStyle(element)
       const rect = element.getBoundingClientRect()
-      return style.display !== 'none' && style.visibility !== 'hidden' &&
-        Number(style.opacity) > 0 && rect.width > 0 && rect.height > 0
+      return (
+        style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && Number(style.opacity) > 0
+        && rect.width > 0
+        && rect.height > 0
+      )
     }
     function composedContains(ancestor, node) {
       let current = node
@@ -564,13 +636,22 @@ async function layoutFailures(page) {
       if (!visible(element)) continue
       const style = getComputedStyle(element)
       const rect = element.getBoundingClientRect()
-      const isControl = element.matches([
-        'button', 'cr-button', 'cr-icon-button', 'cr-toggle', 'input',
-        'select', 'textarea', '[role="button"]', '[role="menuitem"]',
-        '[role="tab"]',
-      ].join(','))
+      const isControl = element.matches(
+        [
+          'button',
+          'cr-button',
+          'cr-icon-button',
+          'cr-toggle',
+          'input',
+          'select',
+          'textarea',
+          '[role="button"]',
+          '[role="menuitem"]',
+          '[role="tab"]',
+        ].join(','),
+      )
       if (isControl) {
-        controls.push({element, rect})
+        controls.push({ element, rect })
         const clippedWidth = element.scrollWidth > element.clientWidth + 2
         const clippedHeight = element.scrollHeight > element.clientHeight + 2
         if ((clippedWidth || clippedHeight) && style.overflow !== 'visible') {
@@ -585,16 +666,24 @@ async function layoutFailures(page) {
     }
     for (let leftIndex = 0; leftIndex < controls.length; leftIndex += 1) {
       const left = controls[leftIndex]
-      for (let rightIndex = leftIndex + 1; rightIndex < controls.length; rightIndex += 1) {
+      for (
+        let rightIndex = leftIndex + 1;
+        rightIndex < controls.length;
+        rightIndex += 1
+      ) {
         const right = controls[rightIndex]
-        if (composedContains(left.element, right.element) ||
-            composedContains(right.element, left.element)) {
+        if (
+          composedContains(left.element, right.element)
+          || composedContains(right.element, left.element)
+        ) {
           continue
         }
-        const overlapWidth = Math.min(left.rect.right, right.rect.right) -
-          Math.max(left.rect.left, right.rect.left)
-        const overlapHeight = Math.min(left.rect.bottom, right.rect.bottom) -
-          Math.max(left.rect.top, right.rect.top)
+        const overlapWidth =
+          Math.min(left.rect.right, right.rect.right)
+          - Math.max(left.rect.left, right.rect.left)
+        const overlapHeight =
+          Math.min(left.rect.bottom, right.rect.bottom)
+          - Math.max(left.rect.top, right.rect.top)
         if (overlapWidth > 2 && overlapHeight > 2) {
           issues.push({
             actual: `${Math.round(overlapWidth)}x${Math.round(overlapHeight)}`,
@@ -627,8 +716,11 @@ export async function navigateAndCapture({
   waitAfterMs = 1200,
 }) {
   const startedAt = Date.now()
-  await page.emulateMedia({colorScheme})
-  const response = await page.goto(url, {timeout: 45000, waitUntil: 'domcontentloaded'})
+  await page.emulateMedia({ colorScheme })
+  const response = await page.goto(url, {
+    timeout: 45000,
+    waitUntil: 'domcontentloaded',
+  })
   await page.waitForTimeout(waitAfterMs)
   const state = await page.evaluate(() => ({
     bodyText: (() => {
@@ -653,18 +745,24 @@ export async function navigateAndCapture({
   if (!allowHttpErrors && status !== null && status >= 400) {
     throw new Error(`${url} returned HTTP ${status}`)
   }
-  const loadedInternalPage = url.startsWith('brave://') && state.elementCount > 2
+  const loadedInternalPage =
+    url.startsWith('brave://') && state.elementCount > 2
   if (!state.bodyText.trim() && !loadedInternalPage) {
     throw new Error(`${url} rendered an empty body`)
   }
   if (/Aw, Snap!|Error code:\s*\d+/i.test(state.bodyText)) {
     throw new Error(`${url} rendered a crash page`)
   }
-  await fs.mkdir(path.dirname(screenshot), {recursive: true})
-  await page.screenshot({path: screenshot, fullPage: false})
-  const audit = validateContrast || validateLayout
-    ? await auditCurrentPage(page)
-    : {componentContrastFailures: [], contrastFailures: [], layoutFailures: []}
+  await fs.mkdir(path.dirname(screenshot), { recursive: true })
+  await page.screenshot({ path: screenshot, fullPage: false })
+  const audit =
+    validateContrast || validateLayout
+      ? await auditCurrentPage(page)
+      : {
+          componentContrastFailures: [],
+          contrastFailures: [],
+          layoutFailures: [],
+        }
   const contrastFailures = validateContrast ? audit.contrastFailures : []
   const componentContrastFailures = validateContrast
     ? audit.componentContrastFailures
@@ -678,7 +776,7 @@ export async function navigateAndCapture({
     finalUrl: page.url(),
     layoutFailures: geometryFailures,
     screenshot,
-    size: {height: state.height, width: state.width},
+    size: { height: state.height, width: state.width },
     status,
     title: state.title,
     url,

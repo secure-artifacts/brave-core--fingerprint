@@ -18,7 +18,7 @@ override 与 chromium_src 是冲突高发区；node 构建需 24.16.0；构建�
 **Goals:**
 
 - 每 Profile 一个稳定、自洽、真机存在的指纹身份（persona），覆盖 L1+L2+L3。
-- per-Profile 代理（HTTP/HTTPS/SOCKS5+认证）+ 验证后确认；按真实出口 IP 自动推导 geo；WebRTC 防漏；浏览器级国家状态入口。
+- per-Profile 代理（HTTP/HTTPS+认证）+ 验证后确认；按真实出口 IP 自动推导 geo；WebRTC 防漏；浏览器级国家状态入口。
 - 1 身份 = 1 Chromium Profile，可并发、存储隔离。
 - 最大化复用 Brave farbling 钩子与 Tor 代理链路。
 
@@ -28,6 +28,7 @@ override 与 chromium_src 是冲突高发区；node 构建需 24.16.0；构建�
   UA 自动一致。
 - GPU 精确渲染伪装（ANGLE/驱动层复现目标显卡真实输出）——v1 用持久噪声替代。
 - 养号拟人行为、批量 Profile 管理器、住宅代理采购（外部依赖）。
+- SOCKS5 产品支持。底层代码保留以减少上游同步风险，但 `FingerprintProxyService`、设置页和 QA 门禁均不启用。
 
 ## Decisions
 
@@ -96,7 +97,7 @@ vendor/renderer）另走 persona 真值。二者是两回事，都做。 *残余
 
 `chromium_src/chrome/browser/net/proxy_config_monitor.cc` 保持
 `profile->IsTor()` 严格优先，普通 Profile 再读取 `FingerprintProxyService`
-提供的 HTTP/HTTPS/SOCKS5 代理。策略或 `chrome.proxy`
+提供的 HTTP/HTTPS 代理。策略或 `chrome.proxy`
 扩展已控制代理时，本功能进入
 `conflict`，不静默覆盖。已启用代理若配置或 Keychain 解密失败，返回本地阻断代理，MUST
 NOT 临时 DIRECT。

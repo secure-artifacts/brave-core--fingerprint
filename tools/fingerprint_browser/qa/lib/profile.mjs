@@ -108,6 +108,31 @@ export async function waitForProfileProxyError(page, timeoutMs = 15000) {
   return await readProfileProxyState(page, false)
 }
 
+export async function waitForProfileProxyIdle(page, timeoutMs = 20000) {
+  await findProxyElement(page)
+  await page.waitForFunction(
+    () => {
+      function find(root) {
+        const direct = root.querySelector?.(
+          'settings-fingerprint-profile-proxy-subpage',
+        )
+        if (direct) return direct
+        for (const element of root.querySelectorAll?.('*') || []) {
+          if (element.shadowRoot) {
+            const nested = find(element.shadowRoot)
+            if (nested) return nested
+          }
+        }
+        return null
+      }
+      return find(document)?.state_ !== 'verifying'
+    },
+    null,
+    { timeout: timeoutMs },
+  )
+  return await readProfileProxyState(page, false)
+}
+
 export async function verifyProfileProxy(page, config) {
   await page.goto(PROFILE_PROXY_URL, {
     timeout: 30000,

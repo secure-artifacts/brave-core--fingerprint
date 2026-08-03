@@ -8,7 +8,7 @@
 
 ## 固定简体中文
 
-自研 UI 的 GRIT 源字符串直接使用简体中文，因此即使浏览器以 `en-US` 启动也显示中文。技术值如 HTTP、SOCKS5、WebRTC、UA-CH、WebGL、IP 和 IANA 时区保持原样。
+自研 UI 的 GRIT 源字符串直接使用简体中文，因此即使浏览器以 `en-US` 启动也显示中文。技术值如 HTTP、HTTPS、WebRTC、UA-CH、WebGL、IP 和 IANA 时区保持原样。
 
 指纹检测页的可见字符串全部由 `loadTimeData` 提供。诊断页、恢复提示和崩溃页自定义按钮继续复用 GRIT。诊断 ZIP 内的 README 改为简体中文，JSON schema、事件名和归档文件名保持不变。
 

@@ -1,10 +1,14 @@
-import {createHash} from 'node:crypto'
-import {createReadStream} from 'node:fs'
+// Copyright (c) 2026 The Brave Authors. All rights reserved.
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this file,
+// You can obtain one at https://mozilla.org/MPL/2.0/.
+import { createHash } from 'node:crypto'
+import { createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
-import {spawn} from 'node:child_process'
+import { spawn } from 'node:child_process'
 
 export async function pathExists(target) {
   try {
@@ -20,20 +24,22 @@ export async function run(command, args = [], options = {}) {
   return await new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
-      env: {...process.env, ...options.env},
+      env: { ...process.env, ...options.env },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     const stdout = []
     const stderr = []
     let timedOut = false
     let forceTimer = null
-    const timeoutTimer = options.timeoutMs ? setTimeout(() => {
-      timedOut = true
-      child.kill('SIGTERM')
-      forceTimer = setTimeout(() => child.kill('SIGKILL'), 5000)
-    }, options.timeoutMs) : null
-    child.stdout.on('data', chunk => stdout.push(chunk))
-    child.stderr.on('data', chunk => stderr.push(chunk))
+    const timeoutTimer = options.timeoutMs
+      ? setTimeout(() => {
+          timedOut = true
+          child.kill('SIGTERM')
+          forceTimer = setTimeout(() => child.kill('SIGKILL'), 5000)
+        }, options.timeoutMs)
+      : null
+    child.stdout.on('data', (chunk) => stdout.push(chunk))
+    child.stderr.on('data', (chunk) => stderr.push(chunk))
     child.on('error', reject)
     child.on('close', (code, signal) => {
       if (timeoutTimer) clearTimeout(timeoutTimer)
@@ -50,7 +56,8 @@ export async function run(command, args = [], options = {}) {
         const error = new Error(
           timedOut
             ? `${command} timed out after ${options.timeoutMs}ms`
-            : `${command} exited ${code}: ${result.stderr || result.stdout}`)
+            : `${command} exited ${code}: ${result.stderr || result.stdout}`,
+        )
         error.result = result
         reject(error)
         return
@@ -65,7 +72,7 @@ export async function sha256(file) {
     const hash = createHash('sha256')
     const input = createReadStream(file)
     input.on('error', reject)
-    input.on('data', chunk => hash.update(chunk))
+    input.on('data', (chunk) => hash.update(chunk))
     input.on('end', () => resolve(hash.digest('hex')))
   })
 }
@@ -92,7 +99,9 @@ export async function mapLimit(items, limit, operation) {
       results[index] = await operation(items[index], index)
     }
   }
-  await Promise.all(Array.from({length: Math.min(limit, items.length)}, worker))
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  )
   return results
 }
 
@@ -121,7 +130,7 @@ export async function waitForJson(url, timeoutMs = 30000) {
     } catch (error) {
       lastError = error
     }
-    await new Promise(resolve => setTimeout(resolve, 250))
+    await new Promise((resolve) => setTimeout(resolve, 250))
   }
   throw new Error(`Timed out waiting for ${url}: ${lastError}`)
 }
@@ -130,31 +139,35 @@ export async function listProcesses() {
   const result = await run('ps', ['-axo', 'pid=,ppid=,state=,rss=,command='], {
     check: true,
   })
-  return result.stdout.split('\n').flatMap(line => {
+  return result.stdout.split('\n').flatMap((line) => {
     const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s+(.+)$/)
     if (!match) {
       return []
     }
-    return [{
-      command: match[5],
-      pid: Number(match[1]),
-      ppid: Number(match[2]),
-      rssKb: Number(match[4]),
-      state: match[3],
-    }]
+    return [
+      {
+        command: match[5],
+        pid: Number(match[1]),
+        ppid: Number(match[2]),
+        rssKb: Number(match[4]),
+        state: match[3],
+      },
+    ]
   })
 }
 
 export function processesForProfile(processes, profilePath) {
-  const roots = processes.filter(process =>
-    process.command.includes('Brave Browser Development') &&
-    (() => {
-      const needle = `--user-data-dir=${profilePath}`
-      const index = process.command.indexOf(needle)
-      const next = process.command[index + needle.length]
-      return index >= 0 && (next === undefined || /\s/.test(next))
-    })())
-  const selected = new Set(roots.map(process => process.pid))
+  const roots = processes.filter(
+    (process) =>
+      process.command.includes('Brave Browser Development')
+      && (() => {
+        const needle = `--user-data-dir=${profilePath}`
+        const index = process.command.indexOf(needle)
+        const next = process.command[index + needle.length]
+        return index >= 0 && (next === undefined || /\s/.test(next))
+      })(),
+  )
+  const selected = new Set(roots.map((process) => process.pid))
   let changed = true
   while (changed) {
     changed = false
@@ -165,12 +178,12 @@ export function processesForProfile(processes, profilePath) {
       }
     }
   }
-  return processes.filter(process => selected.has(process.pid))
+  return processes.filter((process) => selected.has(process.pid))
 }
 
 export async function stopProfileProcesses(profilePath, timeoutMs = 5000) {
   const first = processesForProfile(await listProcesses(), profilePath)
-  const tracked = new Set(first.map(process => process.pid))
+  const tracked = new Set(first.map((process) => process.pid))
   for (const item of first) {
     try {
       process.kill(item.pid, 'SIGTERM')
@@ -184,11 +197,11 @@ export async function stopProfileProcesses(profilePath, timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs
   let remaining = first
   while (remaining.length > 0 && Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 200))
+    await new Promise((resolve) => setTimeout(resolve, 200))
     const processes = await listProcesses()
     const discovered = processesForProfile(processes, profilePath)
     for (const item of discovered) tracked.add(item.pid)
-    remaining = processes.filter(item => tracked.has(item.pid))
+    remaining = processes.filter((item) => tracked.has(item.pid))
   }
   for (const item of remaining) {
     try {
@@ -200,14 +213,14 @@ export async function stopProfileProcesses(profilePath, timeoutMs = 5000) {
     }
   }
   if (remaining.length > 0) {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
   }
   const processes = await listProcesses()
-  const residual = processes.filter(item => tracked.has(item.pid))
+  const residual = processes.filter((item) => tracked.has(item.pid))
   return {
-    forced: remaining.map(process => process.pid),
+    forced: remaining.map((process) => process.pid),
     residual,
-    stopped: first.map(process => process.pid),
+    stopped: first.map((process) => process.pid),
   }
 }
 
@@ -217,7 +230,9 @@ export async function stopAllQaProcesses() {
     if (!item.command.includes('Brave Browser Development')) {
       continue
     }
-    const match = item.command.match(/--user-data-dir=(?:"([^"]+)"|'([^']+)'|(\/tmp\/fingerprint-browser-[^\s]+))/)
+    const match = item.command.match(
+      /--user-data-dir=(?:"([^"]+)"|'([^']+)'|(\/tmp\/fingerprint-browser-[^\s]+))/,
+    )
     const profile = match?.[1] || match?.[2] || match?.[3]
     if (profile?.startsWith('/tmp/fingerprint-browser-')) {
       profiles.add(profile)
@@ -225,7 +240,7 @@ export async function stopAllQaProcesses() {
   }
   const results = []
   for (const profile of profiles) {
-    results.push({profile, ...await stopProfileProcesses(profile)})
+    results.push({ profile, ...(await stopProfileProcesses(profile)) })
   }
   return results
 }
@@ -236,11 +251,20 @@ async function snapshotReportsIn(directory, { extension, source, stage = '' }) {
   const reports = []
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(extension)) continue
-    if (source === 'native' && !entry.name.startsWith('Brave Browser Development'))
+    if (
+      source === 'native'
+      && !entry.name.startsWith('Brave Browser Development')
+    )
       continue
     const file = path.join(directory, entry.name)
     const stat = await fs.stat(file)
-    reports.push({ file, mtimeMs: stat.mtimeMs, size: stat.size, source, stage })
+    reports.push({
+      file,
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      source,
+      stage,
+    })
   }
   return reports
 }
@@ -250,17 +274,19 @@ export async function snapshotCrashReports(options = {}) {
   const diagnosticReportsDirectory =
     options.diagnosticReportsDirectory
     || path.join(homeDirectory, 'Library', 'Logs', 'DiagnosticReports')
-  const crashpadDirectories = options.crashpadDirectories || [
-    process.env.FP_QA_CRASHPAD_DIR,
-    path.join(
-      homeDirectory,
-      'Library',
-      'Application Support',
-      'BraveSoftware',
-      'Brave-Browser-Development',
-      'Crashpad',
-    ),
-  ].filter(Boolean)
+  const crashpadDirectories =
+    options.crashpadDirectories
+    || [
+      process.env.FP_QA_CRASHPAD_DIR,
+      path.join(
+        homeDirectory,
+        'Library',
+        'Application Support',
+        'BraveSoftware',
+        'Brave-Browser-Development',
+        'Crashpad',
+      ),
+    ].filter(Boolean)
 
   const reports = await snapshotReportsIn(diagnosticReportsDirectory, {
     extension: '.ips',
@@ -269,11 +295,11 @@ export async function snapshotCrashReports(options = {}) {
   for (const database of new Set(crashpadDirectories)) {
     for (const stage of ['pending', 'completed']) {
       reports.push(
-        ...await snapshotReportsIn(path.join(database, stage), {
+        ...(await snapshotReportsIn(path.join(database, stage), {
           extension: '.dmp',
           source: 'crashpad',
           stage,
-        }),
+        })),
       )
     }
   }
@@ -281,8 +307,8 @@ export async function snapshotCrashReports(options = {}) {
 }
 
 export function newCrashReports(before, after) {
-  const previous = new Map(before.map(report => [report.file, report]))
-  return after.filter(report => {
+  const previous = new Map(before.map((report) => [report.file, report]))
+  return after.filter((report) => {
     const old = previous.get(report.file)
     return !old || old.mtimeMs !== report.mtimeMs || old.size !== report.size
   })
@@ -307,13 +333,14 @@ export async function copyCrashReports(reports, destination) {
 export async function scanFatalLogs(directory) {
   if (!(await pathExists(directory))) return []
   const failures = []
-  for (const entry of await fs.readdir(directory, {withFileTypes: true})) {
-    if (!entry.isFile() || !/-(?:stderr|stdout)\.log$/.test(entry.name)) continue
+  for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+    if (!entry.isFile() || !/-(?:stderr|stdout)\.log$/.test(entry.name))
+      continue
     const file = path.join(directory, entry.name)
     const contents = await fs.readFile(file, 'utf8')
     for (const [index, line] of contents.split('\n').entries()) {
       if (/CHECK failed|\bFATAL\b|\bDYLD\b|Aw, Snap!/i.test(line)) {
-        failures.push({file, line: index + 1, text: line.slice(0, 1000)})
+        failures.push({ file, line: index + 1, text: line.slice(0, 1000) })
       }
     }
   }
@@ -329,12 +356,12 @@ function requirePid(pid) {
 
 export async function captureNativeScreenshot(target, pid) {
   requirePid(pid)
-  await fs.mkdir(path.dirname(target), {recursive: true})
+  await fs.mkdir(path.dirname(target), { recursive: true })
   await run('osascript', [
     '-e',
     `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
   ])
-  await new Promise(resolve => setTimeout(resolve, 300))
+  await new Promise((resolve) => setTimeout(resolve, 300))
   const program = `
 import AppKit
 import ApplicationServices
@@ -438,10 +465,10 @@ RunLoop.main.run()
 `
   let result
   for (let attempt = 1; attempt <= 3; attempt += 1) {
-    result = await run('swift', ['-e', program], {timeoutMs: 30000})
+    result = await run('swift', ['-e', program], { timeoutMs: 30000 })
     if (result.code === 0) return target
     if (attempt < 3) {
-      await new Promise(resolve => setTimeout(resolve, attempt * 500))
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500))
     }
   }
   throw new Error(`ScreenCaptureKit failed: ${result.stderr.trim()}`)
@@ -603,17 +630,24 @@ print("\\(point.x) \\(point.y)")
 `
   const result = await run('swift', ['-e', program])
   if (result.code !== 0) {
-    throw new Error(`Could not click native text ${expectedText}: ${result.stderr.trim()}`)
+    throw new Error(
+      `Could not click native text ${expectedText}: ${result.stderr.trim()}`,
+    )
   }
   return result.stdout.trim()
 }
 
 export async function clickNativeWindowOffset(xFromRight, yFromTop, pid) {
   requirePid(pid)
-  if (!Number.isFinite(xFromRight) || xFromRight < 0 ||
-      !Number.isFinite(yFromTop) || yFromTop < 0) {
+  if (
+    !Number.isFinite(xFromRight)
+    || xFromRight < 0
+    || !Number.isFinite(yFromTop)
+    || yFromTop < 0
+  ) {
     throw new Error(
-      `Valid QA window offsets are required, got ${xFromRight}, ${yFromTop}`)
+      `Valid QA window offsets are required, got ${xFromRight}, ${yFromTop}`,
+    )
   }
   const program = `
 import AppKit
@@ -698,23 +732,61 @@ let found = (request.results ?? []).contains { observation in
 }
 print(found ? "true" : "false")
 `
-  const result = await run('swift', ['-e', program], {check: true})
+  const result = await run('swift', ['-e', program], { check: true })
   return result.stdout.trim() === 'true'
 }
 
 export async function nativeShortcut(key, modifiers = [], pid) {
   requirePid(pid)
-  const modifierText = modifiers.length > 0
-    ? ` using {${modifiers.map(modifier => `${modifier} down`).join(', ')}}`
-    : ''
-  return await run('osascript', [
-    '-e',
-    `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
-    '-e',
-    'delay 0.2',
-    '-e',
-    `tell application "System Events" to keystroke "${key}"${modifierText}`,
-  ], {check: true})
+  const modifierText =
+    modifiers.length > 0
+      ? ` using {${modifiers.map((modifier) => `${modifier} down`).join(', ')}}`
+      : ''
+  return await run(
+    'osascript',
+    [
+      '-e',
+      `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
+      '-e',
+      'delay 0.2',
+      '-e',
+      `tell application "System Events" to keystroke "${key}"${modifierText}`,
+    ],
+    { check: true },
+  )
+}
+
+export async function nativeTypeText(value, pid) {
+  requirePid(pid)
+  if (typeof value !== 'string' || value.includes('\0')) {
+    throw new Error('Native text must be a string without null bytes')
+  }
+  return await run(
+    'osascript',
+    [
+      '-e',
+      'on run argv',
+      '-e',
+      'set expectedPid to item 1 of argv as integer',
+      '-e',
+      'set inputText to item 2 of argv',
+      '-e',
+      'tell application "System Events"',
+      '-e',
+      'set frontmost of first process whose unix id is expectedPid to true',
+      '-e',
+      'delay 0.2',
+      '-e',
+      'keystroke inputText',
+      '-e',
+      'end tell',
+      '-e',
+      'end run',
+      String(pid),
+      value,
+    ],
+    { check: true },
+  )
 }
 
 export async function nativeKeyCode(keyCode, pid) {
@@ -722,42 +794,58 @@ export async function nativeKeyCode(keyCode, pid) {
   if (!Number.isInteger(keyCode) || keyCode < 0) {
     throw new Error(`A valid macOS key code is required, got ${keyCode}`)
   }
-  return await run('osascript', [
-    '-e',
-    `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
-    '-e',
-    'delay 0.2',
-    '-e',
-    `tell application "System Events" to key code ${keyCode}`,
-  ], {check: true})
+  return await run(
+    'osascript',
+    [
+      '-e',
+      `tell application "System Events" to set frontmost of first process whose unix id is ${pid} to true`,
+      '-e',
+      'delay 0.2',
+      '-e',
+      `tell application "System Events" to key code ${keyCode}`,
+    ],
+    { check: true },
+  )
 }
 
 export async function setFrontWindowSize(width, height, pid) {
   requirePid(pid)
-  return await run('osascript', [
-    '-e',
-    `tell application "System Events" to tell first process whose unix id is ${pid}`,
-    '-e',
-    'set frontmost to true',
-    '-e',
-    `set size of front window to {${Math.round(width)}, ${Math.round(height)}}`,
-    '-e',
-    'end tell',
-  ], {check: true})
+  return await run(
+    'osascript',
+    [
+      '-e',
+      `tell application "System Events" to tell first process whose unix id is ${pid}`,
+      '-e',
+      'set frontmost to true',
+      '-e',
+      `set size of front window to {${Math.round(width)}, ${Math.round(height)}}`,
+      '-e',
+      'end tell',
+    ],
+    { check: true },
+  )
 }
 
 export async function setFrontWindowPosition(x, y, pid) {
   requirePid(pid)
-  return await run('osascript', [
-    '-e',
-    `tell application "System Events" to tell first process whose unix id is ${pid}`,
-    '-e',
-    `set position of front window to {${Math.round(x)}, ${Math.round(y)}}`,
-    '-e',
-    'end tell',
-  ], {check: true})
+  return await run(
+    'osascript',
+    [
+      '-e',
+      `tell application "System Events" to tell first process whose unix id is ${pid}`,
+      '-e',
+      `set position of front window to {${Math.round(x)}, ${Math.round(y)}}`,
+      '-e',
+      'end tell',
+    ],
+    { check: true },
+  )
 }
 
 export function safeRunId(date = new Date()) {
-  return date.toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')
+  return date
+    .toISOString()
+    .replace(/[:.]/g, '-')
+    .replace('T', '_')
+    .replace('Z', '')
 }

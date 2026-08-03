@@ -29,6 +29,9 @@ test('artifact source groups cover fingerprint browser compiled inputs', () => {
   ]) {
     assert.ok(SOURCE_GROUPS.braveResources.includes(source), source)
   }
+  assert.ok(
+    !SOURCE_GROUPS.scaledResources.includes('app/brave_settings_strings.grdp'),
+  )
 })
 
 function fakeSignedMachO(signature) {
