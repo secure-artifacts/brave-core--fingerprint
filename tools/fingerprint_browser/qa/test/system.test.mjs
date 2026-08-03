@@ -9,7 +9,10 @@ import path from 'node:path'
 import test from 'node:test'
 
 import {
+  assertNativeUiFocusRetained,
+  assertNativeUiIdle,
   copyCrashReports,
+  nativeUiFocusAllowed,
   newCrashReports,
   nativeTypeText,
   pngDimensions,
@@ -122,6 +125,36 @@ test('run terminates timed out commands', async () => {
 test('nativeTypeText rejects null bytes before invoking macOS automation', async () => {
   await assert.rejects(nativeTypeText('unsafe\0text', 1), /null bytes/)
 })
+
+test('native UI input is disabled unless explicitly authorized', async () => {
+  assert.equal(nativeUiFocusAllowed({}), false)
+  assert.equal(nativeUiFocusAllowed({ FP_QA_ALLOW_NATIVE_FOCUS: '1' }), true)
+  await assert.rejects(
+    nativeTypeText('safe text', 1, {}),
+    /native UI focus is disabled/,
+  )
+  await assert.rejects(
+    assertNativeUiIdle({ env: {} }),
+    /native UI focus is disabled/,
+  )
+  await assert.rejects(
+    assertNativeUiFocusRetained(1, {}),
+    /native UI focus is disabled/,
+  )
+})
+
+test(
+  'macOS native idle state is readable before foreground automation',
+  { skip: process.platform !== 'darwin' },
+  async () => {
+    const state = await assertNativeUiIdle({
+      env: { FP_QA_ALLOW_NATIVE_FOCUS: '1' },
+      minimumIdleSeconds: 0,
+    })
+    assert.ok(Number.isInteger(state.frontmostPid))
+    assert.ok(state.idleSeconds >= 0)
+  },
+)
 
 test('pngDimensions reads IHDR dimensions and rejects invalid files', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-png-'))

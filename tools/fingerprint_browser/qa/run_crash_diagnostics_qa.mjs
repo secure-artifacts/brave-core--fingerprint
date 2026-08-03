@@ -11,10 +11,13 @@ import { prepareAndVerifyArtifacts } from './lib/artifacts.mjs'
 import { navigateAndCapture, startQaSession } from './lib/browser.mjs'
 import { inspectDiagnosticsBundle } from './lib/diagnostics.mjs'
 import {
+  assertNativeUiFocusRetained,
+  beginNativeUiSession,
   captureNativeScreenshot,
   clickNativeText,
   clickNativeWindowOffset,
   copyCrashReports,
+  endNativeUiSession,
   nativeScreenshotHasText,
   newCrashReports,
   safeRunId,
@@ -176,6 +179,7 @@ async function capturePageMatrix(session, screenshotsDir) {
 async function captureHelpMenu(session, screenshotsDir, colorScheme) {
   const page = session.context.pages()[0] || (await session.context.newPage())
   await page.goto('brave://diagnostics/', { waitUntil: 'domcontentloaded' })
+  await assertNativeUiFocusRetained(session.process.child.pid)
   await page.bringToFront()
   await delay(500)
   const toolbar = path.join(
@@ -331,6 +335,7 @@ async function main() {
     console.log(usage())
     return
   }
+  process.env.FP_QA_ALLOW_NATIVE_FOCUS = config.allowNativeFocus ? '1' : '0'
   const runId = `${safeRunId()}-${process.pid}`
   const runDir = path.join(config.resultsDir, `crash-diagnostics-${runId}`)
   const logDir = path.join(runDir, 'logs')
@@ -358,8 +363,17 @@ async function main() {
     status: 'FAIL',
   }
   let session = null
+  let nativeSessionPid = null
   try {
     report.artifacts = await prepareAndVerifyArtifacts(config, async () => {})
+    if (!config.allowNativeFocus) {
+      throw Object.assign(
+        new Error(
+          'Crash diagnostics native QA requires --allow-native-focus; background mode never opens macOS dialogs',
+        ),
+        { blocked: true },
+      )
+    }
     const sessionOptions = {
       app: config.app,
       env: { BREAKPAD_DUMP_LOCATION: crashpadDir },
@@ -379,7 +393,9 @@ async function main() {
     await session.close().catch(() => {})
     session = await startQaSession({
       ...sessionOptions,
+      background: false,
       name: 'crash-relaunch-light',
+      nativeIdleSeconds: config.nativeIdleSeconds,
       profilePreferences: {
         brave: { dark_mode_migrated: true },
         browser: { theme: { color_scheme2: 1 } },
@@ -387,6 +403,10 @@ async function main() {
         selectfile: { last_directory: outputDir },
       },
     })
+    await beginNativeUiSession(session.process.child.pid, {
+      minimumIdleSeconds: config.nativeIdleSeconds,
+    })
+    nativeSessionPid = session.process.child.pid
     const recoveryScreenshots = await captureRecoveryUi(
       session,
       nativeScreenshotsDir,
@@ -401,12 +421,22 @@ async function main() {
       'light',
     )
     report.screenshots.push(...helpScreenshots)
+    const lightTransition = await endNativeUiSession(nativeSessionPid)
+    nativeSessionPid = null
+    if (!lightTransition.focusRetained) {
+      throw Object.assign(
+        new Error('Native UI paused because the user changed focus'),
+        { status: 'BLOCKED' },
+      )
+    }
     const darkBrowserCrash = await induceBrowserCrash(session, crashpadDir)
     report.crashes.push(...darkBrowserCrash.reports)
     await session.close().catch(() => {})
     session = await startQaSession({
       ...sessionOptions,
+      background: false,
       name: 'crash-relaunch-dark',
+      nativeIdleSeconds: 0,
       profilePreferences: {
         brave: { dark_mode_migrated: true },
         browser: { theme: { color_scheme2: 2 } },
@@ -414,6 +444,10 @@ async function main() {
         selectfile: { last_directory: outputDir },
       },
     })
+    await beginNativeUiSession(session.process.child.pid, {
+      minimumIdleSeconds: 0,
+    })
+    nativeSessionPid = session.process.child.pid
     report.screenshots.push(
       ...(await captureRecoveryUi(session, nativeScreenshotsDir, 'dark')),
     )
@@ -467,8 +501,13 @@ async function main() {
       message: error.message,
       stack: error.stack,
     }
-    process.exitCode = 1
+    report.status =
+      error.blocked || error.status === 'BLOCKED' ? 'BLOCKED' : 'FAIL'
+    process.exitCode = report.status === 'BLOCKED' ? 2 : 1
   } finally {
+    if (nativeSessionPid) {
+      await endNativeUiSession(nativeSessionPid).catch(() => {})
+    }
     await session?.close().catch(() => {})
     await stopProfileProcesses(profilePath).catch(() => {})
     if (report.crashes.length > 0 && !report.crashArtifacts) {

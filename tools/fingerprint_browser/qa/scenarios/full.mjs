@@ -26,9 +26,12 @@ import {
 } from '../lib/profile.mjs'
 import { runScenario } from '../lib/report.mjs'
 import {
+  assertNativeUiFocusRetained,
+  beginNativeUiSession,
   captureNativeScreenshot,
   clickNativeText,
   clickNativeWindowOffset,
+  endNativeUiSession,
   nativeScreenshotHasText,
   pngDimensions,
   run,
@@ -156,6 +159,7 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
   const events = []
   let session = await startQaSession({
     app: config.app,
+    background: config.background,
     language: null,
     logDir: dirs.logs,
     name: `proxy-${fixture.scheme}`,
@@ -249,16 +253,18 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
     if (!toolbarProbe?.ok()) {
       throw new Error(`${fixture.scheme} active toolbar probe failed`)
     }
-    await page.bringToFront()
-    await page.waitForTimeout(500)
-    const activeToolbarScreenshot = path.join(
-      dirs.native,
-      `full-proxy-${fixture.scheme}-active-toolbar.png`,
-    )
-    await captureNativeScreenshot(
-      activeToolbarScreenshot,
-      session.process.child.pid,
-    )
+    let activeToolbarScreenshot = null
+    if (!config.background) {
+      await page.waitForTimeout(500)
+      activeToolbarScreenshot = path.join(
+        dirs.native,
+        `full-proxy-${fixture.scheme}-active-toolbar.png`,
+      )
+      await captureNativeScreenshot(
+        activeToolbarScreenshot,
+        session.process.child.pid,
+      )
+    }
 
     const response = await page.goto(fixture.verifyUrl, {
       timeout: 60000,
@@ -360,6 +366,7 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
     await session.close()
     session = await startQaSession({
       app: config.app,
+      background: config.background,
       language: null,
       logDir: dirs.logs,
       name: `proxy-${fixture.scheme}-restart`,
@@ -490,7 +497,7 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
         activeScreenshot,
         activeToolbarScreenshot,
         authScreenshot,
-      ],
+      ].filter(Boolean),
       validation,
     }
   } finally {
@@ -734,28 +741,44 @@ export async function runUiMatrix({ config, dirs, probe, runId }) {
     ['crashes', 'brave://crashes/'],
   ]
   const screenshots = []
+  let nativeContinuationAllowed = false
   for (const theme of ['light', 'dark']) {
     const session = await startQaSession({
       app: config.app,
+      background: config.background,
       extraArgs: theme === 'dark' ? ['--force-dark-mode'] : [],
       logDir: dirs.logs,
       name: `ui-${theme}`,
+      nativeIdleSeconds: nativeContinuationAllowed
+        ? 0
+        : config.nativeIdleSeconds,
       profilePath: `/tmp/fingerprint-browser-${runId}/ui-${theme}`,
       profilePreferences: {
         brave: { dark_mode_migrated: true },
         browser: { theme: { color_scheme2: theme === 'dark' ? 2 : 1 } },
       },
     })
+    let nativeSessionStarted = false
     try {
+      if (config.allowNativeFocus) {
+        await beginNativeUiSession(session.process.child.pid, {
+          minimumIdleSeconds: nativeContinuationAllowed
+            ? 0
+            : config.nativeIdleSeconds,
+        })
+        nativeSessionStarted = true
+      }
       const page =
         session.context.pages()[0] || (await session.context.newPage())
       await page.emulateMedia({ colorScheme: theme })
       for (const size of sizes) {
-        await setFrontWindowSize(
-          size.width,
-          size.height,
-          session.process.child.pid,
-        )
+        if (config.allowNativeFocus) {
+          await setFrontWindowSize(
+            size.width,
+            size.height,
+            session.process.child.pid,
+          )
+        }
         await page.setViewportSize(size)
         for (const [name, url] of states) {
           let targetPage = page
@@ -811,13 +834,17 @@ export async function runUiMatrix({ config, dirs, probe, runId }) {
           }
           screenshots.push(pageScreenshot)
           if (
-            name === 'fingerprint'
-            || name === 'guide'
-            || name === 'diagnostics'
-            || name === 'crashes'
-            || name === 'settings'
-            || name === 'proxy'
+            config.allowNativeFocus
+            && (
+              name === 'fingerprint'
+              || name === 'guide'
+              || name === 'diagnostics'
+              || name === 'crashes'
+              || name === 'settings'
+              || name === 'proxy'
+            )
           ) {
+            await assertNativeUiFocusRetained(session.process.child.pid)
             await targetPage.bringToFront()
             await setFrontWindowSize(
               size.width,
@@ -900,26 +927,50 @@ export async function runUiMatrix({ config, dirs, probe, runId }) {
         }
       }
     } finally {
+      if (nativeSessionStarted) {
+        const result = await endNativeUiSession(session.process.child.pid)
+        nativeContinuationAllowed = result.focusRetained
+      }
       await session.close()
+      if (nativeSessionStarted && !nativeContinuationAllowed) {
+        throw Object.assign(
+          new Error('Native UI paused because the user changed focus'),
+          { status: 'BLOCKED' },
+        )
+      }
     }
   }
   return { screenshots }
 }
 
 export async function runProxyToolbarFlow({ config, dirs, runId }) {
+  if (!config.allowNativeFocus) {
+    return {
+      reason: 'Proxy toolbar native UI is deferred in background QA mode',
+      status: 'BLOCKED',
+    }
+  }
   const session = await startQaSession({
     app: config.app,
+    background: false,
     logDir: dirs.logs,
     name: 'proxy-toolbar',
+    nativeIdleSeconds: config.nativeIdleSeconds,
     profilePath: `/tmp/fingerprint-browser-${runId}/proxy-toolbar`,
     profilePreferences: {
       brave: { dark_mode_migrated: true },
       browser: { theme: { color_scheme2: 1 } },
     },
   })
+  let nativeSessionStarted = false
   try {
+    await beginNativeUiSession(session.process.child.pid, {
+      minimumIdleSeconds: config.nativeIdleSeconds,
+    })
+    nativeSessionStarted = true
     const page = session.context.pages()[0] || (await session.context.newPage())
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded' })
+    await assertNativeUiFocusRetained(session.process.child.pid)
     await page.bringToFront()
     await page.waitForTimeout(500)
 
@@ -991,6 +1042,7 @@ export async function runProxyToolbarFlow({ config, dirs, runId }) {
         },
       )
     }
+    await assertNativeUiFocusRetained(session.process.child.pid)
     await settingsPage.bringToFront()
     await settingsPage.waitForFunction(
       () => {
@@ -1037,6 +1089,9 @@ export async function runProxyToolbarFlow({ config, dirs, runId }) {
       url: settingsPage.url(),
     }
   } finally {
+    if (nativeSessionStarted) {
+      await endNativeUiSession(session.process.child.pid)
+    }
     await session.close()
   }
 }
@@ -1115,28 +1170,39 @@ export async function runFull({ config, dirs, probe, report, runId }) {
     await runScenario(
       report,
       'full-cws-primary-extension',
-      async () =>
-        await runWebStoreExtensionLifecycle({
+      async () => {
+        if (!config.allowNativeFocus) {
+          return {
+            reason:
+              'Primary Chrome Web Store confirmation is deferred in background QA mode',
+            status: 'BLOCKED',
+          }
+        }
+        return await runWebStoreExtensionLifecycle({
           config,
           dirs,
           extensionUrl: primaryUrl,
           label: 'primary',
           runId,
-        }),
+        })
+      },
     )
   }
-  await runScenario(
-    report,
-    'full-cws-google-translate',
-    async () =>
-      await runWebStoreExtensionLifecycle({
-        config,
-        dirs,
-        extensionUrl: GOOGLE_TRANSLATE_URL,
-        label: 'google-translate',
-        runId,
-      }),
-  )
+  await runScenario(report, 'full-cws-google-translate', async () => {
+    if (!config.allowNativeFocus) {
+      return {
+        reason: 'Chrome Web Store confirmation is deferred in background QA mode',
+        status: 'BLOCKED',
+      }
+    }
+    return await runWebStoreExtensionLifecycle({
+      config,
+      dirs,
+      extensionUrl: GOOGLE_TRANSLATE_URL,
+      label: 'google-translate',
+      runId,
+    })
+  })
 
   await runScenario(
     report,

@@ -9,7 +9,13 @@ import { navigateAndCapture } from '../lib/browser.mjs'
 import { collectProbe } from '../lib/profile.mjs'
 import { runScenario } from '../lib/report.mjs'
 import { analyzeScreenshot } from '../lib/visual.mjs'
-import { captureNativeScreenshot, nativeShortcut } from '../lib/system.mjs'
+import {
+  assertNativeUiFocusRetained,
+  beginNativeUiSession,
+  captureNativeScreenshot,
+  endNativeUiSession,
+  nativeShortcut,
+} from '../lib/system.mjs'
 
 const PAGE_CASES = [
   { id: 'smoke-new-tab', name: 'new-tab', url: 'brave://newtab/' },
@@ -163,6 +169,13 @@ export async function runSmoke({ config, dirs, probe, report, session }) {
     }
   })
 
+  let nativeSessionStarted = false
+  if (config.allowNativeFocus) {
+    await beginNativeUiSession(session.process.child.pid, {
+      minimumIdleSeconds: config.nativeIdleSeconds,
+    })
+    nativeSessionStarted = true
+  }
   await runScenario(report, 'smoke-navigation-and-tabs', async () => {
     await page.goto(`${probe.origin}/iframe.html?state=one`, {
       waitUntil: 'load',
@@ -185,8 +198,19 @@ export async function runSmoke({ config, dirs, probe, report, session }) {
     }
     const last = temporary.pop()
     const restoredUrl = last.url()
-    await last.bringToFront()
+    if (config.allowNativeFocus) {
+      await assertNativeUiFocusRetained(session.process.child.pid)
+      await last.bringToFront()
+    }
     await last.close()
+    if (!config.allowNativeFocus) {
+      for (const tab of temporary) await tab.close()
+      return {
+        iterations: 10,
+        openPages: session.context.pages().length,
+        tabRestoreDeferred: true,
+      }
+    }
     let restoredPage
     for (let attempt = 0; attempt < 2 && !restoredPage; attempt += 1) {
       const restoredPagePromise = session.context.waitForEvent('page', {
@@ -217,9 +241,16 @@ export async function runSmoke({ config, dirs, probe, report, session }) {
   })
 
   await runScenario(report, 'smoke-native-screenshot', async () => {
+    if (!config.allowNativeFocus) {
+      return {
+        deferred: true,
+        reason: 'Background QA does not create or focus a native browser window',
+      }
+    }
     if (!fingerprintPage || fingerprintPage.isClosed()) {
       throw new Error('Fingerprint evidence tab is unavailable')
     }
+    await assertNativeUiFocusRetained(session.process.child.pid)
     await fingerprintPage.bringToFront()
     await fingerprintPage.waitForTimeout(500)
     const screenshot = path.join(
@@ -240,6 +271,11 @@ export async function runSmoke({ config, dirs, probe, report, session }) {
     }
     return { screenshots: [screenshot], visual }
   })
+
+  if (nativeSessionStarted) {
+    await endNativeUiSession(session.process.child.pid)
+    nativeSessionStarted = false
+  }
 
   await runScenario(report, 'smoke-runtime-health', async () => {
     const processes = await session.processes()
@@ -270,5 +306,8 @@ export async function runSmoke({ config, dirs, probe, report, session }) {
     }
   })
 
+  if (nativeSessionStarted) {
+    await endNativeUiSession(session.process.child.pid)
+  }
   return { pageResults, visualResults }
 }

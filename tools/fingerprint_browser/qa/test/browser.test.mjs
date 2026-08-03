@@ -19,7 +19,20 @@ test('macOS QA sessions isolate Keychain access', () => {
   })
 
   assert.ok(args.includes('--use-mock-keychain'))
+  assert.ok(args.includes('--headless=new'))
   assert.equal(args.at(-1), 'about:blank')
+})
+
+test('foreground QA sessions require an explicit browser argument', () => {
+  const args = qaBrowserArgs({
+    background: false,
+    platform: 'darwin',
+    port: 9222,
+    profileDirectory: 'Default',
+    profilePath: '/tmp/fingerprint-browser-test',
+  })
+
+  assert.equal(args.includes('--headless=new'), false)
 })
 
 test('QA session custom arguments precede initial URL', () => {
