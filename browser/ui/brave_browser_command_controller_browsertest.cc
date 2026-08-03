@@ -267,6 +267,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
   EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_OPEN_GUEST_PROFILE));
   EXPECT_TRUE(
       command_controller->IsCommandEnabled(IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER));
+  EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_EXPORT_DIAGNOSTICS));
 
   EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_TOGGLE_SIDEBAR));
 
@@ -305,6 +306,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
   EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_OPEN_GUEST_PROFILE));
   EXPECT_TRUE(
       command_controller->IsCommandEnabled(IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER));
+  EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_EXPORT_DIAGNOSTICS));
 #if BUILDFLAG(ENABLE_AI_CHAT)
   EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_TOGGLE_AI_CHAT));
 #endif
@@ -338,6 +340,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
   EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_OPEN_GUEST_PROFILE));
   EXPECT_TRUE(
       command_controller->IsCommandEnabled(IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER));
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_EXPORT_DIAGNOSTICS));
 #if BUILDFLAG(ENABLE_AI_CHAT)
   EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_TOGGLE_AI_CHAT));
 #endif
@@ -373,6 +376,7 @@ IN_PROC_BROWSER_TEST_F(BraveBrowserCommandControllerTest,
   EXPECT_TRUE(command_controller->IsCommandEnabled(IDC_OPEN_GUEST_PROFILE));
   EXPECT_TRUE(
       command_controller->IsCommandEnabled(IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER));
+  EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_EXPORT_DIAGNOSTICS));
 #if BUILDFLAG(ENABLE_AI_CHAT)
   EXPECT_FALSE(command_controller->IsCommandEnabled(IDC_TOGGLE_AI_CHAT));
 #endif

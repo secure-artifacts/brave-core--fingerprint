@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/ui/views/session_crashed_bubble_view.cc b/chrome/browser/ui/views/session_crashed_bubble_view.cc
+index 39acca4406d7b..b20c3d902ec03 100644
+--- a/chrome/browser/ui/views/session_crashed_bubble_view.cc
++++ b/chrome/browser/ui/views/session_crashed_bubble_view.cc
+@@ -17,2 +17,4 @@
+ #include "base/scoped_observation.h"
++#include "brave/browser/ui/brave_pages.h"
++#include "brave/grit/brave_generated_resources.h"
+ #include "build/branding_buildflags.h"
+@@ -148 +150,7 @@ class SessionCrashedBubbleDelegate : public ui::DialogModelDelegate {
++  void ExportDiagnostics(BrowserWindowInterface* browser,
++                         const ui::Event& event) {
++    ignored_ = false;
++    brave::ShowDiagnostics(browser, true);
++  }
++
+   void MaybeEnableUma() {
+@@ -318 +326,7 @@ views::BubbleDialogDelegate* SessionCrashedBubbleView::ShowBubble(
++  dialog_builder.AddExtraButton(
++      base::BindRepeating(&SessionCrashedBubbleDelegate::ExportDiagnostics,
++                          base::Unretained(bubble_delegate), browser),
++      ui::DialogModel::Button::Params().SetLabel(
++          l10n_util::GetStringUTF16(IDS_EXPORT_DIAGNOSTICS)));
++
+   auto bubble = std::make_unique<views::BubbleDialogModelHost>(

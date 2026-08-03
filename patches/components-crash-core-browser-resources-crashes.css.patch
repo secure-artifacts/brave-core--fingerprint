@@ -1,0 +1,120 @@
+diff --git a/components/crash/core/browser/resources/crashes.css b/components/crash/core/browser/resources/crashes.css
+index ca1b00f755251..f578dd1d817a1 100644
+--- a/components/crash/core/browser/resources/crashes.css
++++ b/components/crash/core/browser/resources/crashes.css
+@@ -5,2 +5,4 @@
+ body {
++  background: var(--crashes-background);
++  color: var(--crashes-text);
+   margin: 20px;
+@@ -8,2 +10,62 @@ body {
+ 
++:root {
++  color-scheme: light dark;
++  --crashes-background: #fff;
++  --crashes-border: #80868b;
++  --crashes-link: #185abc;
++  --crashes-muted: #5f6368;
++  --crashes-surface: #f8f9fa;
++  --crashes-text: #202124;
++  --crashes-visited: #681da8;
++}
++
++@media (prefers-color-scheme: dark) {
++  :root {
++    --crashes-background: #202124;
++    --crashes-border: #9aa0a6;
++    --crashes-link: #8ab4f8;
++    --crashes-muted: #bdc1c6;
++    --crashes-surface: #292a2d;
++    --crashes-text: #e8eaed;
++    --crashes-visited: #c58af9;
++  }
++}
++
++button {
++  background: var(--crashes-surface);
++  border: 1px solid var(--crashes-border);
++  border-radius: 4px;
++  color: var(--crashes-link);
++  min-height: 32px;
++  padding: 5px 12px;
++}
++
++button:hover:not(:disabled) {
++  background:
++    color-mix(in srgb, var(--crashes-link) 10%, var(--crashes-surface));
++}
++
++button:focus-visible,
++#showDevDetails:focus-visible {
++  outline: 2px solid var(--crashes-link);
++  outline-offset: 2px;
++}
++
++#showDevDetails {
++  accent-color: var(--crashes-link);
++  appearance: none;
++  background: var(--crashes-surface);
++  border: 1px solid var(--crashes-border);
++  border-radius: 2px;
++  height: 14px;
++  margin: 0 4px 0 0;
++  vertical-align: -2px;
++  width: 14px;
++}
++
++#showDevDetails:checked {
++  background: var(--crashes-link);
++  box-shadow: inset 0 0 0 3px var(--crashes-surface);
++}
++
+ h1 {
+@@ -24,5 +86,19 @@ html[dir=rtl] h1 {
+ 
++#localDiagnosticsActions {
++  align-items: center;
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++  margin-bottom: 20px;
++}
++
++#crashFolderPath {
++  color: var(--crashes-muted);
++  flex-basis: 100%;
++  overflow-wrap: anywhere;
++}
++
+ #countBanner {
+-  background-color: rgb(235, 239, 250);
+-  border: 1px solid #bbb;
++  background-color: var(--crashes-surface);
++  border: 1px solid var(--crashes-border);
+   border-radius: 2px;
+@@ -46,3 +122,3 @@ html[dir=rtl] h1 {
+ #crashList a:visited {
+-  color: #666;
++  color: var(--crashes-visited);
+ }
+@@ -54,3 +130,3 @@ html[dir=rtl] h1 {
+ .crash-row:not(:last-child) {
+-  border-bottom: 1px solid #bbb;
++  border-bottom: 1px solid var(--crashes-border);
+ }
+@@ -74,3 +150,3 @@ html[dir=rtl] h1 {
+ #disabledMode h2 {
+-  color: rgb(141, 51, 42);
++  color: #b3261e;
+   font-size: 125%;
+@@ -79,3 +155,9 @@ html[dir=rtl] h1 {
+ .not-uploaded {
+-  color: #a0a0a0;
++  color: var(--crashes-muted);
++}
++
++@media (prefers-color-scheme: dark) {
++  #disabledMode h2 {
++    color: #f28b82;
++  }
+ }

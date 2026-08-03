@@ -8,6 +8,7 @@
   </outputs>
   <release seq="1">
     <includes>
+      <include name="IDR_DIAGNOSTICS_HTML" file="diagnostics.html" type="BINDATA" />
       <include name="IDR_FINGERPRINT_TEST_HTML" file="fingerprint_test.html" type="BINDATA" />
     </includes>
   </release>

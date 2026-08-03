@@ -12,6 +12,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "brave/app/vector_icons/vector_icons.h"
 #include "brave/browser/ui/color/brave_color_id.h"
+#include "brave/browser/ui/brave_pages.h"
 #include "brave/components/constants/pref_names.h"
 #include "brave/grit/brave_generated_resources.h"
 #include "chrome/browser/browser_process.h"
@@ -32,6 +33,7 @@
 #include "ui/color/color_provider.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/checkbox.h"
+#include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/styled_label.h"
@@ -67,6 +69,12 @@ void OpenSettingPage() {
   if (auto* browser = GetLastActiveBrowserWindowInterfaceWithAnyProfile()) {
     chrome::ShowSettingsSubPageForProfile(browser->GetProfile(),
                                           chrome::kPrivacySubPage);
+  }
+}
+
+void OpenDiagnosticsPage() {
+  if (auto* browser = GetLastActiveBrowserWindowInterfaceWithAnyProfile()) {
+    brave::ShowDiagnostics(browser, true);
   }
 }
 
@@ -175,6 +183,9 @@ void CrashReportPermissionAskDialogView::CreateChildViews(
   dont_ask_again_checkbox_ = contents->AddChildView(
       std::make_unique<views::Checkbox>(l10n_util::GetStringUTF16(
           IDS_CRASH_REPORT_PERMISSION_ASK_DIALOG_DONT_ASK_TEXT)));
+  contents->AddChildView(std::make_unique<views::MdTextButton>(
+      base::BindRepeating(&OpenDiagnosticsPage),
+      l10n_util::GetStringUTF16(IDS_EXPORT_DIAGNOSTICS)));
 
   // Construct footnote text area
   constexpr int kFootnoteVerticalPadding = 16;

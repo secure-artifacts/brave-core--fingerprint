@@ -265,6 +265,8 @@ void BraveBrowserCommandController::InitBraveCommandState() {
     }
   }
   UpdateCommandForWebcompatReporter();
+  UpdateCommandEnabled(IDC_EXPORT_DIAGNOSTICS,
+                       !is_guest_session && !browser_->profile()->IsTor());
 #if BUILDFLAG(ENABLE_TOR)
   UpdateCommandForTor();
 #endif
@@ -629,6 +631,9 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
       break;
     case IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER:
       brave::ShowWebcompatReporter(&*browser_);
+      break;
+    case IDC_EXPORT_DIAGNOSTICS:
+      brave::ShowDiagnostics(&*browser_);
       break;
 #if BUILDFLAG(ENABLE_TOR)
     case IDC_NEW_OFFTHERECORD_WINDOW_TOR:

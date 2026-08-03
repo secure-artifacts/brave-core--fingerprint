@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "smoke": "node run_qa.mjs --mode smoke",
+    "crash-diagnostics": "node run_crash_diagnostics_qa.mjs",
     "full": "node run_qa.mjs --mode full",
     "soak": "node run_qa.mjs --mode soak"
   },

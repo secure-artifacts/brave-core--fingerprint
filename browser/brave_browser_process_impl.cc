@@ -20,6 +20,7 @@
 #include "brave/browser/brave_stats/buildflags.h"
 #include "brave/browser/brave_stats/first_run_util.h"
 #include "brave/browser/component_updater/brave_component_updater_configurator.h"
+#include "brave/browser/fingerprint_browser/diagnostics/diagnostics_event_journal.h"
 #include "brave/browser/misc_metrics/process_misc_metrics.h"
 #include "brave/browser/net/brave_system_request_handler.h"
 #include "brave/browser/profiles/brave_profile_manager.h"
@@ -236,6 +237,16 @@ void BraveBrowserProcessImpl::Init() {
 void BraveBrowserProcessImpl::PreMainMessageLoopRun() {
   BrowserProcessImpl::PreMainMessageLoopRun();
 
+#if !BUILDFLAG(IS_ANDROID)
+  base::FilePath user_data_dir;
+  if (base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
+    fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
+        user_data_dir,
+        fingerprint_browser::diagnostics::DiagnosticsEventType::
+            kBrowserStarted);
+  }
+#endif
+
   // Upstream initializes network_time_tracker() at PreMainMessageLoopRun()
   // right above. We are ready to init NetworkTimeHelper now.
   brave_sync::NetworkTimeHelper::GetInstance()->SetNetworkTimeTracker(
@@ -245,6 +256,13 @@ void BraveBrowserProcessImpl::PreMainMessageLoopRun() {
 
 #if !BUILDFLAG(IS_ANDROID)
 void BraveBrowserProcessImpl::StartTearDown() {
+  base::FilePath user_data_dir;
+  if (base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {
+    fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
+        user_data_dir,
+        fingerprint_browser::diagnostics::DiagnosticsEventType::
+            kBrowserStopping);
+  }
 #if BUILDFLAG(ENABLE_BRAVE_ADS)
   brave_stats_helper_.reset();
 #endif  // BUILDFLAG(ENABLE_BRAVE_ADS)

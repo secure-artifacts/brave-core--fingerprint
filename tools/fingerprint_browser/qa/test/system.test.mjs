@@ -9,10 +9,13 @@ import path from 'node:path'
 import test from 'node:test'
 
 import {
+  copyCrashReports,
   newCrashReports,
+  nativeTypeText,
   pngDimensions,
   processesForProfile,
   run,
+  snapshotCrashReports,
 } from '../lib/system.mjs'
 import { contrastRatio } from '../lib/visual.mjs'
 
@@ -65,6 +68,43 @@ test('newCrashReports detects new and changed reports', () => {
   assert.deepEqual(newCrashReports(before, after), after)
 })
 
+test('snapshotCrashReports includes Crashpad pending and completed dumps', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-crashes-'))
+  try {
+    const native = path.join(directory, 'DiagnosticReports')
+    const crashpad = path.join(directory, 'Crashpad')
+    await fs.mkdir(native, { recursive: true })
+    await fs.mkdir(path.join(crashpad, 'pending'), { recursive: true })
+    await fs.mkdir(path.join(crashpad, 'completed'), { recursive: true })
+    await fs.writeFile(
+      path.join(native, 'Brave Browser Development-2026-08-02.ips'),
+      'ips',
+    )
+    await fs.writeFile(path.join(crashpad, 'pending', 'pending.dmp'), 'dmp')
+    await fs.writeFile(
+      path.join(crashpad, 'completed', 'completed.dmp'),
+      'dmp',
+    )
+
+    const reports = await snapshotCrashReports({
+      crashpadDirectories: [crashpad],
+      diagnosticReportsDirectory: native,
+    })
+    assert.deepEqual(
+      reports
+        .map(({ source, stage }) => `${source}:${stage}`)
+        .sort(),
+      ['crashpad:completed', 'crashpad:pending', 'native:'],
+    )
+
+    const copied = await copyCrashReports(reports, path.join(directory, 'out'))
+    assert.equal(copied.length, 3)
+    for (const file of copied) await fs.access(file)
+  } finally {
+    await fs.rm(directory, { recursive: true })
+  }
+})
+
 test('contrastRatio implements WCAG luminance ratio', () => {
   assert.equal(contrastRatio('rgb(0, 0, 0)', 'rgb(255, 255, 255)'), 21)
   assert.equal(
@@ -77,6 +117,10 @@ test('contrastRatio implements WCAG luminance ratio', () => {
 test('run terminates timed out commands', async () => {
   const result = await run('/bin/sleep', ['2'], { timeoutMs: 20 })
   assert.equal(result.timedOut, true)
+})
+
+test('nativeTypeText rejects null bytes before invoking macOS automation', async () => {
+  await assert.rejects(nativeTypeText('unsafe\0text', 1), /null bytes/)
 })
 
 test('pngDimensions reads IHDR dimensions and rejects invalid files', async () => {

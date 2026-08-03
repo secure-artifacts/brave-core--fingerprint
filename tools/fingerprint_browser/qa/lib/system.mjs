@@ -230,21 +230,52 @@ export async function stopAllQaProcesses() {
   return results
 }
 
-export async function snapshotCrashReports() {
-  const directory = path.join(os.homedir(), 'Library', 'Logs', 'DiagnosticReports')
-  if (!(await pathExists(directory))) {
-    return []
-  }
-  const entries = await fs.readdir(directory, {withFileTypes: true})
+async function snapshotReportsIn(directory, { extension, source, stage = '' }) {
+  if (!(await pathExists(directory))) return []
+  const entries = await fs.readdir(directory, { withFileTypes: true })
   const reports = []
   for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith('.ips') ||
-        !entry.name.startsWith('Brave Browser Development')) {
+    if (!entry.isFile() || !entry.name.endsWith(extension)) continue
+    if (source === 'native' && !entry.name.startsWith('Brave Browser Development'))
       continue
-    }
     const file = path.join(directory, entry.name)
     const stat = await fs.stat(file)
-    reports.push({file, mtimeMs: stat.mtimeMs, size: stat.size})
+    reports.push({ file, mtimeMs: stat.mtimeMs, size: stat.size, source, stage })
+  }
+  return reports
+}
+
+export async function snapshotCrashReports(options = {}) {
+  const homeDirectory = options.homeDirectory || os.homedir()
+  const diagnosticReportsDirectory =
+    options.diagnosticReportsDirectory
+    || path.join(homeDirectory, 'Library', 'Logs', 'DiagnosticReports')
+  const crashpadDirectories = options.crashpadDirectories || [
+    process.env.FP_QA_CRASHPAD_DIR,
+    path.join(
+      homeDirectory,
+      'Library',
+      'Application Support',
+      'BraveSoftware',
+      'Brave-Browser-Development',
+      'Crashpad',
+    ),
+  ].filter(Boolean)
+
+  const reports = await snapshotReportsIn(diagnosticReportsDirectory, {
+    extension: '.ips',
+    source: 'native',
+  })
+  for (const database of new Set(crashpadDirectories)) {
+    for (const stage of ['pending', 'completed']) {
+      reports.push(
+        ...await snapshotReportsIn(path.join(database, stage), {
+          extension: '.dmp',
+          source: 'crashpad',
+          stage,
+        }),
+      )
+    }
   }
   return reports.sort((left, right) => left.file.localeCompare(right.file))
 }
@@ -258,10 +289,15 @@ export function newCrashReports(before, after) {
 }
 
 export async function copyCrashReports(reports, destination) {
-  await fs.mkdir(destination, {recursive: true})
   const copied = []
   for (const report of reports) {
-    const target = path.join(destination, path.basename(report.file))
+    const target = path.join(
+      destination,
+      report.source || 'unknown',
+      report.stage || '',
+      path.basename(report.file),
+    )
+    await fs.mkdir(path.dirname(target), { recursive: true })
     await fs.copyFile(report.file, target)
     copied.push(target)
   }
@@ -301,6 +337,7 @@ export async function captureNativeScreenshot(target, pid) {
   await new Promise(resolve => setTimeout(resolve, 300))
   const program = `
 import AppKit
+import ApplicationServices
 import Darwin
 import ScreenCaptureKit
 
@@ -308,17 +345,65 @@ let expectedPid = pid_t(${pid})
 let target = ${JSON.stringify(target)}
 _ = NSApplication.shared
 
+func attribute(_ element: AXUIElement, _ name: CFString) -> AnyObject? {
+  var value: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(element, name, &value) == .success else {
+    return nil
+  }
+  return value
+}
+
+func focusedWindowFrame() -> CGRect? {
+  let application = AXUIElementCreateApplication(expectedPid)
+  guard let rawWindow =
+      attribute(application, kAXFocusedWindowAttribute as CFString) else {
+    return nil
+  }
+  let window = rawWindow as! AXUIElement
+  guard let rawPosition =
+          attribute(window, kAXPositionAttribute as CFString),
+        let rawSize = attribute(window, kAXSizeAttribute as CFString) else {
+    return nil
+  }
+  var position = CGPoint.zero
+  var size = CGSize.zero
+  guard AXValueGetValue(rawPosition as! AXValue, .cgPoint, &position),
+        AXValueGetValue(rawSize as! AXValue, .cgSize, &size) else {
+    return nil
+  }
+  return CGRect(origin: position, size: size)
+}
+
 Task {
   do {
     let content = try await SCShareableContent.excludingDesktopWindows(
       false, onScreenWindowsOnly: false)
     let candidates = content.windows.filter {
       $0.owningApplication?.processID == expectedPid &&
-        $0.windowLayer == 0 && $0.frame.width >= 640 && $0.frame.height >= 480
+        $0.isOnScreen && $0.windowLayer == 0 &&
+        $0.frame.width >= 640 && $0.frame.height >= 480
     }
-    guard let window = candidates.max(by: {
-      $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
-    }) else {
+    let window: SCWindow?
+    if let focusedFrame = focusedWindowFrame() {
+      window = candidates.min(by: { left, right in
+        let leftDistance =
+          abs(left.frame.minX - focusedFrame.minX) +
+          abs(left.frame.minY - focusedFrame.minY) +
+          abs(left.frame.width - focusedFrame.width) +
+          abs(left.frame.height - focusedFrame.height)
+        let rightDistance =
+          abs(right.frame.minX - focusedFrame.minX) +
+          abs(right.frame.minY - focusedFrame.minY) +
+          abs(right.frame.width - focusedFrame.width) +
+          abs(right.frame.height - focusedFrame.height)
+        return leftDistance < rightDistance
+      })
+    } else {
+      window = candidates.max(by: {
+        $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
+      })
+    }
+    guard let window else {
       fputs("Could not identify the main Brave QA window\\n", stderr)
       exit(2)
     }
@@ -390,29 +475,67 @@ func attribute(_ element: AXUIElement, _ name: CFString) -> AnyObject? {
   return value
 }
 
-func findButton(_ element: AXUIElement, _ expected: String) -> AXUIElement? {
+func findControl(_ element: AXUIElement, _ expected: String) -> AXUIElement? {
   let role = attribute(element, kAXRoleAttribute as CFString) as? String ?? ""
   let title = attribute(element, kAXTitleAttribute as CFString) as? String ?? ""
   let description =
     attribute(element, kAXDescriptionAttribute as CFString) as? String ?? ""
-  if role == kAXButtonRole as String &&
+  let actionableRoles = [
+    kAXButtonRole as String,
+    kAXMenuBarItemRole as String,
+    kAXMenuItemRole as String,
+    kAXPopUpButtonRole as String,
+  ]
+  if actionableRoles.contains(role) &&
       (normalized(title) == expected || normalized(description) == expected) {
     return element
   }
   let children =
     attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
   for child in children {
-    if let button = findButton(child, expected) { return button }
+    if let control = findControl(child, expected) { return control }
   }
   return nil
 }
 
 let normalizedExpected = normalized(expectedText)
 let application = AXUIElementCreateApplication(pid_t(expectedPid))
-if let button = findButton(application, normalizedExpected),
-    AXUIElementPerformAction(button, kAXPressAction as CFString) == .success {
-  print("AXPress")
-  exit(0)
+if let control = findControl(application, normalizedExpected) {
+  let role = attribute(control, kAXRoleAttribute as CFString) as? String ?? ""
+  if role == kAXPopUpButtonRole as String {
+    var positionValue: CFTypeRef?
+    var sizeValue: CFTypeRef?
+    var position = CGPoint.zero
+    var size = CGSize.zero
+    if AXUIElementCopyAttributeValue(
+          control, kAXPositionAttribute as CFString, &positionValue) == .success,
+        AXUIElementCopyAttributeValue(
+          control, kAXSizeAttribute as CFString, &sizeValue) == .success,
+        AXValueGetValue(positionValue as! AXValue, .cgPoint, &position),
+        AXValueGetValue(sizeValue as! AXValue, .cgSize, &size),
+        CGPreflightPostEventAccess() {
+      let point = CGPoint(x: position.x + size.width / 2,
+                          y: position.y + size.height / 2)
+      let source = CGEventSource(stateID: .hidSystemState)
+      CGEvent(mouseEventSource: source, mouseType: .mouseMoved,
+              mouseCursorPosition: point, mouseButton: .left)?
+        .post(tap: .cghidEventTap)
+      usleep(100_000)
+      CGEvent(mouseEventSource: source, mouseType: .leftMouseDown,
+              mouseCursorPosition: point, mouseButton: .left)?
+        .post(tap: .cghidEventTap)
+      CGEvent(mouseEventSource: source, mouseType: .leftMouseUp,
+              mouseCursorPosition: point, mouseButton: .left)?
+        .post(tap: .cghidEventTap)
+      print("AXCenter")
+      exit(0)
+    }
+  }
+  if AXUIElementPerformAction(
+      control, kAXPressAction as CFString) == .success {
+    print("AXPress")
+    exit(0)
+  }
 }
 
 guard let image = NSImage(contentsOfFile: imagePath),
@@ -569,7 +692,7 @@ try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
 let found = (request.results ?? []).contains { observation in
   guard let text = observation.topCandidates(1).first?.string else { return false }
   return text.lowercased().split(whereSeparator: { $0.isWhitespace })
-    .joined(separator: " ") == expected
+    .joined(separator: " ").contains(expected)
 }
 print(found ? "true" : "false")
 `

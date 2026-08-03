@@ -19,6 +19,8 @@ class GURL;
 namespace brave {
 
 void ShowBraveAdblock(BrowserWindowInterface* browser);
+void ShowDiagnostics(BrowserWindowInterface* browser,
+                     bool latest_incident = false);
 void ShowWebcompatReporter(BrowserWindowInterface* browser);
 void ShowBraveRewards(BrowserWindowInterface* browser);
 #if BUILDFLAG(ENABLE_BRAVE_WALLET)

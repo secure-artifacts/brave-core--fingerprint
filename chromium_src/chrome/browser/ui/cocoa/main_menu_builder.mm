@@ -33,11 +33,13 @@ constexpr int kShowSearchTools = IDC_SHOW_SEARCH_TOOLS;
       .remove_if(!BUILDFLAG(ENABLE_TOR)),           \
   Item(kReopenCloseTabsMacResourceId
 
-// Insert "Report Broken Site" in "Help" menu
+// Insert Brave support actions in the Help menu.
 #undef IDS_HELP_MAC
 #define IDS_HELP_MAC                                     \
   IDS_REPORT_BROKEN_SITE_MAC)                            \
         .command_id(IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER)); \
+  items.push_back(Item(IDS_EXPORT_DIAGNOSTICS)            \
+                          .command_id(IDC_EXPORT_DIAGNOSTICS)); \
   items.push_back(Item(kHelpMacResourceId
 
 #undef IDS_PASTE_MAC

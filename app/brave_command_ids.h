@@ -170,6 +170,7 @@
 // IDC_ADBLOCK_CONTEXT_BLOCK_ELEMENTS (a context-menu-only command), this is
 // acceleratable so users can assign it a custom keyboard shortcut.
 #define IDC_BLOCK_ELEMENTS 56470
+#define IDC_EXPORT_DIAGNOSTICS 56471
 
 #define IDC_BRAVE_COMMANDS_LAST 57000
 
