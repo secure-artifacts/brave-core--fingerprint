@@ -179,12 +179,20 @@ function errorText(value: unknown): string {
         : typeof value === 'string'
           ? value
           : ''
-  const readable = source
-    .replace(/^Error:\s*/i, '')
-    .replaceAll('_', ' ')
-    .replace(/:/g, ' ')
-    .trim()
-  return readable || loadTimeData.getString('diagnosticsUnknownError')
+  const errorCode = source.replace(/^Error:\s*/i, '').split(':', 1)[0]
+  const knownMessages: Record<string, string> = {
+    archive_size_limit_exceeded: '诊断包超过大小限制',
+    export_already_running: '另一个诊断导出任务正在运行',
+    forbidden_text_detected: '诊断信息脱敏检查未通过',
+    invalid_scope: '选择的时间范围无效',
+    profile_not_allowed: '当前用户配置文件不允许导出诊断信息',
+    profile_unavailable: '当前用户配置文件不可用',
+    save_dialog_unavailable: '无法打开文件保存窗口',
+  }
+  return (
+    knownMessages[errorCode]
+    || loadTimeData.getString('diagnosticsUnknownError')
+  )
 }
 
 function successMessage(result: DiagnosticsExportResult): string {

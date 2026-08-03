@@ -364,6 +364,9 @@
   <message name="IDS_IDC_SHOW_BRAVE_VPN_PANEL">
     Show Brave VPN panel
   </message>
+  <message name="IDS_IDC_SHOW_FINGERPRINT_GUIDE">
+    打开指纹浏览器使用指南
+  </message>
   <message name="IDS_IDC_TOGGLE_BRAVE_VPN_TOOLBAR_BUTTON">
     Toggle Brave VPN toolbar button
   </message>

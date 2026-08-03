@@ -1,31 +1,46 @@
 diff --git a/chrome/browser/ui/webui/crashes/crashes_ui.cc b/chrome/browser/ui/webui/crashes/crashes_ui.cc
-index 0274450183696..4b0d32edd3317 100644
+index 02744501836961db1c66c21ef433b0d68c718cd3..d883debb9126b24aca92adcfb48ded08db1edcd2 100644
 --- a/chrome/browser/ui/webui/crashes/crashes_ui.cc
 +++ b/chrome/browser/ui/webui/crashes/crashes_ui.cc
-@@ -12,3 +12,5 @@
+@@ -10,16 +10,20 @@
+ #include <string>
+ #include <utility>
  
 +#include "base/files/file_util.h"
  #include "base/functional/bind.h"
 +#include "base/functional/callback_helpers.h"
  #include "base/memory/ref_counted_memory.h"
-@@ -18,2 +20,3 @@
+ #include "base/memory/scoped_refptr.h"
+ #include "base/system/sys_info.h"
+ #include "base/values.h"
  #include "base/version_info/version_info.h"
 +#include "brave/grit/brave_generated_resources.h"
  #include "build/build_config.h"
-@@ -22,2 +25,3 @@
+ #include "chrome/browser/crash_upload_list/crash_upload_list.h"
+ #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
  #include "chrome/browser/metrics/metrics_reporting_state.h"
 +#include "chrome/browser/platform_util.h"
  #include "chrome/browser/profiles/profile.h"
-@@ -45,3 +49,4 @@
+ #include "chrome/browser/signin/identity_manager_factory.h"
+ #include "chrome/common/webui_url_constants.h"
+@@ -43,7 +47,8 @@
+ #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
+ #endif
  
 -#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 +#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
 +    BUILDFLAG(IS_CHROMEOS)
  #include "components/crash/core/app/crashpad.h"
-@@ -65,2 +70,10 @@ void CreateAndAddCrashesUIHTMLSource(Profile* profile) {
+ #endif
+ 
+@@ -63,6 +68,16 @@ void CreateAndAddCrashesUIHTMLSource(Profile* profile) {
+ 
+   source->AddLocalizedString(crash_reporter::kCrashesUIShortProductName,
                               IDS_SHORT_PRODUCT_NAME);
 +  source->AddLocalizedString("exportDiagnostics", IDS_EXPORT_DIAGNOSTICS);
 +  source->AddLocalizedString("openCrashFolder", IDS_OPEN_CRASH_FILE_LOCATION);
++  source->AddLocalizedString("fingerprintGuide",
++                             IDS_SHOW_FINGERPRINT_GUIDE);
 +  const auto crashpad_path = crash_reporter::GetCrashpadDatabasePath();
 +  source->AddString("crashFolderPath", crashpad_path
 +                                           ? crashpad_path->LossyDisplayName()
@@ -33,19 +48,31 @@ index 0274450183696..4b0d32edd3317 100644
 +  source->AddBoolean("diagnosticsExportAllowed",
 +                     !profile->IsGuestSession() && !profile->IsTor());
  
-@@ -107,2 +120,4 @@ class CrashesDOMHandler : public WebUIMessageHandler {
+   webui::SetupWebUIDataSource(source, kCrashesResources,
+                               IDR_CRASHES_CRASHES_HTML);
+@@ -105,6 +120,8 @@ class CrashesDOMHandler : public WebUIMessageHandler {
+   // Asynchronously requests a user triggered upload. Called from JS.
+   void HandleRequestSingleCrashUpload(const base::ListValue& args);
  
 +  void HandleOpenCrashFolder(const base::ListValue& args);
 +
    scoped_refptr<UploadList> upload_list_;
-@@ -139,2 +154,6 @@ void CrashesDOMHandler::RegisterMessages() {
+   bool list_available_ = false;
+   bool first_load_ = true;
+@@ -137,6 +154,10 @@ void CrashesDOMHandler::RegisterMessages() {
+       crash_reporter::kCrashesUIRequestSingleCrashUpload,
+       base::BindRepeating(&CrashesDOMHandler::HandleRequestSingleCrashUpload,
                            base::Unretained(this)));
 +  web_ui()->RegisterMessageCallback(
 +      "openCrashFolder",
 +      base::BindRepeating(&CrashesDOMHandler::HandleOpenCrashFolder,
 +                          base::Unretained(this)));
  }
-@@ -240,2 +259,15 @@ void CrashesDOMHandler::HandleRequestSingleCrashUpload(
+ 
+ void CrashesDOMHandler::OnJavascriptDisallowed() {
+@@ -238,6 +259,19 @@ void CrashesDOMHandler::HandleRequestSingleCrashUpload(
+   upload_list_->RequestSingleUploadAsync(local_id);
+ }
  
 +void CrashesDOMHandler::HandleOpenCrashFolder(const base::ListValue& args) {
 +#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -61,3 +88,5 @@ index 0274450183696..4b0d32edd3317 100644
 +}
 +
  }  // namespace
+ 
+ ///////////////////////////////////////////////////////////////////////////////

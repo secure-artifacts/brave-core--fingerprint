@@ -15,8 +15,8 @@ transpile_web_ui("fingerprint_test") {
       rebase_path("diagnostics.ts"),
     ],
     [
-        "fingerprint_test",
-        rebase_path("fingerprint_test.ts"),
+      "fingerprint_test",
+      rebase_path("fingerprint_test.ts"),
     ],
   ]
 

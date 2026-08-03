@@ -21,10 +21,7 @@ import {
   snapshotCrashReports,
   stopProfileProcesses,
 } from './lib/system.mjs'
-import {
-  analyzeScreenshot,
-  writeVisualReviewBundle,
-} from './lib/visual.mjs'
+import { analyzeScreenshot, writeVisualReviewBundle } from './lib/visual.mjs'
 
 const CRASH_URLS = {
   renderer: 'chrome://crash/',
@@ -60,10 +57,12 @@ async function induceChildCrash(session, type, crashpadDir) {
   if (type === 'renderer') {
     page = await session.context.newPage()
     const crashed = page.waitForEvent('crash', { timeout: 15000 })
-    await page.goto(CRASH_URLS.renderer, {
-      timeout: 10000,
-      waitUntil: 'commit',
-    }).catch(() => {})
+    await page
+      .goto(CRASH_URLS.renderer, {
+        timeout: 10000,
+        waitUntil: 'commit',
+      })
+      .catch(() => {})
     await crashed
   } else if (type === 'gpu') {
     await session.browserSession.send('Browser.crashGpuProcess')
@@ -77,11 +76,13 @@ async function induceChildCrash(session, type, crashpadDir) {
 
 async function induceBrowserCrash(session, crashpadDir) {
   const before = await crashSnapshot(crashpadDir)
-  const page = session.context.pages()[0] || await session.context.newPage()
+  const page = session.context.pages()[0] || (await session.context.newPage())
   await page.goto('brave://diagnostics/', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => {
-    globalThis.chrome.send('crashDiagnosticsForTesting')
-  }).catch(() => {})
+  await page
+    .evaluate(() => {
+      globalThis.chrome.send('crashDiagnosticsForTesting')
+    })
+    .catch(() => {})
   const exit = await Promise.race([
     session.process.exit,
     delay(15000).then(() => {
@@ -98,7 +99,7 @@ async function saveDiagnosticsBundle(
   screenshotsDir,
   screenshots,
 ) {
-  const page = session.context.pages()[0] || await session.context.newPage()
+  const page = session.context.pages()[0] || (await session.context.newPage())
   await page.goto('brave://diagnostics/?scope=latest_incident', {
     waitUntil: 'domcontentloaded',
   })
@@ -118,15 +119,17 @@ async function saveDiagnosticsBundle(
       screenshotsDir,
       'export-save-failure-native.png',
     )
-    await captureNativeScreenshot(
-      saveFailure,
-      session.process.child.pid,
-    ).then(() => screenshots.push(saveFailure)).catch(() => {})
+    await captureNativeScreenshot(saveFailure, session.process.child.pid)
+      .then(() => screenshots.push(saveFailure))
+      .catch(() => {})
     throw error
   }
   const archives = (await fs.readdir(outputDir))
-    .filter((name) => name.startsWith('Fingerprint-Browser-Diagnostics-') &&
-      name.endsWith('.zip'))
+    .filter(
+      (name) =>
+        name.startsWith('Fingerprint-Browser-Diagnostics-')
+        && name.endsWith('.zip'),
+    )
     .sort()
   if (archives.length !== 1) {
     throw new Error(`Expected one diagnostic archive, found ${archives.length}`)
@@ -137,10 +140,14 @@ async function saveDiagnosticsBundle(
 async function capturePageMatrix(session, screenshotsDir) {
   const screenshots = []
   const audits = []
-  const page = session.context.pages()[0] || await session.context.newPage()
+  const page = session.context.pages()[0] || (await session.context.newPage())
   for (const colorScheme of ['light', 'dark']) {
     await page.emulateMedia({ colorScheme })
-    for (const [width, height] of [[1024, 768], [1280, 800], [1512, 982]]) {
+    for (const [width, height] of [
+      [1024, 768],
+      [1280, 800],
+      [1512, 982],
+    ]) {
       await page.setViewportSize({ width, height })
       for (const [name, url] of [
         ['diagnostics', 'brave://diagnostics/'],
@@ -167,7 +174,7 @@ async function capturePageMatrix(session, screenshotsDir) {
 }
 
 async function captureHelpMenu(session, screenshotsDir, colorScheme) {
-  const page = session.context.pages()[0] || await session.context.newPage()
+  const page = session.context.pages()[0] || (await session.context.newPage())
   await page.goto('brave://diagnostics/', { waitUntil: 'domcontentloaded' })
   await page.bringToFront()
   await delay(500)
@@ -184,10 +191,7 @@ async function captureHelpMenu(session, screenshotsDir, colorScheme) {
     await clickNativeWindowOffset(30, 60, session.process.child.pid)
   })
   await delay(500)
-  const menu = path.join(
-    screenshotsDir,
-    `help-menu-${colorScheme}-native.png`,
-  )
+  const menu = path.join(screenshotsDir, `help-menu-${colorScheme}-native.png`)
   await captureNativeScreenshot(menu, session.process.child.pid)
   if (!(await nativeScreenshotHasText(menu, 'Help'))) {
     throw new Error('Brave app menu did not expose Help')
@@ -199,8 +203,8 @@ async function captureHelpMenu(session, screenshotsDir, colorScheme) {
     `help-submenu-${colorScheme}-native.png`,
   )
   await captureNativeScreenshot(submenu, session.process.child.pid)
-  if (!(await nativeScreenshotHasText(submenu, 'Export diagnostic information'))) {
-    throw new Error('Help menu did not expose Export diagnostic information')
+  if (!(await nativeScreenshotHasText(submenu, '导出诊断信息'))) {
+    throw new Error('帮助菜单未显示“导出诊断信息”')
   }
   return [toolbar, menu, submenu]
 }
@@ -214,10 +218,7 @@ async function captureRecoveryUi(session, screenshotsDir, colorScheme) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     await delay(500)
     await captureNativeScreenshot(initial, session.process.child.pid)
-    initialReady = await nativeScreenshotHasText(
-      initial,
-      'Export diagnostic information',
-    )
+    initialReady = await nativeScreenshotHasText(initial, '导出诊断信息')
     if (initialReady) break
   }
   if (!initialReady) {
@@ -242,11 +243,8 @@ async function captureRecoveryUi(session, screenshotsDir, colorScheme) {
     await delay(500)
     await captureNativeScreenshot(recovery, session.process.child.pid)
     recoveryReady =
-      await nativeScreenshotHasText(recovery, 'Restore pages?')
-      && await nativeScreenshotHasText(
-        recovery,
-        'Export diagnostic information',
-      )
+      (await nativeScreenshotHasText(recovery, 'Restore pages?'))
+      && (await nativeScreenshotHasText(recovery, '导出诊断信息'))
     if (recoveryReady) break
   }
   if (!recoveryReady) {
@@ -270,13 +268,19 @@ async function analyzeVisuals({
     ['native', nativeScreenshots],
   ]) {
     for (const actual of screenshots) {
-      analyses.push(await analyzeScreenshot({
-        actual,
-        baselineDir,
-        baselineKey: path.join('crash-diagnostics', kind, path.basename(actual)),
-        checkRed: true,
-        diffDir,
-      }))
+      analyses.push(
+        await analyzeScreenshot({
+          actual,
+          baselineDir,
+          baselineKey: path.join(
+            'crash-diagnostics',
+            kind,
+            path.basename(actual),
+          ),
+          checkRed: true,
+          diffDir,
+        }),
+      )
     }
   }
   const pageFailures = pageAudits.filter(
@@ -297,9 +301,8 @@ async function analyzeVisuals({
     pageAudits,
     pageFailures,
     review,
-    status: imageFailures.length === 0 && pageFailures.length === 0
-      ? 'PASS'
-      : 'FAIL',
+    status:
+      imageFailures.length === 0 && pageFailures.length === 0 ? 'PASS' : 'FAIL',
   }
 }
 
@@ -365,8 +368,12 @@ async function main() {
       profilePath,
     }
     session = await startQaSession({ ...sessionOptions, name: 'crash-child' })
-    report.crashes.push(...await induceChildCrash(session, 'renderer', crashpadDir))
-    report.crashes.push(...await induceChildCrash(session, 'gpu', crashpadDir))
+    report.crashes.push(
+      ...(await induceChildCrash(session, 'renderer', crashpadDir)),
+    )
+    report.crashes.push(
+      ...(await induceChildCrash(session, 'gpu', crashpadDir)),
+    )
     const browserCrash = await induceBrowserCrash(session, crashpadDir)
     report.crashes.push(...browserCrash.reports)
     await session.close().catch(() => {})
@@ -407,16 +414,12 @@ async function main() {
         selectfile: { last_directory: outputDir },
       },
     })
-    report.screenshots.push(...await captureRecoveryUi(
-      session,
-      nativeScreenshotsDir,
-      'dark',
-    ))
-    report.screenshots.push(...await captureHelpMenu(
-      session,
-      nativeScreenshotsDir,
-      'dark',
-    ))
+    report.screenshots.push(
+      ...(await captureRecoveryUi(session, nativeScreenshotsDir, 'dark')),
+    )
+    report.screenshots.push(
+      ...(await captureHelpMenu(session, nativeScreenshotsDir, 'dark')),
+    )
     report.bundle = await saveDiagnosticsBundle(
       session,
       outputDir,

@@ -66,7 +66,7 @@ const refresh = document.querySelector<HTMLButtonElement>('#refresh')!
 
 function valueText(value: unknown): string {
   if (value === null || value === undefined || value === '') {
-    return 'Not available'
+    return '不可用'
   }
   if (typeof value === 'object') {
     return JSON.stringify(value)
@@ -109,7 +109,7 @@ async function readActualFingerprint(): Promise<WebPageFingerprintResponse> {
     await sendWithPromise<string>('getLastWebPageFingerprint'),
   ) as WebPageFingerprintResponse
   if (response.error || !response.fingerprint || !response.url) {
-    throw new Error(response.error || 'No webpage fingerprint was returned.')
+    throw new Error('fingerprint_unavailable')
   }
   return response
 }
@@ -119,7 +119,7 @@ function readPersona(): Persona {
     'fingerprintTestPersona',
   )
   if (!persona) {
-    throw new Error('Persona is unavailable.')
+    throw new Error('persona_unavailable')
   }
   return JSON.parse(persona) as Persona
 }
@@ -150,11 +150,7 @@ function addComparisonRow(label: string, expected: unknown, actual: unknown) {
   const isAvailable = actual !== null && actual !== undefined && actual !== ''
   const isMatch = isAvailable && valuesEqual(expected, actual)
   resultCell.dataset.state = isAvailable ? (isMatch ? 'pass' : 'fail') : 'na'
-  resultCell.textContent = isAvailable
-    ? isMatch
-      ? 'Match'
-      : 'Different'
-    : 'Unavailable'
+  resultCell.textContent = isAvailable ? (isMatch ? '匹配' : '不同') : '不可用'
   row.append(labelCell, expectedCell, actualCell, resultCell)
   comparison.append(row)
   return isMatch
@@ -174,7 +170,7 @@ function addObservedRow(label: string, value: unknown) {
 async function load() {
   refresh.disabled = true
   status.dataset.state = 'warn'
-  status.textContent = 'Loading test data...'
+  status.textContent = '正在加载检测数据...'
   summary.replaceChildren()
   comparison.replaceChildren()
   observed.replaceChildren()
@@ -184,46 +180,47 @@ async function load() {
     const actual = response.fingerprint!
     const persona = readPersona()
 
-    addSummary('Profile', persona.profile)
-    addSummary('Persona ID', persona.personaId)
-    addSummary('Persona OS', persona.os)
-    addSummary('Tested web page', response.url)
+    addSummary('用户配置文件', persona.profile)
+    addSummary('浏览器身份 ID', persona.personaId)
+    addSummary('浏览器身份系统', persona.os)
+    addSummary('已检测网页', response.url)
 
     const matched = [
-      addComparisonRow('User agent', persona.userAgent, actual.userAgent),
-      addComparisonRow('Navigator platform', persona.platform, actual.platform),
-      addComparisonRow('UA-CH platform', persona.uaPlatform, actual.uaPlatform),
+      addComparisonRow('User-Agent', persona.userAgent, actual.userAgent),
+      addComparisonRow('Navigator 平台', persona.platform, actual.platform),
+      addComparisonRow('UA-CH 平台', persona.uaPlatform, actual.uaPlatform),
       addComparisonRow(
-        'Hardware concurrency',
+        '硬件并发数',
         persona.hardwareConcurrency,
         actual.hardwareConcurrency,
       ),
       addComparisonRow(
-        'Device memory (GB)',
+        '设备内存（GB）',
         persona.deviceMemory,
         actual.deviceMemory,
       ),
       addComparisonRow(
-        'Max touch points',
+        '最大触控点数',
         persona.maxTouchPoints,
         actual.maxTouchPoints,
       ),
-      addComparisonRow('Languages', persona.languages, actual.languages),
-      addComparisonRow('Screen', persona.screen, actual.screen),
+      addComparisonRow('语言', persona.languages, actual.languages),
+      addComparisonRow('屏幕', persona.screen, actual.screen),
       addComparisonRow('WebGL', persona.webgl, actual.webgl),
     ]
 
     const matchCount = matched.filter(Boolean).length
     status.dataset.state = matchCount === matched.length ? 'pass' : 'fail'
-    status.textContent = `${matchCount} of ${matched.length} values match this profile's Persona.`
+    status.textContent = `${matched.length} 项中有 ${matchCount} 项与当前浏览器身份匹配。`
 
-    addObservedRow('Page time zone', actual.timezone)
+    addObservedRow('网页时区', actual.timezone)
     addObservedRow('User-Agent Client Hints', actual.uaData)
-    addObservedRow('WebGL raw value', actual.webgl)
-    addObservedRow('Screen color depth', actual.screen.colorDepth)
-  } catch (error) {
+    addObservedRow('WebGL 原始值', actual.webgl)
+    addObservedRow('屏幕色深', actual.screen.colorDepth)
+  } catch {
     status.dataset.state = 'fail'
-    status.textContent = `Could not load fingerprint data: ${String(error)}`
+    status.textContent =
+      '无法读取指纹数据。请先在另一个标签页打开普通网站，然后重试。'
   } finally {
     refresh.disabled = false
   }

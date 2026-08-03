@@ -546,6 +546,7 @@ guard let image = NSImage(contentsOfFile: imagePath),
 
 let request = VNRecognizeTextRequest()
 request.recognitionLevel = .accurate
+request.recognitionLanguages = ["zh-Hans", "en-US"]
 request.usesLanguageCorrection = false
 try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
 
@@ -687,6 +688,7 @@ let expected = ${JSON.stringify(expectedText)}.lowercased()
   .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
 let request = VNRecognizeTextRequest()
 request.recognitionLevel = .accurate
+request.recognitionLanguages = ["zh-Hans", "en-US"]
 request.usesLanguageCorrection = false
 try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
 let found = (request.results ?? []).contains { observation in

@@ -351,10 +351,9 @@ DiagnosticsExportResult BuildDiagnosticsBundle(
   }
 
   constexpr std::string_view kReadme =
-      "This archive was created locally and was not uploaded. Minidumps may "
-      "contain fragments of process memory. Send this archive only to a "
-      "trusted developer. Proxy credentials, cookies, history, and raw "
-      "profile preferences are intentionally excluded.\n";
+      "此诊断包在本地创建，不会自动上传。崩溃转储可能包含进程内存片段，"
+      "请仅发送给您信任的技术支持人员。代理凭证、Cookie、历史记录和原始"
+      "用户配置文件设置不会写入诊断包。\n";
   if (!base::WriteFile(payload.GetPath().AppendASCII("README.txt"), kReadme)) {
     result.error = "write_readme_failed";
     return result;

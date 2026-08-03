@@ -192,127 +192,202 @@
         Brave Rewards
       </message>
       <message name="IDS_EXPORT_DIAGNOSTICS" desc="The menu item that opens the local diagnostics export page">
-        Export diagnostic information
+        导出诊断信息
+      </message>
+      <message name="IDS_SHOW_FINGERPRINT_GUIDE" desc="The menu item that opens the fingerprint browser guide">
+        指纹浏览器使用指南
       </message>
       <message name="IDS_OPEN_CRASH_FILE_LOCATION" desc="The button that opens the local Crashpad database folder">
-        Open crash file location
+        打开崩溃文件位置
       </message>
       <message name="IDS_DIAGNOSTICS_PAGE_TITLE" desc="Title of the local diagnostics export page">
-        Diagnostics
+        导出诊断信息
       </message>
       <message name="IDS_DIAGNOSTICS_PAGE_DESCRIPTION" desc="Description of the local diagnostics export page">
-        Create a local support bundle for fingerprint-browser incidents. This page never uploads the bundle.
+        为指纹浏览器的崩溃或异常创建本地诊断包。本页面不会自动上传任何文件。
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_HEADING" desc="Heading for diagnostics export controls">
-        Export diagnostic bundle
+        导出诊断包
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_DESCRIPTION" desc="Description for diagnostics export controls">
-        Select the time range to include. Existing source files are not changed.
+        请选择要包含的时间范围。导出不会修改现有文件。
       </message>
       <message name="IDS_DIAGNOSTICS_CHECKING" desc="Status shown while local diagnostics are counted">
-        Checking available diagnostics...
+        正在检查可用的诊断信息...
       </message>
       <message name="IDS_DIAGNOSTICS_TIME_RANGE" desc="Legend for diagnostic export scope controls">
-        Time range
+        时间范围
       </message>
       <message name="IDS_DIAGNOSTICS_LATEST_INCIDENT" desc="Label for exporting the latest crash incident">
-        Latest incident
+        最近一次故障
       </message>
       <message name="IDS_DIAGNOSTICS_LATEST_INCIDENT_DESCRIPTION" desc="Description of latest incident export limits">
-        Most recent crash and nearby reports, up to 10 reports or 100 MB.
+        包含最新崩溃及附近时间的报告，最多 10 个报告或 100 MB。
       </message>
       <message name="IDS_DIAGNOSTICS_LAST_SEVEN_DAYS" desc="Label for exporting diagnostic data from the last seven days">
-        Last 7 days
+        最近 7 天
       </message>
       <message name="IDS_DIAGNOSTICS_LAST_SEVEN_DAYS_DESCRIPTION" desc="Description of seven-day export limits">
-        Recent crashes and diagnostic events, up to 20 reports or 250 MB.
+        包含最近的崩溃和诊断事件，最多 20 个报告或 250 MB。
       </message>
       <message name="IDS_DIAGNOSTICS_MINIDUMP_WARNING_TITLE" desc="Title of the minidump privacy warning">
-        Minidumps may contain sensitive information
+        崩溃转储可能包含敏感信息
       </message>
       <message name="IDS_DIAGNOSTICS_MINIDUMP_WARNING_BODY" desc="Explanation of minidump privacy risk">
-        A minidump can contain fragments of process memory, including text or data that was open when Brave stopped. Diagnostic logs are redacted, but minidump contents cannot be fully inspected or scrubbed automatically.
+        崩溃转储可能包含浏览器停止时进程内存中的文字或数据。诊断日志会自动脱敏，但崩溃转储内容无法完全自动检查或清除。
       </message>
       <message name="IDS_DIAGNOSTICS_MINIDUMP_WARNING_SHARE" desc="Advice about sharing a diagnostic bundle">
-        Review the bundle and share it only with someone you trust.
+        请仅将诊断包发送给您信任的技术支持人员。
       </message>
       <message name="IDS_DIAGNOSTICS_PRIVACY_CONFIRM" desc="Confirmation required before exporting minidumps">
-        I understand that this export may contain sensitive information and want to create the bundle.
+        我了解导出内容可能包含敏感信息，并确认创建诊断包。
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_BUTTON" desc="Button that creates a local diagnostic bundle">
-        Export bundle
+        导出诊断包
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORTING_BUTTON" desc="Button status while a diagnostic bundle is being created">
-        Exporting...
+        正在导出...
       </message>
       <message name="IDS_DIAGNOSTICS_FILES_HEADING" desc="Heading for local diagnostic file actions">
-        Diagnostic files
+        诊断文件
       </message>
       <message name="IDS_DIAGNOSTICS_FILES_DESCRIPTION" desc="Description for local diagnostic file actions">
-        Open local crash reports or previously exported bundles.
+        打开本地崩溃报告或之前导出的诊断包。
       </message>
       <message name="IDS_DIAGNOSTICS_OPEN_CRASH_FOLDER" desc="Button that opens the local crash report folder">
-        Open crash folder
+        打开崩溃文件夹
       </message>
       <message name="IDS_DIAGNOSTICS_OPEN_EXPORT_FOLDER" desc="Button that opens the local diagnostic export folder">
-        Open export folder
+        打开导出文件夹
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_ALREADY_RUNNING" desc="Status shown when another diagnostic export is active">
-        Another diagnostic export is already running.
+        另一个诊断导出任务正在运行。
       </message>
       <message name="IDS_DIAGNOSTICS_UNAVAILABLE_GUEST" desc="Status shown when diagnostics export is unavailable in Guest mode">
-        Diagnostics export is unavailable in Guest profiles.
+        访客模式不能导出诊断信息。
       </message>
       <message name="IDS_DIAGNOSTICS_UNAVAILABLE_PROFILE" desc="Status shown when diagnostics export is unavailable for a profile">
-        Diagnostics export is unavailable for this profile.
+        当前用户配置文件不能导出诊断信息。
       </message>
       <message name="IDS_DIAGNOSTICS_AVAILABLE_REPORTS" desc="Status showing the number of local crash reports available">
-        <ph name="COUNT">$1<ex>3</ex></ph> local crash reports available. The bundle also includes diagnostic events and redacted logs.
+        找到 <ph name="COUNT">$1<ex>3</ex></ph> 个本地崩溃报告。诊断包还会包含诊断事件和已脱敏日志。
       </message>
       <message name="IDS_DIAGNOSTICS_LOAD_FAILED" desc="Status shown when diagnostics state cannot be loaded">
-        Diagnostics could not be loaded.
+        无法加载诊断信息。
       </message>
       <message name="IDS_DIAGNOSTICS_LOAD_FAILED_TITLE" desc="Title shown when diagnostics state cannot be loaded">
-        Could not load diagnostics
+        诊断信息加载失败
       </message>
       <message name="IDS_DIAGNOSTICS_RELOAD_TO_RETRY" desc="Advice shown after diagnostics state loading fails">
-        Reload this page to try again.
+        请重新加载此页面后重试。
       </message>
       <message name="IDS_DIAGNOSTICS_UNKNOWN_ERROR" desc="Fallback diagnostic export error">
-        Unknown error
+        未知错误
       </message>
       <message name="IDS_DIAGNOSTICS_CREATING_TITLE" desc="Title shown while creating a diagnostic bundle">
-        Creating diagnostic bundle
+        正在创建诊断包
       </message>
       <message name="IDS_DIAGNOSTICS_CREATING_MESSAGE" desc="Advice shown while creating a diagnostic bundle">
-        Keep Brave open while crash reports and logs are collected.
+        收集崩溃报告和日志期间，请保持浏览器运行。
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_CANCELED_TITLE" desc="Title shown after a diagnostic export is canceled">
-        Export canceled
+        已取消导出
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_CANCELED_MESSAGE" desc="Message shown after a diagnostic export is canceled">
-        No diagnostic bundle was created.
+        没有创建诊断包。
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_COMPLETE_TITLE" desc="Title shown after a diagnostic export succeeds">
-        Export complete
+        导出完成
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_COMPLETE_MESSAGE" desc="Message shown after a diagnostic export succeeds">
-        Bundle created with <ph name="COUNT">$1<ex>2</ex></ph> crash reports.
+        诊断包已创建，其中包含 <ph name="COUNT">$1<ex>2</ex></ph> 个崩溃报告。
       </message>
       <message name="IDS_DIAGNOSTICS_REPORTS_OMITTED" desc="Message showing reports omitted from a diagnostic bundle">
-        <ph name="COUNT">$1<ex>1</ex></ph> reports were omitted.
+        有 <ph name="COUNT">$1<ex>1</ex></ph> 个报告未能加入诊断包。
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_FAILED_TITLE" desc="Title shown after a diagnostic export fails">
-        Export failed
+        导出失败
       </message>
       <message name="IDS_DIAGNOSTICS_EXPORT_FAILED_MESSAGE" desc="Advice shown after a diagnostic export fails">
-        Try again or open the crash folder to inspect available reports.
+        请重试，或打开崩溃文件夹查看可用报告。
       </message>
       <message name="IDS_DIAGNOSTICS_OPENING_CRASH_FOLDER" desc="Status shown while opening the crash report folder">
-        Opening crash folder.
+        正在打开崩溃文件夹。
       </message>
       <message name="IDS_DIAGNOSTICS_OPENING_EXPORT_FOLDER" desc="Status shown while opening the diagnostic export folder">
-        Opening export folder.
+        正在打开导出文件夹。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_STATUS_WAITING" desc="Profile proxy is waiting for verification">
+        代理正在等待验证。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_STATUS_CHECKING" desc="Profile proxy verification is running">
+        正在检查代理出口和位置。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_STATUS_ACTIVE" desc="Profile proxy is active">
+        代理已生效。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_STATUS_AWAITING_CONFIRMATION" desc="Profile proxy is verified and awaits confirmation">
+        代理验证成功，请确认并应用。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_STATUS_CONTROL_CHANGED" desc="Profile proxy control changed and is being revalidated">
+        代理控制方式已变化，正在重新验证。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_STATUS_NO_ACTIVE_PROXY" desc="No active profile proxy exists">
+        当前没有已生效的代理。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_PASSWORD_REQUIRED" desc="Proxy password must be entered again">
+        修改代理信息后，请重新输入代理密码。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_CREDENTIALS_UNAVAILABLE" desc="Saved proxy credentials are unavailable">
+        无法读取已保存的代理凭证。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_CREDENTIALS_ENCRYPT" desc="Proxy credentials could not be encrypted">
+        无法安全保存代理凭证。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_INVALID_CONFIG" desc="Profile proxy configuration is invalid">
+        请填写有效的代理类型、地址和端口。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_POLICY_CONFLICT" desc="Profile proxy is controlled by policy">
+        代理已被系统策略接管，请先解除策略限制。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_EXTENSION_CONFLICT" desc="Profile proxy is controlled by an extension">
+        代理已被扩展程序接管，请先停用相关扩展。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_VERIFICATION_MISSING" desc="Proxy verification is missing or already used">
+        验证结果不存在或已经使用，请重新验证。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_VERIFICATION_EXPIRED" desc="Proxy verification expired">
+        验证结果已过期，请重新验证代理。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_VERIFICATION_CANCELLED" desc="Proxy verification was cancelled">
+        代理验证已取消。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_VERIFICATION_BUSY" desc="Another proxy verification is already running">
+        另一个代理验证任务正在运行。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_CONNECTION" desc="Proxy connection or authentication failed">
+        代理连接或认证失败。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_GEO" desc="Proxy location services are unavailable">
+        暂时无法获取代理位置，请稍后重试。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_LANGUAGE" desc="Proxy country could not be mapped to a language">
+        无法根据代理国家确定语言。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_PROFILE_UNAVAILABLE" desc="Profile proxy is unavailable in this window">
+        当前窗口不能使用用户配置文件代理。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_ERROR_UNKNOWN" desc="Unknown profile proxy error">
+        代理操作失败。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_WARNING_COUNTRY_CHANGED" desc="Proxy country changed">
+        代理国家已变化，浏览器身份设置已同步更新。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_WARNING_IP_CHANGED" desc="Proxy exit IP changed">
+        代理出口 IP 已变化。
+      </message>
+      <message name="IDS_FINGERPRINT_PROXY_WARNING_UNKNOWN" desc="Unknown profile proxy warning">
+        代理状态发生变化，请立即复检。
       </message>
       <message name="IDS_BOOKMAR_BAR_MENU_SHOW_ALWAYS" desc="The name of the context menu item to always show bookmark bar">
         Always

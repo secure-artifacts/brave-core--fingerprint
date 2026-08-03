@@ -32,6 +32,7 @@ source_set("browser_tests") {
     sources += [
       "brave_settings_ui_browsertest.cc",
       "diagnostics/diagnostics_ui_browsertest.cc",
+      "fingerprint_guide/fingerprint_guide_ui_browsertest.cc",
       "searchbox/brave_realbox_handler_browsertest.cc",
     ]
 

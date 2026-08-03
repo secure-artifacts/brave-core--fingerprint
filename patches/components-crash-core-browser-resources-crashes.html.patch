@@ -1,8 +1,10 @@
 diff --git a/components/crash/core/browser/resources/crashes.html b/components/crash/core/browser/resources/crashes.html
-index db8b09fdf9450..2e5ae5a267046 100644
+index db8b09fdf9450aa65eaf7c0a28558c10931701ec..0be2d9121279db0ebd58d9ae044df134b798b596 100644
 --- a/components/crash/core/browser/resources/crashes.html
 +++ b/components/crash/core/browser/resources/crashes.html
-@@ -22,2 +22,12 @@
+@@ -20,6 +20,19 @@
+ <body>
+   <header><h1>$i18n{crashesTitle}</h1></header>
  
 +  <div id="localDiagnosticsActions">
 +    <button class="custom-appearance" id="exportDiagnostics">
@@ -11,11 +13,18 @@ index db8b09fdf9450..2e5ae5a267046 100644
 +    <button class="custom-appearance" id="openCrashFolder">
 +      $i18n{openCrashFolder}
 +    </button>
++    <button class="custom-appearance" id="fingerprintGuide">
++      $i18n{fingerprintGuide}
++    </button>
 +    <code id="crashFolderPath">$i18n{crashFolderPath}</code>
 +  </div>
 +
    <div id="crashUploadStatus" hidden>
-@@ -69,4 +79,8 @@
+     <a is="action-link" role="button" id="uploadCrashes">
+       $i18n{uploadCrashesLinkText}
+@@ -67,8 +80,12 @@
+               <td class="value"></td>
+             </tr>
            </table>
 -          <button class="send-now">$i18n{uploadNowLinkText}</button>
 -          <button class="file-bug">$i18n{bugLinkText}</button>
@@ -26,3 +35,5 @@ index db8b09fdf9450..2e5ae5a267046 100644
 +            $i18n{bugLinkText}
 +          </button>
          </div>
+       </template>
+     </div>

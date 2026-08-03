@@ -5,17 +5,24 @@
 
 #include "brave/browser/ui/webui/brave_settings_ui.h"
 
+#include "base/command_line.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "ui/base/ui_base_switches.h"
 
 class BraveSettingsUIBrowserTest : public InProcessBrowserTest {
  public:
   BraveSettingsUIBrowserTest() = default;
   ~BraveSettingsUIBrowserTest() override = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII(switches::kLang, "en-US");
+  }
 };
 
 IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest, LoadsBraveSettingsUI) {
@@ -117,6 +124,19 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
         const proxyPage = findProxyPage(document);
         if (proxyPage && proxyPage.getClientRects().length > 0 &&
             proxyPage.shadowRoot?.querySelector('#host')) {
+          const strings = {
+            title: loadTimeData.getString('profileProxyTitle'),
+            verify: loadTimeData.getString('profileProxyVerify'),
+          };
+          if (strings.title !== '用户配置文件代理' ||
+              strings.verify !== '验证代理' ||
+              !proxyPage.shadowRoot.textContent.includes(strings.verify)) {
+            return 'not-zh-cn';
+          }
+          if (!proxyPage.shadowRoot.querySelector(
+                  'a[href="brave://fingerprint-guide/"]')) {
+            return 'missing-guide-link';
+          }
           return 'visible';
         }
         await new Promise(resolve => setTimeout(resolve, 50));

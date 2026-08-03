@@ -31,6 +31,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
@@ -162,6 +163,16 @@ IN_PROC_BROWSER_TEST_F(BraveAppMenuModelBrowserTest, CommandsExecutionTest) {
                              IDC_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS);
 }
 
+IN_PROC_BROWSER_TEST_F(BraveAppMenuModelBrowserTest,
+                       FingerprintGuideCommandOpensGuide) {
+  RunCommandFromAppMenuModel(browser(), IDC_SHOW_FINGERPRINT_GUIDE);
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::WaitForLoadStop(contents));
+  EXPECT_EQ(contents->GetLastCommittedURL(),
+            GURL("chrome://fingerprint-guide/"));
+}
+
 // Test brave menu order test.
 // Brave menu is inserted based on corresponding commands enable status.
 // So, this doesn't test for each profiles(normal, private, tor and guest).
@@ -214,6 +225,7 @@ IN_PROC_BROWSER_TEST_F(BraveAppMenuModelBrowserTest, MenuOrderTest) {
       IDC_ABOUT,
       IDC_HELP_PAGE_VIA_MENU,
       IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER,
+      IDC_SHOW_FINGERPRINT_GUIDE,
       IDC_EXPORT_DIAGNOSTICS,
   };
   CheckHelpCommandsAreInOrderInMenuModel(browser(), help_commands_in_order);

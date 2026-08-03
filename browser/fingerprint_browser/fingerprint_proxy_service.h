@@ -58,8 +58,9 @@ inline constexpr char kProxyStateConflict[] = "conflict";
 
 struct FingerprintProxyState {
   std::string state;
-  std::string status_message;
-  std::string change_warning;
+  std::string status_code;
+  std::string warning_code;
+  int net_error = 0;
   std::string scheme;
   std::string host;
   int port = 0;
@@ -75,7 +76,8 @@ struct FingerprintProxyState {
 struct ProxyVerificationResult {
   bool success = false;
   std::string verification_id;
-  std::string error;
+  std::string error_code;
+  int net_error = 0;
   std::string egress_ip;
   std::string geo_provider;
   std::optional<ProfileProxyGeo> geo;
@@ -83,7 +85,8 @@ struct ProxyVerificationResult {
 
 struct ProxyApplyResult {
   bool success = false;
-  std::string error;
+  std::string error_code;
+  int net_error = 0;
 };
 
 class FingerprintProxyService
@@ -146,7 +149,7 @@ class FingerprintProxyService
   void StartLookup(ProxyGeoProvider provider);
   void OnLookupComplete(ProxyGeoProvider provider,
                         std::optional<std::string> response_body);
-  void FinishLookupFailure(std::string error, int net_error);
+  void FinishLookupFailure(std::string_view error_code, int net_error);
   void FinishLookupSuccess(ProxyGeoLookupResult lookup);
   void RunVerificationCallbacks(ProxyVerificationResult result);
 
@@ -158,8 +161,8 @@ class FingerprintProxyService
                    const ProfileProxyGeo& geo,
                    bool show_change_warning);
   void SetState(std::string_view state,
-                std::string_view message,
-                std::string_view change_warning = {});
+                std::string_view status_code,
+                std::string_view warning_code = {});
   void NotifyObservers();
   void OnProxyControlChanged();
   void ScheduleRevalidation();

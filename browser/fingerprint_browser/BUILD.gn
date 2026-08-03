@@ -15,6 +15,8 @@ source_set("fingerprint_browser") {
     "fingerprint_proxy_service.h",
     "fingerprint_proxy_service_factory.cc",
     "fingerprint_proxy_service_factory.h",
+    "fingerprint_proxy_ui_strings.cc",
+    "fingerprint_proxy_ui_strings.h",
     "persona_service_factory.cc",
     "persona_service_factory.h",
   ]
@@ -26,8 +28,11 @@ source_set("fingerprint_browser") {
 
   deps = [
     "//base",
+    "//brave/app:brave_generated_resources_grit",
     "//chrome/browser:browser_process",
     "//chrome/browser/profiles",
+    "//components/crash/core/app",
+    "//components/feedback/redaction_tool",
     "//components/keyed_service/content",
     "//components/keyed_service/core",
     "//components/os_crypt/async/browser",
@@ -36,17 +41,17 @@ source_set("fingerprint_browser") {
     "//components/prefs",
     "//components/proxy_config",
     "//content/public/browser",
+    "//crypto",
     "//extensions/browser",
     "//extensions/common",
-    "//components/crash/core/app",
-    "//components/feedback/redaction_tool",
-    "//crypto",
     "//mojo/public/cpp/bindings",
     "//net",
     "//services/cert_verifier/public/mojom",
     "//services/network/public/mojom",
     "//third_party/crashpad/crashpad/client",
+    "//third_party/icu",
     "//third_party/zlib/google:zip",
+    "//ui/base",
   ]
 }
 
@@ -56,6 +61,7 @@ source_set("unit_tests") {
   sources = [
     "diagnostics/diagnostics_event_journal_unittest.cc",
     "diagnostics/diagnostics_exporter_unittest.cc",
+    "fingerprint_proxy_ui_strings_unittest.cc",
   ]
 
   deps = [

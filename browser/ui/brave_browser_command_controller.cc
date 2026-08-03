@@ -265,6 +265,7 @@ void BraveBrowserCommandController::InitBraveCommandState() {
     }
   }
   UpdateCommandForWebcompatReporter();
+  UpdateCommandEnabled(IDC_SHOW_FINGERPRINT_GUIDE, true);
   UpdateCommandEnabled(IDC_EXPORT_DIAGNOSTICS,
                        !is_guest_session && !browser_->profile()->IsTor());
 #if BUILDFLAG(ENABLE_TOR)
@@ -631,6 +632,9 @@ bool BraveBrowserCommandController::ExecuteBraveCommandWithDisposition(
       break;
     case IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER:
       brave::ShowWebcompatReporter(&*browser_);
+      break;
+    case IDC_SHOW_FINGERPRINT_GUIDE:
+      brave::ShowFingerprintGuide(&*browser_);
       break;
     case IDC_EXPORT_DIAGNOSTICS:
       brave::ShowDiagnostics(&*browser_);
