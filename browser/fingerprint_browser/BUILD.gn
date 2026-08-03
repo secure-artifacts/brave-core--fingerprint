@@ -5,6 +5,12 @@
 
 source_set("fingerprint_browser") {
   sources = [
+    "diagnostics/diagnostics_data_collector.cc",
+    "diagnostics/diagnostics_data_collector.h",
+    "diagnostics/diagnostics_event_journal.cc",
+    "diagnostics/diagnostics_event_journal.h",
+    "diagnostics/diagnostics_exporter.cc",
+    "diagnostics/diagnostics_exporter.h",
     "fingerprint_proxy_service.cc",
     "fingerprint_proxy_service.h",
     "fingerprint_proxy_service_factory.cc",
@@ -30,9 +36,33 @@ source_set("fingerprint_browser") {
     "//components/prefs",
     "//components/proxy_config",
     "//content/public/browser",
+    "//extensions/browser",
+    "//extensions/common",
+    "//components/crash/core/app",
+    "//components/feedback/redaction_tool",
+    "//crypto",
     "//mojo/public/cpp/bindings",
     "//net",
     "//services/cert_verifier/public/mojom",
     "//services/network/public/mojom",
+    "//third_party/crashpad/crashpad/client",
+    "//third_party/zlib/google:zip",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [
+    "diagnostics/diagnostics_event_journal_unittest.cc",
+    "diagnostics/diagnostics_exporter_unittest.cc",
+  ]
+
+  deps = [
+    ":fingerprint_browser",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/zlib/google:zip",
   ]
 }

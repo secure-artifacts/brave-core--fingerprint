@@ -9,10 +9,16 @@ import("//tools/grit/repack.gni")
 
 transpile_web_ui("fingerprint_test") {
   output_module = false
-  entry_points = [ [
+  entry_points = [
+    [
+      "diagnostics",
+      rebase_path("diagnostics.ts"),
+    ],
+    [
         "fingerprint_test",
         rebase_path("fingerprint_test.ts"),
-      ] ]
+    ],
+  ]
 
   resource_name = "fingerprint_test"
   imports_from = [ "//brave/components/fingerprint_browser/resources/" ]

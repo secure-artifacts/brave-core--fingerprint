@@ -191,6 +191,129 @@
       <message name="IDS_SHOW_BRAVE_REWARDS" desc="The show Brave Rewards menu in the app menu">
         Brave Rewards
       </message>
+      <message name="IDS_EXPORT_DIAGNOSTICS" desc="The menu item that opens the local diagnostics export page">
+        Export diagnostic information
+      </message>
+      <message name="IDS_OPEN_CRASH_FILE_LOCATION" desc="The button that opens the local Crashpad database folder">
+        Open crash file location
+      </message>
+      <message name="IDS_DIAGNOSTICS_PAGE_TITLE" desc="Title of the local diagnostics export page">
+        Diagnostics
+      </message>
+      <message name="IDS_DIAGNOSTICS_PAGE_DESCRIPTION" desc="Description of the local diagnostics export page">
+        Create a local support bundle for fingerprint-browser incidents. This page never uploads the bundle.
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_HEADING" desc="Heading for diagnostics export controls">
+        Export diagnostic bundle
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_DESCRIPTION" desc="Description for diagnostics export controls">
+        Select the time range to include. Existing source files are not changed.
+      </message>
+      <message name="IDS_DIAGNOSTICS_CHECKING" desc="Status shown while local diagnostics are counted">
+        Checking available diagnostics...
+      </message>
+      <message name="IDS_DIAGNOSTICS_TIME_RANGE" desc="Legend for diagnostic export scope controls">
+        Time range
+      </message>
+      <message name="IDS_DIAGNOSTICS_LATEST_INCIDENT" desc="Label for exporting the latest crash incident">
+        Latest incident
+      </message>
+      <message name="IDS_DIAGNOSTICS_LATEST_INCIDENT_DESCRIPTION" desc="Description of latest incident export limits">
+        Most recent crash and nearby reports, up to 10 reports or 100 MB.
+      </message>
+      <message name="IDS_DIAGNOSTICS_LAST_SEVEN_DAYS" desc="Label for exporting diagnostic data from the last seven days">
+        Last 7 days
+      </message>
+      <message name="IDS_DIAGNOSTICS_LAST_SEVEN_DAYS_DESCRIPTION" desc="Description of seven-day export limits">
+        Recent crashes and diagnostic events, up to 20 reports or 250 MB.
+      </message>
+      <message name="IDS_DIAGNOSTICS_MINIDUMP_WARNING_TITLE" desc="Title of the minidump privacy warning">
+        Minidumps may contain sensitive information
+      </message>
+      <message name="IDS_DIAGNOSTICS_MINIDUMP_WARNING_BODY" desc="Explanation of minidump privacy risk">
+        A minidump can contain fragments of process memory, including text or data that was open when Brave stopped. Diagnostic logs are redacted, but minidump contents cannot be fully inspected or scrubbed automatically.
+      </message>
+      <message name="IDS_DIAGNOSTICS_MINIDUMP_WARNING_SHARE" desc="Advice about sharing a diagnostic bundle">
+        Review the bundle and share it only with someone you trust.
+      </message>
+      <message name="IDS_DIAGNOSTICS_PRIVACY_CONFIRM" desc="Confirmation required before exporting minidumps">
+        I understand that this export may contain sensitive information and want to create the bundle.
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_BUTTON" desc="Button that creates a local diagnostic bundle">
+        Export bundle
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORTING_BUTTON" desc="Button status while a diagnostic bundle is being created">
+        Exporting...
+      </message>
+      <message name="IDS_DIAGNOSTICS_FILES_HEADING" desc="Heading for local diagnostic file actions">
+        Diagnostic files
+      </message>
+      <message name="IDS_DIAGNOSTICS_FILES_DESCRIPTION" desc="Description for local diagnostic file actions">
+        Open local crash reports or previously exported bundles.
+      </message>
+      <message name="IDS_DIAGNOSTICS_OPEN_CRASH_FOLDER" desc="Button that opens the local crash report folder">
+        Open crash folder
+      </message>
+      <message name="IDS_DIAGNOSTICS_OPEN_EXPORT_FOLDER" desc="Button that opens the local diagnostic export folder">
+        Open export folder
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_ALREADY_RUNNING" desc="Status shown when another diagnostic export is active">
+        Another diagnostic export is already running.
+      </message>
+      <message name="IDS_DIAGNOSTICS_UNAVAILABLE_GUEST" desc="Status shown when diagnostics export is unavailable in Guest mode">
+        Diagnostics export is unavailable in Guest profiles.
+      </message>
+      <message name="IDS_DIAGNOSTICS_UNAVAILABLE_PROFILE" desc="Status shown when diagnostics export is unavailable for a profile">
+        Diagnostics export is unavailable for this profile.
+      </message>
+      <message name="IDS_DIAGNOSTICS_AVAILABLE_REPORTS" desc="Status showing the number of local crash reports available">
+        <ph name="COUNT">$1<ex>3</ex></ph> local crash reports available. The bundle also includes diagnostic events and redacted logs.
+      </message>
+      <message name="IDS_DIAGNOSTICS_LOAD_FAILED" desc="Status shown when diagnostics state cannot be loaded">
+        Diagnostics could not be loaded.
+      </message>
+      <message name="IDS_DIAGNOSTICS_LOAD_FAILED_TITLE" desc="Title shown when diagnostics state cannot be loaded">
+        Could not load diagnostics
+      </message>
+      <message name="IDS_DIAGNOSTICS_RELOAD_TO_RETRY" desc="Advice shown after diagnostics state loading fails">
+        Reload this page to try again.
+      </message>
+      <message name="IDS_DIAGNOSTICS_UNKNOWN_ERROR" desc="Fallback diagnostic export error">
+        Unknown error
+      </message>
+      <message name="IDS_DIAGNOSTICS_CREATING_TITLE" desc="Title shown while creating a diagnostic bundle">
+        Creating diagnostic bundle
+      </message>
+      <message name="IDS_DIAGNOSTICS_CREATING_MESSAGE" desc="Advice shown while creating a diagnostic bundle">
+        Keep Brave open while crash reports and logs are collected.
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_CANCELED_TITLE" desc="Title shown after a diagnostic export is canceled">
+        Export canceled
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_CANCELED_MESSAGE" desc="Message shown after a diagnostic export is canceled">
+        No diagnostic bundle was created.
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_COMPLETE_TITLE" desc="Title shown after a diagnostic export succeeds">
+        Export complete
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_COMPLETE_MESSAGE" desc="Message shown after a diagnostic export succeeds">
+        Bundle created with <ph name="COUNT">$1<ex>2</ex></ph> crash reports.
+      </message>
+      <message name="IDS_DIAGNOSTICS_REPORTS_OMITTED" desc="Message showing reports omitted from a diagnostic bundle">
+        <ph name="COUNT">$1<ex>1</ex></ph> reports were omitted.
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_FAILED_TITLE" desc="Title shown after a diagnostic export fails">
+        Export failed
+      </message>
+      <message name="IDS_DIAGNOSTICS_EXPORT_FAILED_MESSAGE" desc="Advice shown after a diagnostic export fails">
+        Try again or open the crash folder to inspect available reports.
+      </message>
+      <message name="IDS_DIAGNOSTICS_OPENING_CRASH_FOLDER" desc="Status shown while opening the crash report folder">
+        Opening crash folder.
+      </message>
+      <message name="IDS_DIAGNOSTICS_OPENING_EXPORT_FOLDER" desc="Status shown while opening the diagnostic export folder">
+        Opening export folder.
+      </message>
       <message name="IDS_BOOKMAR_BAR_MENU_SHOW_ALWAYS" desc="The name of the context menu item to always show bookmark bar">
         Always
       </message>

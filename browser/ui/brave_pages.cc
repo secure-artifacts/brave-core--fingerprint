@@ -41,6 +41,13 @@ void ShowBraveAdblock(BrowserWindowInterface* browser) {
   ShowSingletonTabOverwritingNTP(browser, GURL(kBraveUIAdblockURL));
 }
 
+void ShowDiagnostics(BrowserWindowInterface* browser, bool latest_incident) {
+  ShowSingletonTabOverwritingNTP(
+      browser,
+      GURL(latest_incident ? "brave://diagnostics/?scope=latest_incident"
+                           : "brave://diagnostics/"));
+}
+
 void ShowSync(BrowserWindowInterface* browser) {
   ShowSingletonTabOverwritingNTP(
       browser, chrome::GetSettingsUrl(chrome::kSyncSetupSubPage));

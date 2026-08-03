@@ -8,6 +8,9 @@
 #include "base/check.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/metrics/histogram_macros.h"
+#include "brave/browser/fingerprint_browser/diagnostics/diagnostics_event_journal.h"
+#include "content/public/browser/browser_context.h"
+#include "extensions/common/extension.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_util.h"
 
@@ -104,6 +107,30 @@ void ExtensionMetrics::OnExtensionUninstalled(
   }
 
   ScheduleMetricsReport();
+
+  fingerprint_browser::diagnostics::DiagnosticsEventFields fields;
+  fields.extension_id = extension->id();
+  fields.extension_version = extension->version().GetString();
+  fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
+      browser_context->GetPath().DirName(),
+      fingerprint_browser::diagnostics::DiagnosticsEventType::
+          kExtensionUninstalled,
+      fields);
+}
+
+void ExtensionMetrics::OnExtensionInstalled(
+    content::BrowserContext* browser_context,
+    const extensions::Extension* extension,
+    bool is_update) {
+  fingerprint_browser::diagnostics::DiagnosticsEventFields fields;
+  fields.status = is_update ? "updated" : "installed";
+  fields.extension_id = extension->id();
+  fields.extension_version = extension->version().GetString();
+  fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
+      browser_context->GetPath().DirName(),
+      fingerprint_browser::diagnostics::DiagnosticsEventType::
+          kExtensionInstalled,
+      fields);
 }
 
 void ExtensionMetrics::ScheduleMetricsReport() {

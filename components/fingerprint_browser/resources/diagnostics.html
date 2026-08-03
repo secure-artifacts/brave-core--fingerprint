@@ -1,0 +1,575 @@
+<!doctype html>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>$i18n{diagnosticsPageTitle}</title>
+  <link rel="stylesheet" href="chrome://resources/css/text_defaults.css">
+  <script src="chrome://resources/js/load_time_data_deprecated.js"></script>
+  <script src="/strings.js"></script>
+  <script defer src="/diagnostics.bundle.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page-background: #f8f9fa;
+      --surface: #fff;
+      --surface-muted: #f1f3f4;
+      --text-primary: #202124;
+      --text-secondary: #5f6368;
+      --border: #dadce0;
+      --control-border: #80868b;
+      --focus: #1a73e8;
+      --primary: #1a73e8;
+      --primary-hover: #185abc;
+      --primary-pressed: #174ea6;
+      --primary-soft: #e8f0fe;
+      --warning-background: #fef7e0;
+      --warning-border: #f9ab00;
+      --warning-text: #3c4043;
+      --success: #137333;
+      --success-background: #e6f4ea;
+      --error: #b3261e;
+      --error-background: #fce8e6;
+      --cancel-background: #f1f3f4;
+      --shadow: 0 1px 2px rgb(60 64 67 / 18%);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page-background: #202124;
+        --surface: #292a2d;
+        --surface-muted: #35363a;
+        --text-primary: #e8eaed;
+        --text-secondary: #bdc1c6;
+        --border: #5f6368;
+        --control-border: #9aa0a6;
+        --focus: #8ab4f8;
+        --primary: #8ab4f8;
+        --primary-hover: #aecbfa;
+        --primary-pressed: #d2e3fc;
+        --primary-soft: #3c4043;
+        --warning-background: #493b16;
+        --warning-border: #fdd663;
+        --warning-text: #fef7e0;
+        --success: #81c995;
+        --success-background: #1e4230;
+        --error: #f28b82;
+        --error-background: #5c2826;
+        --cancel-background: #35363a;
+        --shadow: 0 1px 2px rgb(0 0 0 / 35%);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--page-background);
+      color: var(--text-primary);
+      margin: 0;
+      min-width: 320px;
+    }
+
+    main {
+      margin: 0 auto;
+      max-width: 920px;
+      padding: 40px 24px 64px;
+    }
+
+    header {
+      margin-bottom: 28px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: 0;
+      line-height: 36px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 24px;
+      margin-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 20px;
+      margin-bottom: 2px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 20px;
+      margin-bottom: 0;
+    }
+
+    header p {
+      font-size: 14px;
+      max-width: 680px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .availability {
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 18px;
+      min-height: 18px;
+    }
+
+    fieldset {
+      border: 0;
+      margin: 20px 0 0;
+      padding: 0;
+    }
+
+    legend {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 10px;
+      padding: 0;
+    }
+
+    .scope-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .scope-option {
+      align-items: start;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 18px minmax(0, 1fr);
+      min-height: 112px;
+      padding: 16px;
+      transition: background-color 120ms ease, border-color 120ms ease;
+    }
+
+    .scope-option:hover {
+      background: var(--surface-muted);
+    }
+
+    .scope-option:has(input:checked) {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+    }
+
+    .scope-option:has(input:focus-visible) {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .scope-option:has(input:disabled) {
+      cursor: default;
+      opacity: .55;
+    }
+
+    .scope-option:has(input:disabled):hover {
+      background: transparent;
+    }
+
+    .scope-option input {
+      accent-color: var(--primary);
+      height: 16px;
+      margin: 2px 0 0;
+      width: 16px;
+    }
+
+    .scope-title {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 20px;
+      margin-bottom: 4px;
+    }
+
+    .scope-description {
+      color: var(--text-secondary);
+      display: block;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .warning {
+      background: var(--warning-background);
+      border: 1px solid var(--warning-border);
+      border-radius: 8px;
+      color: var(--warning-text);
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 24px minmax(0, 1fr);
+      margin-top: 20px;
+      padding: 16px;
+    }
+
+    .warning-icon {
+      align-items: center;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      display: flex;
+      font-size: 13px;
+      font-weight: 700;
+      height: 20px;
+      justify-content: center;
+      line-height: 1;
+      margin-top: 1px;
+      width: 20px;
+    }
+
+    .warning h3,
+    .warning p {
+      color: inherit;
+    }
+
+    .warning p + p {
+      margin-top: 8px;
+    }
+
+    .confirmation {
+      align-items: start;
+      cursor: pointer;
+      display: grid;
+      font-size: 13px;
+      gap: 10px;
+      grid-template-columns: 18px minmax(0, 1fr);
+      line-height: 20px;
+      margin-top: 16px;
+    }
+
+    .confirmation input {
+      accent-color: var(--primary);
+      height: 16px;
+      margin: 2px 0 0;
+      width: 16px;
+    }
+
+    .confirmation:has(input:disabled) {
+      cursor: default;
+      opacity: .55;
+    }
+
+    .confirmation input:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .actions,
+    .folder-actions {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .actions {
+      border-top: 1px solid var(--border);
+      margin-top: 20px;
+      padding-top: 20px;
+    }
+
+    button {
+      appearance: none;
+      background: var(--surface);
+      border: 1px solid var(--control-border);
+      border-radius: 4px;
+      color: var(--primary);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 20px;
+      min-height: 36px;
+      padding: 7px 16px;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--surface-muted);
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: .5;
+    }
+
+    button.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    button.primary:active:not(:disabled) {
+      background: var(--primary-pressed);
+      border-color: var(--primary-pressed);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      button.primary {
+        color: #202124;
+      }
+    }
+
+    .status-panel {
+      align-items: start;
+      border-radius: 6px;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 20px minmax(0, 1fr);
+      margin-top: 16px;
+      padding: 14px 16px;
+    }
+
+    .status-panel[hidden] {
+      display: none;
+    }
+
+    .status-panel:focus {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .status-panel[data-state="progress"] {
+      background: var(--primary-soft);
+    }
+
+    .status-panel[data-state="success"] {
+      background: var(--success-background);
+      color: var(--success);
+    }
+
+    .status-panel[data-state="error"] {
+      background: var(--error-background);
+      color: var(--error);
+    }
+
+    .status-panel[data-state="cancelled"] {
+      background: var(--cancel-background);
+    }
+
+    .status-panel p {
+      color: inherit;
+    }
+
+    .status-icon {
+      align-items: center;
+      display: flex;
+      font-size: 16px;
+      font-weight: 600;
+      height: 20px;
+      justify-content: center;
+      width: 20px;
+    }
+
+    .status-panel[data-state="progress"] .status-icon {
+      animation: spin 900ms linear infinite;
+      border: 2px solid color-mix(in srgb, var(--primary) 28%, transparent);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+    }
+
+    .output-path {
+      color: inherit;
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      line-height: 17px;
+      margin-top: 6px;
+      overflow-wrap: anywhere;
+    }
+
+    .folders {
+      align-items: center;
+      display: grid;
+      gap: 20px;
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .visually-hidden {
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      height: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
+      width: 1px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0s !important;
+      }
+
+      .status-panel[data-state="progress"] .status-icon {
+        animation: none;
+        border-color: var(--primary);
+      }
+    }
+
+    @media (max-width: 680px) {
+      main {
+        padding: 24px 16px 40px;
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .scope-grid,
+      .folders {
+        grid-template-columns: 1fr;
+      }
+
+      .scope-option {
+        min-height: auto;
+      }
+
+      .folder-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .folder-actions button,
+      .actions button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main aria-labelledby="page-title">
+    <header>
+      <h1 id="page-title">$i18n{diagnosticsPageTitle}</h1>
+      <p>$i18n{diagnosticsPageDescription}</p>
+    </header>
+
+    <div class="stack">
+      <section class="card" id="export-card" aria-labelledby="export-heading">
+        <h2 id="export-heading">$i18n{diagnosticsExportHeading}</h2>
+        <p>$i18n{diagnosticsExportDescription}</p>
+        <div class="availability" id="availability" role="status"
+             aria-live="polite">$i18n{diagnosticsChecking}</div>
+
+        <fieldset id="scope-fieldset" disabled>
+          <legend>$i18n{diagnosticsTimeRange}</legend>
+          <div class="scope-grid">
+            <label class="scope-option" for="latest-incident">
+              <input id="latest-incident" name="scope" type="radio"
+                     value="latest_incident" checked>
+              <span>
+                <span class="scope-title">$i18n{diagnosticsLatestIncident}</span>
+                <span class="scope-description" id="latest-description">
+                  $i18n{diagnosticsLatestIncidentDescription}
+                </span>
+              </span>
+            </label>
+
+            <label class="scope-option" for="last-seven-days">
+              <input id="last-seven-days" name="scope" type="radio"
+                     value="last_7_days">
+              <span>
+                <span class="scope-title">$i18n{diagnosticsLastSevenDays}</span>
+                <span class="scope-description" id="seven-days-description">
+                  $i18n{diagnosticsLastSevenDaysDescription}
+                </span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="warning" id="privacy-warning">
+          <span class="warning-icon" aria-hidden="true">!</span>
+          <div>
+            <h3>$i18n{diagnosticsMinidumpWarningTitle}</h3>
+            <p>$i18n{diagnosticsMinidumpWarningBody}</p>
+            <p>$i18n{diagnosticsMinidumpWarningShare}</p>
+          </div>
+        </div>
+
+        <label class="confirmation" for="privacy-confirm">
+          <input id="privacy-confirm" type="checkbox" disabled
+                 aria-describedby="privacy-warning">
+          <span>$i18n{diagnosticsPrivacyConfirm}</span>
+        </label>
+
+        <div class="actions">
+          <button class="primary" id="export" type="button" disabled
+                  aria-describedby="privacy-warning export-status">
+            $i18n{diagnosticsExportButton}
+          </button>
+        </div>
+
+        <div class="status-panel" id="export-status" data-state="progress"
+             role="status" aria-live="polite" aria-atomic="true"
+             tabindex="-1" hidden>
+          <span class="status-icon" id="status-icon" aria-hidden="true"></span>
+          <div>
+            <h3 id="status-title"></h3>
+            <p id="status-message"></p>
+            <code class="output-path" id="output-path" hidden></code>
+          </div>
+        </div>
+      </section>
+
+      <section class="card folders" aria-labelledby="folders-heading">
+        <div>
+          <h2 id="folders-heading">$i18n{diagnosticsFilesHeading}</h2>
+          <p>$i18n{diagnosticsFilesDescription}</p>
+        </div>
+        <div class="folder-actions">
+          <button id="open-crash-folder" type="button">$i18n{diagnosticsOpenCrashFolder}</button>
+          <button id="open-export-folder" type="button">$i18n{diagnosticsOpenExportFolder}</button>
+        </div>
+        <div class="visually-hidden" id="folder-status" role="status"
+             aria-live="polite" aria-atomic="true"></div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

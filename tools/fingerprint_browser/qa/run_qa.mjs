@@ -69,6 +69,8 @@ async function main() {
   const runDir = path.join(config.resultsDir, runId)
   const dirs = await makeDirectories(runDir)
   const profileRoot = `/tmp/fingerprint-browser-${runId}`
+  const crashpadDir = path.join(profileRoot, 'Crashpad')
+  process.env.BREAKPAD_DUMP_LOCATION = crashpadDir
   const logFile = path.join(dirs.logs, 'runner.log')
   const log = async (message) => {
     const line = `${new Date().toISOString()} ${message}`
@@ -152,7 +154,9 @@ async function main() {
       return
     }
 
-    crashesBefore = await snapshotCrashReports()
+    crashesBefore = await snapshotCrashReports({
+      crashpadDirectories: [crashpadDir],
+    })
     report.crashesBefore = crashesBefore
 
     if (config.mode === 'full' || config.mode === 'soak') {
@@ -350,13 +354,15 @@ async function main() {
 
     if (artifactGatePassed) {
       await new Promise((resolve) => setTimeout(resolve, 5000))
-      const crashesAfter = await snapshotCrashReports()
+      const crashesAfter = await snapshotCrashReports({
+        crashpadDirectories: [crashpadDir],
+      })
       const crashes = newCrashReports(crashesBefore, crashesAfter)
       const copied = await copyCrashReports(crashes, dirs.crashes)
       await runScenario(report, 'postflight-no-new-crashes', async () => {
         if (crashes.length > 0) {
           const error = Object.assign(
-            new Error(`${crashes.length} new macOS crash reports found`),
+            new Error(`${crashes.length} new crash reports found`),
             { details: { crashes, copied, crashArtifacts: copied } },
           )
           error.crashArtifacts = copied

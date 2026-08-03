@@ -1,0 +1,63 @@
+diff --git a/chrome/browser/ui/webui/crashes/crashes_ui.cc b/chrome/browser/ui/webui/crashes/crashes_ui.cc
+index 0274450183696..4b0d32edd3317 100644
+--- a/chrome/browser/ui/webui/crashes/crashes_ui.cc
++++ b/chrome/browser/ui/webui/crashes/crashes_ui.cc
+@@ -12,3 +12,5 @@
+ 
++#include "base/files/file_util.h"
+ #include "base/functional/bind.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/memory/ref_counted_memory.h"
+@@ -18,2 +20,3 @@
+ #include "base/version_info/version_info.h"
++#include "brave/grit/brave_generated_resources.h"
+ #include "build/build_config.h"
+@@ -22,2 +25,3 @@
+ #include "chrome/browser/metrics/metrics_reporting_state.h"
++#include "chrome/browser/platform_util.h"
+ #include "chrome/browser/profiles/profile.h"
+@@ -45,3 +49,4 @@
+ 
+-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
++    BUILDFLAG(IS_CHROMEOS)
+ #include "components/crash/core/app/crashpad.h"
+@@ -65,2 +70,10 @@ void CreateAndAddCrashesUIHTMLSource(Profile* profile) {
+                              IDS_SHORT_PRODUCT_NAME);
++  source->AddLocalizedString("exportDiagnostics", IDS_EXPORT_DIAGNOSTICS);
++  source->AddLocalizedString("openCrashFolder", IDS_OPEN_CRASH_FILE_LOCATION);
++  const auto crashpad_path = crash_reporter::GetCrashpadDatabasePath();
++  source->AddString("crashFolderPath", crashpad_path
++                                           ? crashpad_path->LossyDisplayName()
++                                           : std::u16string());
++  source->AddBoolean("diagnosticsExportAllowed",
++                     !profile->IsGuestSession() && !profile->IsTor());
+ 
+@@ -107,2 +120,4 @@ class CrashesDOMHandler : public WebUIMessageHandler {
+ 
++  void HandleOpenCrashFolder(const base::ListValue& args);
++
+   scoped_refptr<UploadList> upload_list_;
+@@ -139,2 +154,6 @@ void CrashesDOMHandler::RegisterMessages() {
+                           base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
++      "openCrashFolder",
++      base::BindRepeating(&CrashesDOMHandler::HandleOpenCrashFolder,
++                          base::Unretained(this)));
+ }
+@@ -240,2 +259,15 @@ void CrashesDOMHandler::HandleRequestSingleCrashUpload(
+ 
++void CrashesDOMHandler::HandleOpenCrashFolder(const base::ListValue& args) {
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
++    BUILDFLAG(IS_CHROMEOS)
++  Profile* profile = Profile::FromWebUI(web_ui());
++  const auto path = crash_reporter::GetCrashpadDatabasePath();
++  if (!profile->IsGuestSession() && !profile->IsTor() && path &&
++      base::DirectoryExists(*path)) {
++    platform_util::OpenItem(profile->GetOriginalProfile(), *path,
++                            platform_util::OPEN_FOLDER, base::DoNothing());
++  }
++#endif
++}
++
+ }  // namespace

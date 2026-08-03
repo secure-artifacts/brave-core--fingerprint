@@ -170,6 +170,7 @@ test("brave_unit_tests") {
     "//brave/brave_domains:unit_tests",
     "//brave/browser",
     "//brave/browser:unit_tests",
+    "//brave/browser/fingerprint_browser:unit_tests",
     "//brave/browser/brave_account:unit_tests",
     "//brave/browser/brave_origin:unit_tests",
     "//brave/browser/brave_search:unit_tests",

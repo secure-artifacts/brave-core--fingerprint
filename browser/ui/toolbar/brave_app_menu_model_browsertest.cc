@@ -214,6 +214,7 @@ IN_PROC_BROWSER_TEST_F(BraveAppMenuModelBrowserTest, MenuOrderTest) {
       IDC_ABOUT,
       IDC_HELP_PAGE_VIA_MENU,
       IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER,
+      IDC_EXPORT_DIAGNOSTICS,
   };
   CheckHelpCommandsAreInOrderInMenuModel(browser(), help_commands_in_order);
 

@@ -369,6 +369,8 @@ source_set("ui") {
       "webui/brave_shields/shields_panel_handler.h",
       "webui/brave_shields/shields_panel_ui.cc",
       "webui/brave_shields/shields_panel_ui.h",
+      "webui/diagnostics/diagnostics_ui.cc",
+      "webui/diagnostics/diagnostics_ui.h",
       "webui/fingerprint_test/fingerprint_test_ui.cc",
       "webui/fingerprint_test/fingerprint_test_ui.h",
       "webui/new_tab_page/brave_new_tab_message_handler.cc",

@@ -10,6 +10,8 @@ and screenshot checks pass.
   Store extensions, third-party scans, TLS source scope, UI matrix, and approved
   native evidence.
 - `soak`: Full plus a 60-minute, three-Profile, 20-tab stability run.
+- `crash-diagnostics`: isolated browser, Renderer, and GPU controlled crashes,
+  relaunch, one-click export, ZIP verification, and diagnostics UI screenshots.
 
 ## Setup
 
@@ -37,6 +39,20 @@ node run_qa.mjs \
   --mode smoke \
   --results-dir ../../../../out/Component_arm64/qa-results
 ```
+
+Run the crash diagnostics acceptance gate separately after building the current
+QA app. It places Crashpad data under the run's temporary QA profile and never
+uses the production Brave Crashpad database:
+
+```bash
+npm run crash-diagnostics -- \
+  --results-dir ../../../../out/Component_arm64/qa-results
+```
+
+Set `FP_QA_DIAGNOSTICS_SECRET_CANARY` to a test-only secret that must not occur
+in any text file in the resulting ZIP. The macOS process running this command
+needs Accessibility and Screen Recording permission for the save dialog and
+native recovery screenshot.
 
 Full and Soak require the original crash extension and real proxy fixtures. The
 browser first verifies each draft through FreeIPAPI, falls back to IPWHOIS.IO,

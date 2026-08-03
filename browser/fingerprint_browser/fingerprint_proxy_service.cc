@@ -13,6 +13,7 @@
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/uuid.h"
+#include "brave/browser/fingerprint_browser/diagnostics/diagnostics_event_journal.h"
 #include "brave/components/fingerprint_browser/browser/pref_names.h"
 #include "brave/net/proxy_resolution/profile_proxy_config_service.h"
 #include "chrome/browser/browser_process.h"
@@ -800,6 +801,25 @@ void FingerprintProxyService::SetState(std::string_view state,
   prefs_->SetString(prefs::kProfileProxyState, state);
   prefs_->SetString(prefs::kProfileProxyStatusMessage, message);
   prefs_->SetString(prefs::kProfileProxyChangeWarning, change_warning);
+  diagnostics::DiagnosticsEventFields fields;
+  fields.status = std::string(state);
+  const FingerprintProxyState current = GetState();
+  fields.proxy_scheme = current.scheme;
+  if (current.geo) {
+    fields.country = current.geo->country_code;
+    fields.timezone = current.geo->timezone;
+    if (!current.geo->accept_languages.empty()) {
+      fields.language = current.geo->accept_languages.front();
+    }
+  }
+  diagnostics::RecordDiagnosticsEvent(
+      profile_->GetPath().DirName(),
+      diagnostics::DiagnosticsEventType::kProxyStateChanged, fields);
+  if (current.geo && state == kProxyStateActive) {
+    diagnostics::RecordDiagnosticsEvent(
+        profile_->GetPath().DirName(),
+        diagnostics::DiagnosticsEventType::kGeoStateChanged, fields);
+  }
   NotifyObservers();
 }
 

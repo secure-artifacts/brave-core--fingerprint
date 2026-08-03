@@ -61,6 +61,7 @@ class BraveHelpMenuModel : public ui::SimpleMenuModel {
     AddItemWithStringId(IDC_HELP_PAGE_VIA_MENU, IDS_HELP_PAGE);
     AddItemWithStringId(IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER,
                         IDS_SHOW_BRAVE_WEBCOMPAT_REPORTER);
+    AddItemWithStringId(IDC_EXPORT_DIAGNOSTICS, IDS_EXPORT_DIAGNOSTICS);
   }
 };
 }  // namespace

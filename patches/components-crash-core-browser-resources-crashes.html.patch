@@ -1,0 +1,28 @@
+diff --git a/components/crash/core/browser/resources/crashes.html b/components/crash/core/browser/resources/crashes.html
+index db8b09fdf9450..2e5ae5a267046 100644
+--- a/components/crash/core/browser/resources/crashes.html
++++ b/components/crash/core/browser/resources/crashes.html
+@@ -22,2 +22,12 @@
+ 
++  <div id="localDiagnosticsActions">
++    <button class="custom-appearance" id="exportDiagnostics">
++      $i18n{exportDiagnostics}
++    </button>
++    <button class="custom-appearance" id="openCrashFolder">
++      $i18n{openCrashFolder}
++    </button>
++    <code id="crashFolderPath">$i18n{crashFolderPath}</code>
++  </div>
++
+   <div id="crashUploadStatus" hidden>
+@@ -69,4 +79,8 @@
+           </table>
+-          <button class="send-now">$i18n{uploadNowLinkText}</button>
+-          <button class="file-bug">$i18n{bugLinkText}</button>
++          <button class="custom-appearance send-now">
++            $i18n{uploadNowLinkText}
++          </button>
++          <button class="custom-appearance file-bug">
++            $i18n{bugLinkText}
++          </button>
+         </div>

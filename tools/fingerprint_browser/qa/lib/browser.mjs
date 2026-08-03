@@ -218,6 +218,7 @@ export async function startQaSession({
 
   return {
     browser,
+    browserSession,
     context,
     events,
     port,
