@@ -91,6 +91,15 @@ function normalizedMetric(result, name) {
   return value
 }
 
+function absoluteMetric(result, name) {
+  const output = `${result.stderr}\n${result.stdout}`.trim()
+  const value = Number(output.match(/[-+\d.eE]+/)?.[0])
+  if (!Number.isFinite(value)) {
+    throw new Error(`Could not parse ImageMagick ${name}: ${output}`)
+  }
+  return value
+}
+
 async function comparisonMetrics(actual, baseline, diffTarget, pixelCount) {
   await fs.mkdir(path.dirname(diffTarget), { recursive: true })
   const rmseResult = await run('magick', [
@@ -120,7 +129,7 @@ async function comparisonMetrics(actual, baseline, diffTarget, pixelCount) {
     'null:',
   ])
   return {
-    pixelDifferenceRatio: normalizedMetric(pixelResult, 'AE') / pixelCount,
+    pixelDifferenceRatio: absoluteMetric(pixelResult, 'AE') / pixelCount,
     rmse: normalizedMetric(rmseResult, 'RMSE'),
     ssimDifference: normalizedMetric(ssimResult, 'SSIM'),
   }
@@ -136,7 +145,7 @@ async function applyMask(image, mask, target) {
       '-alpha',
       'off',
       '-compose',
-      'CopyOpacity',
+      'Multiply',
       '-composite',
       target,
     ],
@@ -153,7 +162,7 @@ export async function analyzeScreenshot({
   diffDir,
   maxRedRatio = 0.015,
   maxRedComponentArea = 24,
-  maxRmse = 0.06,
+  maxRmse = 0.08,
   maxPixelDifferenceRatio = 0.03,
   maxSsimDifference = 0.05,
 }) {

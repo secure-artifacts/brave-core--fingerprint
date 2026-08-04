@@ -41,6 +41,79 @@ test('analyzeScreenshot records SSIM and pixel comparison for approved baseline'
   }
 })
 
+test('analyzeScreenshot reports changed pixels as a ratio of image area', async () => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'fp-qa-pixel-ratio-'),
+  )
+  const actual = path.join(directory, 'actual.png')
+  const baselineDir = path.join(directory, 'baselines')
+  const baseline = path.join(baselineDir, 'page', 'sample.png')
+  try {
+    await fs.mkdir(path.dirname(baseline), { recursive: true })
+    await run('magick', ['-size', '10x10', 'xc:white', baseline], {
+      check: true,
+    })
+    await run(
+      'magick',
+      [
+        '-size',
+        '10x10',
+        'xc:white',
+        '-fill',
+        'black',
+        '-draw',
+        'point 0,0',
+        actual,
+      ],
+      { check: true },
+    )
+    const result = await analyzeScreenshot({
+      actual,
+      baselineDir,
+      baselineKey: path.join('page', 'sample.png'),
+      diffDir: path.join(directory, 'diff'),
+      maxPixelDifferenceRatio: 1,
+      maxRmse: 1,
+      maxSsimDifference: 1,
+    })
+    assert.equal(result.pixelDifferenceRatio, 0.01)
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('analyzeScreenshot fully ignores black baseline mask regions', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-mask-'))
+  const actual = path.join(directory, 'actual.png')
+  const baselineDir = path.join(directory, 'baselines')
+  const baseline = path.join(baselineDir, 'page', 'sample.png')
+  const mask = `${baseline}.mask.png`
+  try {
+    await fs.mkdir(path.dirname(baseline), { recursive: true })
+    await run('magick', ['-size', '32x32', 'xc:white', baseline], {
+      check: true,
+    })
+    await run('magick', ['-size', '32x32', 'xc:black', actual], {
+      check: true,
+    })
+    await run('magick', ['-size', '32x32', 'xc:black', mask], {
+      check: true,
+    })
+    const result = await analyzeScreenshot({
+      actual,
+      baselineDir,
+      baselineKey: path.join('page', 'sample.png'),
+      diffDir: path.join(directory, 'diff'),
+    })
+    assert.equal(result.baselineStatus, 'PASS')
+    assert.equal(result.pixelDifferenceRatio, 0)
+    assert.equal(result.rmse, 0)
+    assert.equal(result.ssimDifference, 0)
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true })
+  }
+})
+
 test('analyzeScreenshot rejects a connected pure-red UI component', async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'fp-qa-red-'))
   const actual = path.join(directory, 'actual.png')
