@@ -1,0 +1,692 @@
+{
+  "chromiumResourcesSha256": "1ae70be5ab6d236c1784a978ef69dcd7337aeb0926db4321b55bf2927e4ec23f",
+  "libchromeSha256": "16ed18b85616d0f6d6021ef81ec7d2ca9fba20a3e4b14bcba21803ab86017e21",
+  "resourcesSha256": "5326bb6a37507ff81c8f09c3e77bac40cc49c93c7b9291ac5b563b6a065ba1c0",
+  "reviews": {
+    "page/full-cws-google-translate-extensions.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "49ee4cd575066f841c24ab774e260c7c5053f9f1461ee6b47f8e39829970259d",
+      "status": "PASS"
+    },
+    "page/full-cws-google-translate-options.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5957dcc43904f52f87ba81f1f695632c252b7e605009c11bee09f439bdd578f7",
+      "status": "PASS"
+    },
+    "page/full-dark-crashes-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "3936f57b2e6f9f3ff08120e33682ac132606101fea309b66e9faaaee251a6f24",
+      "status": "PASS"
+    },
+    "page/full-dark-crashes-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "fafa8f0dd6e2cd60425205319a5a0ecd14121e8c7f50bf21c04c6e56c01bc619",
+      "status": "PASS"
+    },
+    "page/full-dark-crashes-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "f875ea45009903bc17480959b18b0d90e90a619effeab46ce77cd5126a9b9cb7",
+      "status": "PASS"
+    },
+    "page/full-dark-diagnostics-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "3064994879ffa3d79ab0ca7144216bd57a66ac57f7d7c897e81b0f9702b42f63",
+      "status": "PASS"
+    },
+    "page/full-dark-diagnostics-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "e5354132601c6ba4858c02a046008c7f3425eaa64841030a2d7f692a818f2b6b",
+      "status": "PASS"
+    },
+    "page/full-dark-diagnostics-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "20514f41f0ecb496561d387638c1f5401fa34af543246254cab3cbdd36c074f3",
+      "status": "PASS"
+    },
+    "page/full-dark-facebook-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "923ce45d8986caf5523cea2c11ab57b12240c70176be74740187d86c91610687",
+      "status": "PASS"
+    },
+    "page/full-dark-facebook-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "d5d1886a0fefe867129c0f7f8ca8fd2791f0a65c56507d16821faed4936ddf16",
+      "status": "PASS"
+    },
+    "page/full-dark-facebook-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5d1c14556323a4c30a1d9790dd67617bcd410a00523eb99f3219a985d7badbe1",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "fd4fed00a7566019e0fb03e2ba76d20bc1ce7d5cda20cf0b3b703ca7d396f6a4",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "d8fac2d098d96f76a2301b8e3d81fd45cea9faa688cc3c0b58363ba04e89b9d1",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "17073802b9cb772cf8a6a14fc7b46504fd7a453e59ac008047b6b92321a17d4a",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-fail-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "cbcb5b678b620dbe7af1affd594e7e9389d6677b59c12b29c93875419262f254",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-fail-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "6afd4f062d6a15327df0c7889d4685c777966e8a2434c755776e301fd6af7e53",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-fail-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b23c298b46a73876f2ade1ebf475f899ead9ceec608bde49170bf3bc50850a23",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-unavailable-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "73b57ae4b79e00254ae457fd4cc52c5dff020ba37b4440d9c23efab31c0ffe72",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-unavailable-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "7a36428d3103f3c1c1986293e9dc7d6ad60cb5f161d0a0b318c4f8544a715c2d",
+      "status": "PASS"
+    },
+    "page/full-dark-fingerprint-unavailable-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "0d33b69b8927a3db24332b1c75d6414e6ea0c05e0f0e6e932b95614c0f77d487",
+      "status": "PASS"
+    },
+    "page/full-dark-google-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "8d62ce697894bf10c0b0d995ae707ec52b1f3b5a3fe2c89bb88f62a8aa4aabf4",
+      "status": "PASS"
+    },
+    "page/full-dark-google-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "a7638701e6ad1b4c795e6d60e70f69455d508d890f80757f05dd85ac1183b5a9",
+      "status": "PASS"
+    },
+    "page/full-dark-google-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "df540dd165f601b57f8b05df0e7557cfe32d82b37c0d64cb001c584927f96491",
+      "status": "PASS"
+    },
+    "page/full-dark-guide-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "3cdc042e27e41f88088b0d82f7c85e388050fac27babb72a104720e896a6dc63",
+      "status": "PASS"
+    },
+    "page/full-dark-guide-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "803c0e45528035fd178a77edb65c1b721a39eebd60cd094c665833383558ad23",
+      "status": "PASS"
+    },
+    "page/full-dark-guide-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "47097afff750da8832ea6c81a88497ab122f7260d1d8a0a476d327d81462c0e4",
+      "status": "PASS"
+    },
+    "page/full-dark-new-tab-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "1fb3f76dc89f9c73b30257de340b3f2500001e2e53dc18bf452d21f38414c5aa",
+      "status": "PASS"
+    },
+    "page/full-dark-new-tab-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "302b31756b7d8d6cea43dfd180f3e8635c4a7b437611ed641a7b097022b65c84",
+      "status": "PASS"
+    },
+    "page/full-dark-new-tab-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "ebd70ddac87aef25bcdbab315088ec7f8f98d0fcfa50d7ae13dd0ab8ee9ae50b",
+      "status": "PASS"
+    },
+    "page/full-dark-proxy-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "c18e7750abf7e74af9c1776d2b7f8b0c4ff1b92679ccbb4fb8554e6509efadfb",
+      "status": "PASS"
+    },
+    "page/full-dark-proxy-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "dbaf51446f7e3931ef75343a82777ec49f976653190d7a204615334a1e2e6a70",
+      "status": "PASS"
+    },
+    "page/full-dark-proxy-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "c80c0b97d74e5a3b84c8f8bfa646d75ba85cecf7ca8aa40b50787caad0ef8fe1",
+      "status": "PASS"
+    },
+    "page/full-dark-proxy-validation-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5513a31c0c4e261a4ecb38993dcd0b38532cebaa9f904bb01657862c962874c9",
+      "status": "PASS"
+    },
+    "page/full-dark-proxy-validation-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "afa62c2852fb3cfae703a890ae387275400034f4b7ede0de83e79abf013ab110",
+      "status": "PASS"
+    },
+    "page/full-dark-proxy-validation-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "1e35bb78c65a591c96b5aaa6e8d0fb17fc406a38b3174dd3200d41014240bdb5",
+      "status": "PASS"
+    },
+    "page/full-dark-settings-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "adefd0112f89122601a0cc25b9dd79f674638bf7b3c98e90b774a9b7c42e9731",
+      "status": "PASS"
+    },
+    "page/full-dark-settings-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "e2a9e0c760a03a10a8270cd78520273f83d1e798ca6ba0b7294c6c269e1ad9bd",
+      "status": "PASS"
+    },
+    "page/full-dark-settings-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b5d5f9a4174ccb5b03fdae88035772b7a24138b51c86e93df35f90d728bc941c",
+      "status": "PASS"
+    },
+    "page/full-light-crashes-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5fa6a372ee0f3321e4edaa62395905decfceb66b971f21890e69c824f03fb180",
+      "status": "PASS"
+    },
+    "page/full-light-crashes-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "593f05b4a76f3072f37d80d4580e9494cfb239c4a71952ae2ef04de48f006935",
+      "status": "PASS"
+    },
+    "page/full-light-crashes-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "3c8a612d7e5f617c7a19e3be7338184e4e0cb2813e323891954f588de504ffe0",
+      "status": "PASS"
+    },
+    "page/full-light-diagnostics-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "e53de3334febeb57565bdb70cbc8d4084198a49857650bbf9cec4f2357d42c2b",
+      "status": "PASS"
+    },
+    "page/full-light-diagnostics-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "e2e76fda5f8af1629832f9540da60aedc0f3ce12e0424eb930458204892a12fc",
+      "status": "PASS"
+    },
+    "page/full-light-diagnostics-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "52a39925e4e2ce06298dc7ce42f64a36c5be716275d524bfbccffb22f58923d8",
+      "status": "PASS"
+    },
+    "page/full-light-facebook-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "d754959f10be68da48bdcabf7bc9427a77753c7a824ec6a6195f617411f13fac",
+      "status": "PASS"
+    },
+    "page/full-light-facebook-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "1a258b96dd45766fec2f3119af4e2f79c168851a73d323af0a6539a7283cc94c",
+      "status": "PASS"
+    },
+    "page/full-light-facebook-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "44394eca420b4ef04851cde82a8d7eaf2a13f4edb981675f2dd7ed0341a31eba",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "bb179a36d70a113d574d46015013ccbef0de39d0835859be6115a8f44349e19d",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "35b45360a0cec084e2f055a6449ffc2669c80e397fa81ba5bf97222715739cbf",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "1f49f26c55f16471201596ab1d41369183aadecebeedfb56a42f758ae32037d4",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-fail-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "89da37fb8c04cc528746a9dd809696b92c141392fe5b5ed5c1c364ea8ae724c6",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-fail-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "c699acb3d910f2995cf815c3c96f26c7e893e1ecec9e07df29b48fd0c17cad4e",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-fail-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "07582b242bb533a42cdfdf36ea41a80a1555520cd6c1d75ed9e790529a77e75d",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-unavailable-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5832e1e589ee2b502be1b59d1524df82f101eead312e9e7dcd8d770be5b37f95",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-unavailable-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "6372e23e6a4953ce240cf0e43300c9c1450540f89d44933034be607f71829305",
+      "status": "PASS"
+    },
+    "page/full-light-fingerprint-unavailable-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "24c006c0fc74080cb6cbb5ea62638ba0f6e38b2a02403a505e73833c1622c509",
+      "status": "PASS"
+    },
+    "page/full-light-google-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "a1c387cf7716d65caf9a3c64c3a403532816726bb5fae3afde5305927e2af4ae",
+      "status": "PASS"
+    },
+    "page/full-light-google-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b9d60d2c0d06caf6b1281603e6996071794441b446c2dd6d3208c6712645a94f",
+      "status": "PASS"
+    },
+    "page/full-light-google-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "ac62fcd7df76694a9a3b02a058f208657467bc31484666ab4d32366f0a56d919",
+      "status": "PASS"
+    },
+    "page/full-light-guide-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "9629d9c8d70e52e7b9affec7f3fc45808ac44f42e7b32dbc7534ff913302cea5",
+      "status": "PASS"
+    },
+    "page/full-light-guide-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "f59e346799e9491d362cb6ecea18e86db582cb5ee3a2ebe00c0b7a5cedd5719f",
+      "status": "PASS"
+    },
+    "page/full-light-guide-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "36651038f14452e50c6eb3db01bb4576f6df6589b4eb6a99ffcbf2476f654d7e",
+      "status": "PASS"
+    },
+    "page/full-light-new-tab-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "cbb9ca4d76c0e9e370dbb021f5bba3dcb2ac2186454c92896bc36ffa82e6f4d6",
+      "status": "PASS"
+    },
+    "page/full-light-new-tab-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "302d22b24699c05c3c1d8c3ba97c5962844fb12445b6b579167ecf5afe43f500",
+      "status": "PASS"
+    },
+    "page/full-light-new-tab-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "f9a1833ce1ad7596c1221df2078c3d35267b484fccff66d5c0c38afa146414b8",
+      "status": "PASS"
+    },
+    "page/full-light-proxy-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "56e5844e6f0da0706942971dadfc7d0eb0f43b2a6165e9c4cbe2b2e9d88dbae0",
+      "status": "PASS"
+    },
+    "page/full-light-proxy-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "868348993a0eaaff10634f245aae367ca83752f3563075b28e5a5c54307c1be8",
+      "status": "PASS"
+    },
+    "page/full-light-proxy-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b7d13491541778bed951c5a0ab3ed8c2171052d263b9cfec34100f2fb95ca57a",
+      "status": "PASS"
+    },
+    "page/full-light-proxy-validation-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "1151b2926d722d02293682fb1a36a618ee2b0eb0a8d7dac7e1ace8b4eb64e3db",
+      "status": "PASS"
+    },
+    "page/full-light-proxy-validation-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "91a381e5d1945ed9644468cd994af06926720a35060372c934b4567541631698",
+      "status": "PASS"
+    },
+    "page/full-light-proxy-validation-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "a56d9f5f728d058069e1e2920f2ea5cc1067f5c7ad46b646cf6bb14e00fcc862",
+      "status": "PASS"
+    },
+    "page/full-light-settings-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "87bd61cc1a44de8f0f32263a86eed6470c031f435426014978fdb82aece287d3",
+      "status": "PASS"
+    },
+    "page/full-light-settings-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "0bcda4390a8c1acdc81c61f16a0789519c88fe45d4e3ebb858d2bcf539244759",
+      "status": "PASS"
+    },
+    "page/full-light-settings-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "c6f066430e1032f0b41d9552b5afacddf4a08abe5c43f48147df64eb46fec0a5",
+      "status": "PASS"
+    },
+    "page/full-local-extension-options.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "ca676ccb61ad8a7bcd188d83198aed513e38089bff8febfd5d87d043cb9e9870",
+      "status": "PASS"
+    },
+    "page/full-local-extension-popup.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "7d6086f0a95f5a4e170e029087f8feda3ceb0c7dfe97dd08c13c109f7bf1f7e4",
+      "status": "PASS"
+    },
+    "page/full-local-extension-proxy-conflict.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "ea9cf06112dc126e990fa51884baa13b69437d89a1623aa14bf3ba7866d74979",
+      "status": "PASS"
+    },
+    "page/full-profile-persona-b.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b659fae3b3023fc09d37cf9f1f4401299ba34a45009766563618a87b06ce13cd",
+      "status": "PASS"
+    },
+    "page/full-proxy-toolbar-settings-route.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "6356de3c4a23f4534007827460e5d687a8b97f056a6cf053f697612a8079243a",
+      "status": "PASS"
+    },
+    "page/full-scan-browserleaks-ssl.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "04e7d804b9c9e2218361a22cbdda796f304b449bf3486adb4030b7d4367d9a79",
+      "status": "PASS"
+    },
+    "page/full-scan-browserleaks.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b65edefdc02fbc5db0ae9128574ce94957b67bc5a1d86bf4c0bcda8f06d96e49",
+      "status": "PASS"
+    },
+    "page/full-scan-creepjs.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "bec5461d410110f43b61b3eadf9015f8ad58887ec9b0019f0a7ea1d2665c48b8",
+      "status": "PASS"
+    },
+    "page/full-scan-fingerprintjs.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "daf50b3bacd10939e2a8c149fe72307c7cb71f46821a5dc1adc1242d064c32bd",
+      "status": "PASS"
+    },
+    "page/smoke-facebook-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "4d7a7525bc0c53ee9db6090c1894fda40b4b57d47ccbc8d2c4317aa5f42dd843",
+      "status": "PASS"
+    },
+    "page/smoke-fingerprint-guide-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "803c0e45528035fd178a77edb65c1b721a39eebd60cd094c665833383558ad23",
+      "status": "PASS"
+    },
+    "page/smoke-fingerprint-probe-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "8e2f065d42e963c2afe2c5bdd0e14138a0ce0a7067a4f5188e9d4f1ecfe4ccad",
+      "status": "PASS"
+    },
+    "page/smoke-fingerprint-test-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "fcfe8d6d3c6320d653d472273fbfc5a00032f3618150dc194681b22e685e0764",
+      "status": "PASS"
+    },
+    "page/smoke-google-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "bf7ca010a61dddfab5a8699c0ac2b850e099002f5d281f9744051a98aefe29c6",
+      "status": "PASS"
+    },
+    "page/smoke-new-tab-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "bf657af1fe20007aec65628bf4d33982450e56e61b02e8d0e155b804f5f63170",
+      "status": "PASS"
+    },
+    "page/smoke-settings-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "e2a9e0c760a03a10a8270cd78520273f83d1e798ca6ba0b7294c6c269e1ad9bd",
+      "status": "PASS"
+    },
+    "page/smoke-wikipedia-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b4273c2e6c9632a9b761e421ee564995abef3586ecb66f5784cd6febd3744ca7",
+      "status": "PASS"
+    },
+    "native/full-cws-google-translate-extensions-menu-button.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "fed9692304addc1f1101ecfab61f000a221c14b95177d02530eda88753474637",
+      "status": "PASS"
+    },
+    "native/full-cws-google-translate-extensions-menu.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "4837db596f86e2d7cf6656622b1866955f3e22d8f973412f5d4eaec3343d7c97",
+      "status": "PASS"
+    },
+    "native/full-cws-google-translate-install-confirmation.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "dcc0ddcd6ddb5ba5ace75ae4bfa0e4b3d31371b8ef4f40cca1c009332bcb6a32",
+      "status": "PASS"
+    },
+    "native/full-cws-google-translate-installed-toolbar.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "21fa40be76ca9097191361b4eae4c0cecf929393c49029f23e0795145e4d70dd",
+      "status": "PASS"
+    },
+    "native/full-cws-google-translate-popup.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b233daf4b83adad737b12b72265da10f7dc9dac069103b1a72991153b280f3af",
+      "status": "PASS"
+    },
+    "native/full-cws-google-translate-uninstall-confirmation.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "84b8e621630eeefdaa7f6b95ee55fa5d8913cc7105971c8f3d4229a60a6d8778",
+      "status": "PASS"
+    },
+    "native/full-dark-crashes-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "0c01302033944aa5f2ba476c1bf4ab081a86699dc16fc15950966ad6a75a4d88",
+      "status": "PASS"
+    },
+    "native/full-dark-crashes-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "53721b6c280d231156bd2c7e4f2c9477189eb90f951802eda6f52a82e708b9ba",
+      "status": "PASS"
+    },
+    "native/full-dark-crashes-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "06d286df13e4e10edcad5840d9f8a8420017573d3d5a112b00763473ad2910e0",
+      "status": "PASS"
+    },
+    "native/full-dark-diagnostics-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "33c137bcde2e6e0992034a4d960da33882e1aee4fa03593df4f16682cbe789ad",
+      "status": "PASS"
+    },
+    "native/full-dark-diagnostics-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "2b0d9bb40145609429ad2eb83ff24fa1fbb269e9e31ea70868e445446bb83604",
+      "status": "PASS"
+    },
+    "native/full-dark-diagnostics-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "b05996e664e817af0f26dfcadd3106d3d58e40e4e4895e61336382f556115a8b",
+      "status": "PASS"
+    },
+    "native/full-dark-fingerprint-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "354114b63871bb0d3d9afee55d645c588b6c88f1da1b8c481542a44a610a85e8",
+      "status": "PASS"
+    },
+    "native/full-dark-fingerprint-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "73a6658def89016473a1e17d183409fcfb67897a9df8593c35b2d683fc69ae97",
+      "status": "PASS"
+    },
+    "native/full-dark-fingerprint-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "f073d999781a2e609c5a0c33eec00112fd1a255b313eeafd9dc45e093eb5721b",
+      "status": "PASS"
+    },
+    "native/full-dark-guide-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "a9092371c7a8c875f347ce8c47058ab36baedaa136240133ccaa6bf300288e61",
+      "status": "PASS"
+    },
+    "native/full-dark-guide-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "a7ce7abb3f910f3c54869545fed259a3a1d249d20200d82d73df0427317e5093",
+      "status": "PASS"
+    },
+    "native/full-dark-guide-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "cf42ac6eeb8df1845c380d87d4107d87cd64dcaf770bbf95930cd853805dd074",
+      "status": "PASS"
+    },
+    "native/full-dark-proxy-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "e2a0db9c5fe1965effc3e3599e0600f50ba3d3ba82230cde2bfa326d1ae91099",
+      "status": "PASS"
+    },
+    "native/full-dark-proxy-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "24b50a50241114a029f314950636b7b099d59b5e6dfea5eebf495f3726cb155f",
+      "status": "PASS"
+    },
+    "native/full-dark-proxy-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "788401ad3fc504ac89fa318beeda4e8879b1825667a1c28c1a629226399a07b4",
+      "status": "PASS"
+    },
+    "native/full-dark-settings-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "f383ae849ddc5255de9c4dc7f2c61cdc1603ba054d19e95f240d3773347cfc2e",
+      "status": "PASS"
+    },
+    "native/full-dark-settings-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "53b4c86d03a479a35ecbab49c71c9161cd35ea8281c23171003897a9b2c0a76c",
+      "status": "PASS"
+    },
+    "native/full-dark-settings-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "8520872e52fefa823f1fc80d80cdce0a7b00eef0c1b9a5deffbe6ac9f57dacc1",
+      "status": "PASS"
+    },
+    "native/full-light-crashes-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "c076b5f6d9ed1d5dda8132b8fc9df1653391417fb35e08b1469d2c4060c214fd",
+      "status": "PASS"
+    },
+    "native/full-light-crashes-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5ab18c0151cdad5d93baa773c18a7aa8ff17d37856de666ddeadfd2d19e229db",
+      "status": "PASS"
+    },
+    "native/full-light-crashes-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5ee8ff050646bc928aa34b671188c9fa82405ddacb561df7d26060cdc8a2a290",
+      "status": "PASS"
+    },
+    "native/full-light-diagnostics-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "8725bbad65e911287ec9598112fa6c77bfa26c738c23ff03f9dae560d446a843",
+      "status": "PASS"
+    },
+    "native/full-light-diagnostics-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "16967b6ed9de5d0ff7d939d1818f44a5fc8cc43bf6c59949a2efa3904d1e9c69",
+      "status": "PASS"
+    },
+    "native/full-light-diagnostics-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "80a639afb7698137d1f262a4cbb45f6e13a2c279cca92ad1d4869b53fed17b2e",
+      "status": "PASS"
+    },
+    "native/full-light-fingerprint-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "9663dfced44b0c411f3d6d090c890449b7255d880074bcb2237be3b6a9e57587",
+      "status": "PASS"
+    },
+    "native/full-light-fingerprint-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "0a15bb775b938fb072829ca3eaf7ac9c4f43290099b43c3b1dfcef099cbcc21a",
+      "status": "PASS"
+    },
+    "native/full-light-fingerprint-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "55fe2885e1ec2dec7d6fa86d687a45ccfed2472a4ab88160a8b8e9e461009fae",
+      "status": "PASS"
+    },
+    "native/full-light-guide-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "abce01b4acd81164a5fb4d2f0b8ba9e1cc66222df99bbd685247a3953215ee28",
+      "status": "PASS"
+    },
+    "native/full-light-guide-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "13790a402d40422e2f063b4d98d2c18dd17484975c7ae6cb16191b1d964ca2fe",
+      "status": "PASS"
+    },
+    "native/full-light-guide-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "59af26bb05eae8cc359ec4612039512c43bc5d01b644b568073bcbe02a9819e3",
+      "status": "PASS"
+    },
+    "native/full-light-proxy-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "4893bd5cbb98e4208ae68ee05fe58a2342e83a5bfcc3ab498e3e157518e253ac",
+      "status": "PASS"
+    },
+    "native/full-light-proxy-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "17d40daeb064ebd39d6f4633c5a44853597a7286940329c391d6298afa595348",
+      "status": "PASS"
+    },
+    "native/full-light-proxy-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "6120ed70284a1f2fa01bbeb9da48768464fc7bafe34f798cdf04647fe5ab5b12",
+      "status": "PASS"
+    },
+    "native/full-light-settings-1024x768.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "c0264dcf3018600b8ac9927b6e44f00598de3851d166baf2c0fea7edf29a5346",
+      "status": "PASS"
+    },
+    "native/full-light-settings-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "af1182f19a41960aa81c2c1312196bf801965aa11acf9ac507fe484363ad86c7",
+      "status": "PASS"
+    },
+    "native/full-light-settings-1512x982.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "8920739f58bf6a4b1b637d4cf673f393a057c71a25857fc117c642754b96d9fc",
+      "status": "PASS"
+    },
+    "native/full-proxy-toolbar-after-configure.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "2c5ade0dddb7161f1034293d10fbd849e2472227ae2c2301e7663a1c4d6776c5",
+      "status": "PASS"
+    },
+    "native/full-proxy-toolbar-bubble.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "c3b825fb3e7263391a16ba0ba25677f5a57ef2fd23bab29fbd5b2685ad83f5f5",
+      "status": "PASS"
+    },
+    "native/full-proxy-toolbar-button.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "8ca1e5e2281a6f6361cdd7065dc1b8a5b0c538c97abf51ad602a171bb62fd7aa",
+      "status": "PASS"
+    },
+    "native/smoke-browser-chrome-1280x800.png": {
+      "reason": "界面显示正常，未发现截断、重叠、颜色或可读性问题。",
+      "screenshotSha256": "5d2568bcb757f3fe930218937496071be4db6c42ff96ebee83236ce5febba230",
+      "status": "PASS"
+    }
+  }
+}
