@@ -25,8 +25,8 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/lazy_thread_pool_task_runner.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/task/thread_pool.h"
 #include "base/values.h"
 
 namespace fingerprint_browser::diagnostics {
@@ -37,17 +37,18 @@ constexpr int64_t kMaximumJournalFileBytes = 5 * 1024 * 1024;
 constexpr int64_t kMaximumJournalBytes = 20 * 1024 * 1024;
 constexpr size_t kMaximumFieldLength = 128;
 
+base::LazyThreadPoolSequencedTaskRunner g_journal_task_runner =
+    LAZY_THREAD_POOL_SEQUENCED_TASK_RUNNER_INITIALIZER(base::TaskTraits(
+        base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+        base::TaskShutdownBehavior::BLOCK_SHUTDOWN));
+
 base::Lock& JournalLock() {
   static base::NoDestructor<base::Lock> lock;
   return *lock;
 }
 
-const scoped_refptr<base::SequencedTaskRunner>& JournalTaskRunner() {
-  static const base::NoDestructor<scoped_refptr<base::SequencedTaskRunner>>
-      task_runner(base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-           base::TaskShutdownBehavior::BLOCK_SHUTDOWN}));
-  return *task_runner;
+scoped_refptr<base::SequencedTaskRunner> JournalTaskRunner() {
+  return g_journal_task_runner.Get();
 }
 
 base::FilePath JournalDirectory(const base::FilePath& user_data_dir) {

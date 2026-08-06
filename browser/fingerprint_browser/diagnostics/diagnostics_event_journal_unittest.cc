@@ -83,5 +83,17 @@ TEST_F(DiagnosticsEventJournalTest, RotatesAtFiveMiB) {
   EXPECT_EQ(logs.size(), 2u);
 }
 
+TEST(DiagnosticsEventJournalTaskRunnerTest,
+     RecreatesAfterTaskEnvironmentShutdown) {
+  for (int iteration = 0; iteration < 2; ++iteration) {
+    base::test::TaskEnvironment task_environment;
+    base::ScopedTempDir temp_dir;
+    ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+    ASSERT_TRUE(RecordDiagnosticsEvent(
+        temp_dir.GetPath(), DiagnosticsEventType::kBrowserStarted));
+    EXPECT_EQ(GetDiagnosticsEventLogs(temp_dir.GetPath()).size(), 1u);
+  }
+}
+
 }  // namespace
 }  // namespace fingerprint_browser::diagnostics
