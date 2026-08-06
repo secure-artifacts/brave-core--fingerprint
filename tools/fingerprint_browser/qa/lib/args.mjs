@@ -5,6 +5,8 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { QA_APP_BUNDLE } from './product.mjs'
+
 const MODES = new Set(['smoke', 'proxy', 'full', 'soak'])
 const DEFAULT_BRAVE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -86,7 +88,7 @@ export function parseArgs(
     : path.join(
         outDir,
         'fingerprint-browser-qa',
-        'Brave Browser Development QA.app',
+        QA_APP_BUNDLE,
       )
   const resultsDir = values['--results-dir']
     ? path.resolve(cwd, values['--results-dir'])

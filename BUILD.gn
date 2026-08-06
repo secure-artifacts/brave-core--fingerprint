@@ -743,6 +743,7 @@ if (is_mac) {
       "--brave_product_dir_name=" + brave_product_dir_name,
       "--brave_version=" + brave_version,
       "--brave_eddsa_key=" + sparkle_eddsa_public_key,
+      "--display_name_utf8_hex=e68c87e7bab9e6b58fe8a788e599a8",
     ]
 
     if (skip_signing) {

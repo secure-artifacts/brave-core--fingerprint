@@ -10,6 +10,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 
+import { NATIVE_CRASH_PREFIXES } from './product.mjs'
+
 export async function pathExists(target) {
   try {
     await fs.access(target)
@@ -157,16 +159,13 @@ export async function listProcesses() {
 }
 
 export function processesForProfile(processes, profilePath) {
-  const roots = processes.filter(
-    (process) =>
-      process.command.includes('Brave Browser Development')
-      && (() => {
-        const needle = `--user-data-dir=${profilePath}`
-        const index = process.command.indexOf(needle)
-        const next = process.command[index + needle.length]
-        return index >= 0 && (next === undefined || /\s/.test(next))
-      })(),
-  )
+  const roots = processes.filter((process) => {
+    const needle = '--user-data-dir=' + profilePath
+    const index = process.command.indexOf(needle)
+    if (index < 0) return false
+    const next = process.command[index + needle.length]
+    return next === undefined || /\s/.test(next)
+  })
   const selected = new Set(roots.map((process) => process.pid))
   let changed = true
   while (changed) {
@@ -227,9 +226,6 @@ export async function stopProfileProcesses(profilePath, timeoutMs = 5000) {
 export async function stopAllQaProcesses() {
   const profiles = new Set()
   for (const item of await listProcesses()) {
-    if (!item.command.includes('Brave Browser Development')) {
-      continue
-    }
     const match = item.command.match(
       /--user-data-dir=(?:"([^"]+)"|'([^']+)'|(\/tmp\/fingerprint-browser-[^\s]+))/,
     )
@@ -245,7 +241,10 @@ export async function stopAllQaProcesses() {
   return results
 }
 
-async function snapshotReportsIn(directory, { extension, source, stage = '' }) {
+async function snapshotReportsIn(
+  directory,
+  { extension, namePrefixes = [], source, stage = '' },
+) {
   if (!(await pathExists(directory))) return []
   const entries = await fs.readdir(directory, { withFileTypes: true })
   const reports = []
@@ -253,7 +252,7 @@ async function snapshotReportsIn(directory, { extension, source, stage = '' }) {
     if (!entry.isFile() || !entry.name.endsWith(extension)) continue
     if (
       source === 'native'
-      && !entry.name.startsWith('Brave Browser Development')
+      && !namePrefixes.some((prefix) => entry.name.startsWith(prefix))
     )
       continue
     const file = path.join(directory, entry.name)
@@ -290,6 +289,7 @@ export async function snapshotCrashReports(options = {}) {
 
   const reports = await snapshotReportsIn(diagnosticReportsDirectory, {
     extension: '.ips',
+    namePrefixes: options.nativeNamePrefixes || NATIVE_CRASH_PREFIXES,
     source: 'native',
   })
   for (const database of new Set(crashpadDirectories)) {

@@ -22,11 +22,11 @@ import {
 } from '../lib/system.mjs'
 import { contrastRatio } from '../lib/visual.mjs'
 
-test('processesForProfile matches only Development QA command line', () => {
+test('processesForProfile matches only the exact QA profile', () => {
   const profile = '/tmp/fingerprint-browser-run'
   const processes = [
     {
-      command: `Brave Browser Development --user-data-dir=${profile}`,
+      command: `指纹浏览器 --user-data-dir=${profile}`,
       pid: 1,
       ppid: 0,
     },
@@ -36,22 +36,22 @@ test('processesForProfile matches only Development QA command line', () => {
       ppid: 0,
     },
     {
-      command: 'Brave Browser Development --user-data-dir=/tmp/other',
+      command: '指纹浏览器 --user-data-dir=/tmp/other',
       pid: 3,
       ppid: 0,
     },
     {
-      command: 'Brave Browser Development Helper --type=renderer',
+      command: '指纹浏览器 Helper --type=renderer',
       pid: 4,
       ppid: 1,
     },
     {
-      command: 'Brave Browser Development Helper --type=utility',
+      command: '指纹浏览器 Helper --type=utility',
       pid: 5,
       ppid: 4,
     },
     {
-      command: `Brave Browser Development --user-data-dir=${profile}-other`,
+      command: `指纹浏览器 --user-data-dir=${profile}-other`,
       pid: 6,
       ppid: 0,
     },
@@ -80,9 +80,10 @@ test('snapshotCrashReports includes Crashpad pending and completed dumps', async
     await fs.mkdir(path.join(crashpad, 'pending'), { recursive: true })
     await fs.mkdir(path.join(crashpad, 'completed'), { recursive: true })
     await fs.writeFile(
-      path.join(native, 'Brave Browser Development-2026-08-02.ips'),
+      path.join(native, '指纹浏览器-2026-08-02.ips'),
       'ips',
     )
+    await fs.writeFile(path.join(native, 'Safari-2026-08-02.ips'), 'ips')
     await fs.writeFile(path.join(crashpad, 'pending', 'pending.dmp'), 'dmp')
     await fs.writeFile(
       path.join(crashpad, 'completed', 'completed.dmp'),
