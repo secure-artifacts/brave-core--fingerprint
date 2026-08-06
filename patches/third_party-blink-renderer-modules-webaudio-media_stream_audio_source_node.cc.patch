@@ -1,0 +1,14 @@
+diff --git a/third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.cc b/third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.cc
+index b3777f1599f80a335efce46cdd54ca499b5764ed..249a0f6384dc003d47b82a5be01e739e0f061f6b 100644
+--- a/third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.cc
++++ b/third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.cc
+@@ -95,7 +95,8 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
+   // this provider, which is [[input track]] from the spec.
+   std::unique_ptr<AudioSourceProvider> provider =
+       audio_track->CreateWebAudioSource(context.sampleRate(),
+-                                        context.PlatformBufferDuration());
++                                        context.PlatformBufferDuration(),
++                                        context.renderQuantumSize());
+ 
+   // 1.24.1. Step 4.
+   MediaStreamAudioSourceNode* node =

@@ -1,0 +1,19 @@
+diff --git a/third_party/blink/renderer/modules/mediastream/transferred_media_stream_track.cc b/third_party/blink/renderer/modules/mediastream/transferred_media_stream_track.cc
+index b923860686d2baa9d30a24fba7baf294fc3f880b..7d7f76e22a522997563bce9adb376a8a18c781a0 100644
+--- a/third_party/blink/renderer/modules/mediastream/transferred_media_stream_track.cc
++++ b/third_party/blink/renderer/modules/mediastream/transferred_media_stream_track.cc
+@@ -365,10 +365,11 @@ bool TransferredMediaStreamTrack::HasPendingActivity() const {
+ std::unique_ptr<AudioSourceProvider>
+ TransferredMediaStreamTrack::CreateWebAudioSource(
+     int context_sample_rate,
+-    base::TimeDelta platform_buffer_duration) {
++    base::TimeDelta platform_buffer_duration,
++    uint32_t render_quantum_frames) {
+   if (track_) {
+-    return track_->CreateWebAudioSource(context_sample_rate,
+-                                        platform_buffer_duration);
++    return track_->CreateWebAudioSource(
++        context_sample_rate, platform_buffer_duration, render_quantum_frames);
+   }
+   // TODO(https://crbug.com/1288839): Create one based on transferred data?
+   return nullptr;

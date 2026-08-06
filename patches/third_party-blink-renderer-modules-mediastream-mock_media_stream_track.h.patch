@@ -1,0 +1,14 @@
+diff --git a/third_party/blink/renderer/modules/mediastream/mock_media_stream_track.h b/third_party/blink/renderer/modules/mediastream/mock_media_stream_track.h
+index 8475b9196b5e6df882eba0fea8877d2a8586815d..03aae65b929e081d22659bf8f9ad2fb2b19fdd05 100644
+--- a/third_party/blink/renderer/modules/mediastream/mock_media_stream_track.h
++++ b/third_party/blink/renderer/modules/mediastream/mock_media_stream_track.h
+@@ -100,7 +100,8 @@ class MockMediaStreamTrack : public blink::MediaStreamTrack {
+ 
+   std::unique_ptr<AudioSourceProvider> CreateWebAudioSource(
+       int context_sample_rate,
+-      base::TimeDelta platform_buffer_duration) override {
++      base::TimeDelta platform_buffer_duration,
++      uint32_t render_quantum_frames) override {
+     return nullptr;
+   }
+ 

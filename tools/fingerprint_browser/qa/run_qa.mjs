@@ -236,6 +236,11 @@ async function main() {
     smokeSession = await startQaSession({
       app: config.app,
       background: config.background,
+      extraArgs: [
+        '--enable-features=WebAudioConfigurableRenderQuantum',
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream',
+      ],
       logDir: dirs.logs,
       name: 'smoke',
       nativeIdleSeconds: config.nativeIdleSeconds,
