@@ -18,6 +18,7 @@
 #include "brave/browser/ui/views/location_bar/brave_location_bar_view.h"
 #include "brave/browser/ui/views/tabs/vertical_tab_utils.h"
 #include "brave/browser/ui/views/toolbar/bookmark_button.h"
+#include "brave/browser/ui/views/toolbar/fingerprint_proxy_button.h"
 #include "brave/browser/ui/views/toolbar/side_panel_button.h"
 #include "brave/browser/workspaces/features.h"
 #include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
@@ -191,6 +192,45 @@ class BraveToolbarViewTest : public InProcessBrowserTest {
   raw_ptr<BraveToolbarView, DanglingUntriaged> toolbar_view_ = nullptr;
   testing::NiceMock<policy::MockConfigurationPolicyProvider> provider_;
 };
+
+IN_PROC_BROWSER_TEST_F(BraveToolbarViewTest,
+                       FingerprintProxyIndicatorStatusMapping) {
+  using fingerprint_browser::FingerprintProxyIndicatorStatus;
+  using fingerprint_browser::FingerprintProxyState;
+  using fingerprint_browser::GetFingerprintProxyIndicatorStatus;
+
+  FingerprintProxyState state;
+  state.state = fingerprint_browser::kProxyStateActive;
+  state.warning_code = fingerprint_browser::kProxyWarningNone;
+  state.geo.emplace();
+  EXPECT_EQ(FingerprintProxyIndicatorStatus::kHealthy,
+            GetFingerprintProxyIndicatorStatus(state));
+
+  state.warning_code = fingerprint_browser::kProxyWarningIpChanged;
+  EXPECT_EQ(FingerprintProxyIndicatorStatus::kWarning,
+            GetFingerprintProxyIndicatorStatus(state));
+
+  state.warning_code = fingerprint_browser::kProxyWarningNone;
+  state.geo.reset();
+  EXPECT_EQ(FingerprintProxyIndicatorStatus::kWarning,
+            GetFingerprintProxyIndicatorStatus(state));
+
+  for (const std::string_view warning_state : {
+           fingerprint_browser::kProxyStateUnconfigured,
+           fingerprint_browser::kProxyStateVerifying,
+           fingerprint_browser::kProxyStateAwaitingConfirmation,
+           fingerprint_browser::kProxyStateStale,
+           fingerprint_browser::kProxyStateConflict,
+       }) {
+    state.state = warning_state;
+    EXPECT_EQ(FingerprintProxyIndicatorStatus::kWarning,
+              GetFingerprintProxyIndicatorStatus(state));
+  }
+
+  state.state = fingerprint_browser::kProxyStateError;
+  EXPECT_EQ(FingerprintProxyIndicatorStatus::kError,
+            GetFingerprintProxyIndicatorStatus(state));
+}
 
 #if BUILDFLAG(ENABLE_BRAVE_VPN)
 class BraveToolbarViewTest_VPNEnabled : public BraveToolbarViewTest {

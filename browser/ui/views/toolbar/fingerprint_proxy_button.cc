@@ -21,6 +21,7 @@
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_ui_strings.h"
 #include "brave/browser/ui/brave_pages.h"
 #include "brave/grit/brave_generated_resources.h"
+#include "cc/paint/paint_flags.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -32,6 +33,9 @@
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
+#include "ui/gfx/canvas.h"
+#include "ui/gfx/image/canvas_image_source.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -57,6 +61,62 @@ constexpr std::string_view kIsoCountryCodes =
 constexpr int kFlagAtlasColumns = 16;
 constexpr int kFlagCellWidth = 64;
 constexpr int kFlagCellHeight = 48;
+constexpr int kProxyStatusDotSize = 8;
+constexpr int kProxyStatusDotOuterRadius = 4;
+constexpr int kProxyStatusDotInnerRadius = 3;
+
+class ProxyStatusDotImageSource : public gfx::CanvasImageSource {
+ public:
+  ProxyStatusDotImageSource(SkColor color, SkColor outline_color)
+      : gfx::CanvasImageSource(
+            gfx::Size(kProxyStatusDotSize, kProxyStatusDotSize)),
+        color_(color),
+        outline_color_(outline_color) {}
+
+  ProxyStatusDotImageSource(const ProxyStatusDotImageSource&) = delete;
+  ProxyStatusDotImageSource& operator=(const ProxyStatusDotImageSource&) =
+      delete;
+  ~ProxyStatusDotImageSource() override = default;
+
+  void Draw(gfx::Canvas* canvas) override {
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+    flags.setColor(outline_color_);
+    const gfx::Point center(kProxyStatusDotOuterRadius,
+                            kProxyStatusDotOuterRadius);
+    canvas->DrawCircle(center, kProxyStatusDotOuterRadius, flags);
+    flags.setColor(color_);
+    canvas->DrawCircle(center, kProxyStatusDotInnerRadius, flags);
+  }
+
+ private:
+  const SkColor color_;
+  const SkColor outline_color_;
+};
+
+ui::ColorId ProxyStatusColorId(
+    fingerprint_browser::FingerprintProxyIndicatorStatus status) {
+  switch (status) {
+    case fingerprint_browser::FingerprintProxyIndicatorStatus::kHealthy:
+      return ui::kColorAlertLowSeverity;
+    case fingerprint_browser::FingerprintProxyIndicatorStatus::kError:
+      return ui::kColorAlertHighSeverity;
+    case fingerprint_browser::FingerprintProxyIndicatorStatus::kWarning:
+      return ui::kColorAlertMediumSeverityIcon;
+  }
+}
+
+gfx::ImageSkia AddProxyStatusDot(
+    const gfx::ImageSkia& image,
+    const ui::ColorProvider& color_provider,
+    fingerprint_browser::FingerprintProxyIndicatorStatus status) {
+  const gfx::ImageSkia badge =
+      gfx::CanvasImageSource::MakeImageSkia<ProxyStatusDotImageSource>(
+          color_provider.GetColor(ProxyStatusColorId(status)),
+          color_provider.GetColor(kColorToolbar));
+  return gfx::ImageSkiaOperations::CreateIconWithBadge(image, badge);
+}
 
 std::optional<size_t> CountryFlagIndex(std::string_view country_code) {
   const std::string normalized = base::ToLowerASCII(country_code);
@@ -303,6 +363,9 @@ void FingerprintProxyButton::OnBubbleClosed() {
 
 void FingerprintProxyButton::UpdateButton() {
   const fingerprint_browser::FingerprintProxyState state = service_->GetState();
+  const auto indicator_status =
+      fingerprint_browser::GetFingerprintProxyIndicatorStatus(state);
+  const ui::ColorProvider* color_provider = GetColorProvider();
   SetTooltipText(GetStateTooltip());
   SetText(std::u16string());
 
@@ -312,51 +375,36 @@ void FingerprintProxyButton::UpdateButton() {
     gfx::ImageSkia flag =
         CountryFlagImage(state.geo->country_code, gfx::Size(20, 15));
     if (!flag.isNull()) {
-      if ((state.state == fingerprint_browser::kProxyStateStale ||
-           state.warning_code != fingerprint_browser::kProxyWarningNone) &&
-          GetColorProvider()) {
-        const gfx::ImageSkia badge = gfx::CreateVectorIcon(
-            vector_icons::kWarningIcon, 8,
-            GetColorProvider()->GetColor(ui::kColorAlertMediumSeverityIcon));
-        flag = gfx::ImageSkiaOperations::CreateIconWithBadge(flag, badge);
+      if (color_provider) {
+        flag = AddProxyStatusDot(flag, *color_provider, indicator_status);
       }
       SetImageModel(views::Button::STATE_NORMAL,
                     ui::ImageModel::FromImageSkia(flag));
       return;
     }
-    SetImageModel(views::Button::STATE_NORMAL, ui::ImageModel());
-    SetText(base::UTF8ToUTF16(base::ToUpperASCII(state.geo->country_code)));
-    return;
   }
 
   const gfx::VectorIcon* icon = &vector_icons::kGlobeIcon;
-  ui::ColorId color = kColorToolbarButtonIcon;
-  if (state.state == fingerprint_browser::kProxyStateUnconfigured) {
-    if (GetColorProvider()) {
-      const gfx::ImageSkia globe = gfx::CreateVectorIcon(
-          vector_icons::kGlobeIcon, GetIconSize(),
-          GetColorProvider()->GetColor(kColorToolbarButtonIcon));
-      const gfx::ImageSkia badge = gfx::CreateVectorIcon(
-          vector_icons::kWarningIcon, 8,
-          GetColorProvider()->GetColor(ui::kColorAlertMediumSeverityIcon));
-      SetImageModel(
-          views::Button::STATE_NORMAL,
-          ui::ImageModel::FromImageSkia(
-              gfx::ImageSkiaOperations::CreateIconWithBadge(globe, badge)));
-      return;
-    }
-    color = ui::kColorAlertMediumSeverityIcon;
-  } else if (state.state == fingerprint_browser::kProxyStateVerifying) {
+  if (state.state == fingerprint_browser::kProxyStateVerifying ||
+      state.state == fingerprint_browser::kProxyStateAwaitingConfirmation) {
     icon = &vector_icons::kSyncIcon;
   } else if (state.state == fingerprint_browser::kProxyStateError) {
     icon = &vector_icons::kErrorIcon;
-    color = ui::kColorAlertHighSeverity;
   } else if (state.state == fingerprint_browser::kProxyStateConflict) {
     icon = &vector_icons::kInfoIcon;
-    color = ui::kColorAlertMediumSeverityIcon;
+  }
+  if (color_provider) {
+    const gfx::ImageSkia base_icon = gfx::CreateVectorIcon(
+        *icon, GetIconSize(),
+        color_provider->GetColor(kColorToolbarButtonIcon));
+    SetImageModel(views::Button::STATE_NORMAL,
+                  ui::ImageModel::FromImageSkia(AddProxyStatusDot(
+                      base_icon, *color_provider, indicator_status)));
+    return;
   }
   SetImageModel(views::Button::STATE_NORMAL,
-                ui::ImageModel::FromVectorIcon(*icon, color, GetIconSize()));
+                ui::ImageModel::FromVectorIcon(*icon, kColorToolbarButtonIcon,
+                                               GetIconSize()));
 }
 
 std::u16string FingerprintProxyButton::GetStateTooltip() const {
