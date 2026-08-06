@@ -171,6 +171,86 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
   EXPECT_EQ(visibility, "visible");
 }
 
+IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
+                       SearchKeepsSiteSettingsDetailsLazy) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("chrome://settings/?search=camera")));
+
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(web_contents, nullptr);
+  EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+
+  const auto search_result = content::EvalJs(web_contents, R"(
+    (async () => {
+      const collectRoots = () => {
+        const roots = [document];
+        for (let index = 0; index < roots.length; ++index) {
+          for (const element of roots[index].querySelectorAll('*')) {
+            if (element.shadowRoot) {
+              roots.push(element.shadowRoot);
+            }
+          }
+        }
+        return roots;
+      };
+      for (let attempt = 0; attempt < 400; ++attempt) {
+        const roots = collectRoots();
+        const settingsMain = roots
+            .map(root => root.querySelector('settings-main'))
+            .find(Boolean);
+        if (settingsMain?.toolbarSpinnerActive === false) {
+          const matches = roots.flatMap(root =>
+              [...root.querySelectorAll('.search-highlight-hit')]
+                  .map(hit => hit.textContent?.toLowerCase() || ''));
+          const cameraPage = roots.some(root =>
+              root.querySelector('settings-camera-page'));
+          if (!matches.some(match => match.includes('camera'))) {
+            return 'missing-camera-result';
+          }
+          return cameraPage ? 'eager-camera-page' : 'ready';
+        }
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      return 'search-timeout';
+    })()
+  )")
+                                 .ExtractString();
+  EXPECT_EQ(search_result, "ready");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("chrome://settings/content/camera")));
+  EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+  const auto direct_navigation = content::EvalJs(web_contents, R"(
+    (async () => {
+      const findCameraPage = () => {
+        const roots = [document];
+        for (let index = 0; index < roots.length; ++index) {
+          const page = roots[index].querySelector('settings-camera-page');
+          if (page) {
+            return page;
+          }
+          for (const element of roots[index].querySelectorAll('*')) {
+            if (element.shadowRoot) {
+              roots.push(element.shadowRoot);
+            }
+          }
+        }
+        return null;
+      };
+      for (let attempt = 0; attempt < 200; ++attempt) {
+        const page = findCameraPage();
+        if (page?.getClientRects().length > 0) {
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      return false;
+    })()
+  )")
+                                     .ExtractBool();
+  EXPECT_TRUE(direct_navigation);
+}
+
 // Test that chrome://settings loads without crashing in guest profiles.
 // This verifies that all Mojo interface bindings properly handle null services
 // for guest profiles (e.g., BraveOriginService).

@@ -55,6 +55,17 @@ node run_qa.mjs \
   --results-dir ../../../../out/Component_arm64/qa-results
 ```
 
+After the artifact-gated Smoke run passes, check Settings search latency on that
+same QA app:
+
+```bash
+node run_settings_search_perf.mjs \
+  --app ../../../../out/Component_arm64/fingerprint-browser-qa/指纹浏览器\ QA.app
+```
+
+The command fails if the expected result is absent, search P95 exceeds five
+seconds, an input event exceeds 200 ms, or a Long Task exceeds 1.5 seconds.
+
 Run the crash diagnostics acceptance gate separately after building the current
 QA app. It places Crashpad data under the run's temporary QA profile and never
 uses the production Brave Crashpad database:
