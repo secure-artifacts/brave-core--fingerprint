@@ -53,6 +53,18 @@ RegisterPolymerPrototypeModification({
       }
       return oldGetViewIdsForRoute.call(this, route);
     }
+
+    const oldRenderView = prototype.renderView_;
+    prototype.renderView_ = function (route: Route) {
+      if (this.currentRoute === route) {
+        return true;
+      }
+      // Category rows remain searchable without stamping every permission page.
+      if (this.inSearchMode && routes.SITE_SETTINGS.contains(route)) {
+        return false;
+      }
+      return oldRenderView.call(this, route);
+    }
   }
 })
 
