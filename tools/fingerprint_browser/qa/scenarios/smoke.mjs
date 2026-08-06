@@ -169,6 +169,50 @@ export async function runSmoke({ config, dirs, probe, report, session }) {
     }
   })
 
+  await runScenario(report, 'smoke-webaudio-media-stream-1024', async () => {
+    await session.context.grantPermissions(['microphone'], {
+      origin: probe.origin,
+    })
+    await page.goto(`${probe.origin}/iframe.html?webaudio=1024`, {
+      waitUntil: 'load',
+    })
+    const result = await page.evaluate(async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const context = new AudioContext({ renderSizeHint: 1024 })
+      const analyser = context.createAnalyser()
+      const source = context.createMediaStreamSource(stream)
+      source.connect(analyser).connect(context.destination)
+      await context.resume()
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+      const state = {
+        contextState: context.state,
+        renderQuantumSize: context.renderQuantumSize,
+        trackState: stream.getAudioTracks()[0]?.readyState,
+      }
+      source.disconnect()
+      analyser.disconnect()
+      stream.getTracks().forEach((track) => track.stop())
+      await context.close()
+      return state
+    })
+    if (result.renderQuantumSize !== 1024) {
+      throw new Error(
+        `WebAudio render quantum is ${result.renderQuantumSize}, expected 1024`,
+      )
+    }
+    if (result.contextState !== 'running' || result.trackState !== 'live') {
+      throw Object.assign(new Error('WebAudio MediaStream did not stay live'), {
+        details: result,
+      })
+    }
+    if (session.events.crashes.length > 0) {
+      throw Object.assign(new Error('Renderer crashed during WebAudio test'), {
+        details: session.events.crashes,
+      })
+    }
+    return result
+  })
+
   let nativeSessionStarted = false
   if (config.allowNativeFocus) {
     await beginNativeUiSession(session.process.child.pid, {

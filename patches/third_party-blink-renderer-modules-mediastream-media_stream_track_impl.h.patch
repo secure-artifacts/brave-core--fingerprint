@@ -1,0 +1,14 @@
+diff --git a/third_party/blink/renderer/modules/mediastream/media_stream_track_impl.h b/third_party/blink/renderer/modules/mediastream/media_stream_track_impl.h
+index 35f94b32de5f38bc895519c66345bf7d6bf991a7..7e86fb0d012e1e7dbb9cc47503a90383941b7830 100644
+--- a/third_party/blink/renderer/modules/mediastream/media_stream_track_impl.h
++++ b/third_party/blink/renderer/modules/mediastream/media_stream_track_impl.h
+@@ -138,7 +138,8 @@ class MODULES_EXPORT MediaStreamTrackImpl : public MediaStreamTrack,
+ 
+   std::unique_ptr<AudioSourceProvider> CreateWebAudioSource(
+       int context_sample_rate,
+-      base::TimeDelta platform_buffer_duration) override;
++      base::TimeDelta platform_buffer_duration,
++      uint32_t render_quantum_frames) override;
+ 
+   MediaStreamTrackPlatform::VideoFrameStats GetVideoFrameStats() const;
+ 
