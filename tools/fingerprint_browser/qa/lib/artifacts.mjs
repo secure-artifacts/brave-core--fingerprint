@@ -71,13 +71,16 @@ export const SOURCE_GROUPS = {
     'chromium_src/content/public/browser/content_browser_client.h',
     'chromium_src/third_party/blink/public/mojom/worker/worker_content_settings_proxy.mojom',
     'chromium_src/third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.cc',
+    'chromium_src/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc',
     'chromium_src/third_party/blink/renderer/core/workers/shared_worker_content_settings_proxy.cc',
+    'chromium_src/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc',
     'chromium_src/third_party/blink/renderer/modules/service_worker/service_worker_content_settings_proxy.cc',
     'chromium_src/third_party/blink/renderer/modules/gamepad/navigator_gamepad.cc',
     'chromium_src/third_party/blink/renderer/modules/mediastream/media_devices.cc',
     'chromium_src/third_party/blink/renderer/modules/mediastream/user_media_request.cc',
     'chromium_src/third_party/blink/renderer/modules/speech',
     'chromium_src/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc',
+    'chromium_src/third_party/blink/renderer/modules/webaudio/audio_buffer.cc',
     'chromium_src/third_party/blink/renderer/platform/fonts/font_fallback_list.cc',
     'components/brave_shields/core/common/shields_settings.mojom',
     'components/content_settings/renderer/brave_content_settings_agent_impl.cc',
@@ -116,6 +119,8 @@ export const SOURCE_GROUPS = {
     'patches/third_party-blink-renderer-modules-webaudio-media_stream_audio_source_node.cc.patch',
     'third_party/blink/renderer/core/farbling/brave_session_cache.cc',
     'third_party/blink/renderer/core/farbling/brave_session_cache.h',
+    'third_party/blink/renderer/platform/brave_audio_farbling_helper.cc',
+    'third_party/blink/renderer/platform/brave_audio_farbling_helper.h',
     'third_party/blink/renderer/BUILD.gn',
     'third_party/blink/renderer/modules/mediastream/persona_media_device_map.h',
     'third_party/libmaxminddb/include/maxminddb_config.h',
@@ -174,6 +179,66 @@ const SCALED_RESOURCE_PACKS = [
 ]
 
 const BUILD_MANIFEST_NAME = 'fingerprint-browser-build-manifest.json'
+
+export function nativeArtifactNamesForSource(source) {
+  const normalized = source.replaceAll('\\', '/')
+  if (
+    normalized.includes('third_party/blink/public/mojom/')
+    && normalized.endsWith('worker_content_settings_proxy.mojom')
+  ) {
+    return [
+      'libblink_common.dylib',
+      'libblink_platform.dylib',
+      'libblink_platform_media.dylib',
+      'libmojom_platform_shared.dylib',
+    ]
+  }
+  if (
+    normalized.includes(
+      'components/brave_shields/core/common/shields_settings.mojom',
+    )
+  ) {
+    return [
+      'libbrave_shields_mojom.dylib',
+      'libbrave_shields_mojom_shared.dylib',
+      'libblink_platform.dylib',
+    ]
+  }
+  if (
+    normalized.includes('third_party/blink/renderer/core/')
+    || normalized.includes('patches/third_party-blink-renderer-core-')
+  ) {
+    return ['libblink_core.dylib']
+  }
+  if (
+    normalized.includes('third_party/blink/renderer/modules/')
+    || normalized.includes('patches/third_party-blink-renderer-modules-')
+  ) {
+    return ['libblink_modules.dylib']
+  }
+  if (
+    normalized.includes('third_party/blink/renderer/platform/')
+    || normalized.includes('patches/third_party-blink-renderer-platform-')
+  ) {
+    return ['libblink_platform.dylib']
+  }
+  if (
+    normalized.startsWith('../net/')
+    || normalized.startsWith('chromium_src/net/')
+    || normalized.startsWith('net/')
+    || normalized.startsWith('patches/net-')
+  ) {
+    return ['libnet.dylib']
+  }
+  if (
+    normalized.startsWith('../content/')
+    || normalized.startsWith('chromium_src/content/')
+    || normalized.startsWith('patches/content-')
+  ) {
+    return ['libcontent.dylib']
+  }
+  return ['libchrome_dll.dylib']
+}
 
 async function filesUnder(target) {
   const stat = await fs.stat(target)
@@ -455,6 +520,11 @@ async function artifactHashes(outDir) {
   for (const name of SCALED_RESOURCE_PACKS) {
     scaled[name] = await sha256(path.join(outDir, 'gen', 'repack', name))
   }
+  const nativeFiles = await dylibsIn(outDir)
+  const nativeDigest = createHash('sha256')
+  for (const file of nativeFiles) {
+    nativeDigest.update(`${path.basename(file)}\0${await sha256(file)}\n`)
+  }
   return {
     braveResources: await sha256(
       path.join(outDir, 'gen', 'repack', 'brave_resources.pak'),
@@ -467,6 +537,10 @@ async function artifactHashes(outDir) {
       digest: localeDigest.digest('hex'),
     },
     native: await sha256(path.join(outDir, 'libchrome_dll.dylib')),
+    nativeSet: {
+      count: nativeFiles.length,
+      digest: nativeDigest.digest('hex'),
+    },
     network: await sha256(path.join(outDir, 'libnet.dylib')),
     scaled,
   }
@@ -476,6 +550,16 @@ async function readBuildManifest(outDir) {
   const file = path.join(outDir, BUILD_MANIFEST_NAME)
   if (!(await pathExists(file))) return null
   return JSON.parse(await fs.readFile(file, 'utf8'))
+}
+
+export function artifactsForBuildMode(mode, current, previous) {
+  if (mode === 'cpp') return current
+  return {
+    ...current,
+    native: previous.native,
+    nativeSet: previous.nativeSet,
+    network: previous.network,
+  }
 }
 
 export async function writeBuildManifest({ braveRoot, mode, outDir }) {
@@ -532,14 +616,11 @@ export async function writeBuildManifest({ braveRoot, mode, outDir }) {
   }
 
   const currentArtifacts = await artifactHashes(outDir)
-  const artifacts =
-    mode === 'cpp'
-      ? currentArtifacts
-      : {
-          ...currentArtifacts,
-          native: previous.artifacts.native,
-          network: previous.artifacts.network,
-        }
+  const artifacts = artifactsForBuildMode(
+    mode,
+    currentArtifacts,
+    previous?.artifacts,
+  )
   const manifest = {
     artifacts,
     generatedAt: new Date().toISOString(),
@@ -844,7 +925,6 @@ export async function prepareAndVerifyArtifacts(config, log) {
   )
   const sourceLibchrome = path.join(outDir, 'libchrome_dll.dylib')
   const sourceLibnet = path.join(outDir, 'libnet.dylib')
-  const nativeArtifactStat = await fs.stat(sourceLibchrome)
   const networkArtifactStat = await fs.stat(sourceLibnet)
   const resourceArtifactStat = await fs.stat(sourceResource)
   const chromiumResourceArtifactStat = await fs.stat(sourceChromiumResource)
@@ -866,15 +946,35 @@ export async function prepareAndVerifyArtifacts(config, log) {
   const oldestScaledArtifact = scaledArtifactStats.reduce((oldest, current) =>
     current.stat.mtimeMs < oldest.stat.mtimeMs ? current : oldest,
   )
+  const nativeArtifactNames = [
+    ...new Set(SOURCE_GROUPS.native.flatMap(nativeArtifactNamesForSource)),
+  ].sort()
+  const nativeComponents = []
+  for (const artifactName of nativeArtifactNames) {
+    const componentSources = SOURCE_GROUPS.native.filter(
+      (source) => nativeArtifactNamesForSource(source).includes(artifactName),
+    )
+    const source = await latestSource(braveRoot, componentSources)
+    const artifact = path.join(outDir, artifactName)
+    const artifactStat = await fs.stat(artifact)
+    nativeComponents.push({
+      artifact,
+      artifactMtime: artifactStat.mtime.toISOString(),
+      latestSource: source.file,
+      latestSourceMtime: source.mtimeMs
+        ? new Date(source.mtimeMs).toISOString()
+        : null,
+      pass: source.mtimeMs <= artifactStat.mtimeMs,
+    })
+  }
   const freshness = {
     native: {
-      artifact: sourceLibchrome,
-      artifactMtime: nativeArtifactStat.mtime.toISOString(),
+      components: nativeComponents,
       latestSource: nativeSource.file,
       latestSourceMtime: nativeSource.mtimeMs
         ? new Date(nativeSource.mtimeMs).toISOString()
         : null,
-      pass: nativeSource.mtimeMs <= nativeArtifactStat.mtimeMs,
+      pass: nativeComponents.every((component) => component.pass),
     },
     network: {
       artifact: sourceLibnet,

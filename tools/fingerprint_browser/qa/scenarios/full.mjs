@@ -25,6 +25,7 @@ import {
   waitForProfileProxyIdle,
 } from '../lib/profile.mjs'
 import { runScenario } from '../lib/report.mjs'
+import { runSurfaceStabilityLifecycle } from './surface_stability.mjs'
 import {
   assertNativeUiFocusRetained,
   beginNativeUiSession,
@@ -1135,6 +1136,18 @@ export async function runFull({ config, dirs, probe, report, runId }) {
     report,
     'full-profile-lifecycle',
     async () => await runProfileLifecycle({ config, dirs, probe, runId }),
+  )
+
+  await runScenario(
+    report,
+    'full-surface-stability',
+    async () =>
+      await runSurfaceStabilityLifecycle({
+        config,
+        dirs,
+        probe,
+        runId,
+      }),
   )
 
   const proxyFixtures = await runProxyFixtures({

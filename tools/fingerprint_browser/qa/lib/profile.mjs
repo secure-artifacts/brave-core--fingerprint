@@ -534,6 +534,12 @@ export async function runProfileLifecycle({ config, dirs, probe, runId }) {
     ) {
       throw new Error('Profile A and B fingerprints are identical')
     }
+    if (JSON.stringify(firstA.canvas) === JSON.stringify(firstB.canvas)) {
+      throw new Error('Profile A and B Canvas fingerprints are identical')
+    }
+    if (JSON.stringify(firstA.audio) === JSON.stringify(firstB.audio)) {
+      throw new Error('Profile A and B Audio fingerprints are identical')
+    }
     if (
       JSON.stringify(stableFingerprint(firstA))
       !== JSON.stringify(stableFingerprint(secondA))

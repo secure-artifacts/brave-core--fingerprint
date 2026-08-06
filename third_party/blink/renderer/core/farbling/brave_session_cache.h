@@ -117,7 +117,19 @@ class CORE_EXPORT BraveSessionCache final
 
   BraveFarblingLevel GetBraveFarblingLevel(
       ContentSettingsType webcompat_settings_type);
-  void FarbleAudioChannel(base::span<float> dst);
+  void FarbleAudioChannel(base::span<float> dst, size_t sample_offset = 0);
+  void FarbleAudioChannelCopy(base::span<float> source,
+                              base::span<float> destination,
+                              size_t sample_offset);
+  void PerturbCanvasPixels(base::span<uint8_t> data,
+                           int surface_width,
+                           int surface_height,
+                           int read_x,
+                           int read_y,
+                           int read_width,
+                           int read_height,
+                           size_t row_bytes,
+                           int color_type);
   void PerturbPixels(base::span<uint8_t> data,
                      ContentSettingsType webcompat_settings_type =
                          ContentSettingsType::BRAVE_WEBCOMPAT_CANVAS);
@@ -181,6 +193,15 @@ class CORE_EXPORT BraveSessionCache final
   }
 
  private:
+  void PerturbCanvasPixelsForPersona(base::span<uint8_t> data,
+                                     int surface_width,
+                                     int surface_height,
+                                     int read_x,
+                                     int read_y,
+                                     int read_width,
+                                     int read_height,
+                                     size_t row_bytes,
+                                     int color_type);
   void PerturbPixelsInternal(base::span<uint8_t> data);
 
   blink::HashMap<FarbleKey, int> farbled_integers_;

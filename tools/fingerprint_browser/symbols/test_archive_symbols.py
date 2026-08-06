@@ -59,6 +59,10 @@ for value in sys.argv[1:]:
                 {
                     "artifacts": {
                         "native": archive_symbols.sha256_file(self.binary),
+                        "nativeSet": {
+                            "count": 1,
+                            "digest": "1" * 64,
+                        },
                     },
                     "version": 1,
                 }

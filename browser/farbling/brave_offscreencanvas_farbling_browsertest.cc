@@ -5,6 +5,7 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/thread_test_helper.h"
@@ -44,6 +45,12 @@ class BraveOffscreenCanvasFarblingBrowserTest : public InProcessBrowserTest {
             webcompat::features::kBraveWebcompatExceptionsService,
         },
         {});
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(
+        "disable-fingerprint-browser-persona-for-testing");
   }
 
   void SetUpOnMainThread() override {

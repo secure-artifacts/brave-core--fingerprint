@@ -4,6 +4,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <set>
@@ -36,6 +37,7 @@
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -66,6 +68,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
+#include "ui/base/window_open_disposition.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
@@ -131,10 +134,55 @@ constexpr char kPersonaCanvasFingerprintScript[] = R"(
     ctx.fillStyle = 'rgb(255, 0, 0)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const imageDataHash1 =
-        hashBytes(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
-    const imageDataHash2 =
-        hashBytes(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
+    const full1 = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const full2 = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const imageDataHash1 = hashBytes(full1);
+    const imageDataHash2 = hashBytes(full2);
+    let modifiedPixelCount = 0;
+    let modifiedRgbOnly = true;
+    for (let offset = 0; offset < full1.length; offset += 4) {
+      const changed = full1[offset] !== 255 || full1[offset + 1] !== 0 ||
+          full1[offset + 2] !== 0 || full1[offset + 3] !== 255;
+      if (!changed) continue;
+      modifiedPixelCount += 1;
+      modifiedRgbOnly = modifiedRgbOnly && full1[offset] !== 255 &&
+          full1[offset + 1] !== 0 && full1[offset + 2] !== 0 &&
+          full1[offset + 3] === 255;
+    }
+    let singlePixelReadsMatchFull = true;
+    for (let y = 0; y < canvas.height; ++y) {
+      for (let x = 0; x < canvas.width; ++x) {
+        const pixel1 = ctx.getImageData(x, y, 1, 1).data;
+        const pixel2 = ctx.getImageData(x, y, 1, 1).data;
+        const fullOffset = (y * canvas.width + x) * 4;
+        for (let channel = 0; channel < 4; ++channel) {
+          singlePixelReadsMatchFull = singlePixelReadsMatchFull &&
+              pixel1[channel] === full1[fullOffset + channel] &&
+              pixel2[channel] === full1[fullOffset + channel];
+        }
+      }
+    }
+    const sliceX = 5;
+    const sliceY = 7;
+    const sliceWidth = 17;
+    const sliceHeight = 13;
+    const slice1 =
+        ctx.getImageData(sliceX, sliceY, sliceWidth, sliceHeight).data;
+    const slice2 =
+        ctx.getImageData(sliceX, sliceY, sliceWidth, sliceHeight).data;
+    let sliceReadsMatchFull = true;
+    for (let y = 0; y < sliceHeight; ++y) {
+      for (let x = 0; x < sliceWidth; ++x) {
+        const sliceOffset = (y * sliceWidth + x) * 4;
+        const fullOffset =
+            ((sliceY + y) * canvas.width + sliceX + x) * 4;
+        for (let channel = 0; channel < 4; ++channel) {
+          sliceReadsMatchFull = sliceReadsMatchFull &&
+              slice1[sliceOffset + channel] === full1[fullOffset + channel] &&
+              slice2[sliceOffset + channel] === full1[fullOffset + channel];
+        }
+      }
+    }
     const dataUrl1 = canvas.toDataURL('image/png');
     const dataUrl2 = canvas.toDataURL('image/png');
     const blob1 =
@@ -147,13 +195,69 @@ constexpr char kPersonaCanvasFingerprintScript[] = R"(
     const blobHash2 = blob2
         ? hashBytes(new Uint8Array(await blob2.arrayBuffer()))
         : -1;
+
+    const decodedHash = async (blob) => {
+      const decoder = new ImageDecoder({
+        data: new Uint8Array(await blob.arrayBuffer()),
+        type: blob.type
+      });
+      const {image} = await decoder.decode();
+      const decoded = new Uint8Array(image.allocationSize({format: 'RGBA'}));
+      await image.copyTo(decoded, {format: 'RGBA'});
+      image.close();
+      decoder.close();
+      return hashBytes(decoded);
+    };
+    const dataUrlBlob = await (await fetch(dataUrl1)).blob();
+    const encodedPathsMatchPixels = blob1
+        ? (await decodedHash(dataUrlBlob)) === imageDataHash1 &&
+            (await decodedHash(blob1)) === imageDataHash1
+        : false;
+
+    const alphaCanvas = document.createElement('canvas');
+    alphaCanvas.width = alphaCanvas.height = 8;
+    const alphaContext = alphaCanvas.getContext('2d');
+    alphaContext.fillStyle = 'rgba(12, 34, 56, 0.25)';
+    alphaContext.fillRect(0, 0, 8, 8);
+    const alphaRead = alphaContext.getImageData(0, 0, 8, 8).data;
+    const alphaBytes = alphaRead.filter((value, index) => index % 4 === 3);
+
+    let float16Stable = true;
+    let float16ValuesValid = true;
+    try {
+      const options = { colorSpace: 'srgb', pixelFormat: 'rgba-float16' };
+      const floatRead1 = ctx.getImageData(
+          0, 0, canvas.width, canvas.height, options).data;
+      const floatRead2 = ctx.getImageData(
+          0, 0, canvas.width, canvas.height, options).data;
+      const floatBytes1 = new Uint8Array(
+          floatRead1.buffer, floatRead1.byteOffset, floatRead1.byteLength);
+      const floatBytes2 = new Uint8Array(
+          floatRead2.buffer, floatRead2.byteOffset, floatRead2.byteLength);
+      float16Stable = hashBytes(floatBytes1) === hashBytes(floatBytes2);
+      float16ValuesValid = [...floatRead1].every(Number.isFinite) &&
+          [...floatRead1].every((value, index) =>
+              index % 4 !== 3 || value === 1);
+    } catch (error) {
+      if (!(error instanceof TypeError || error?.name === 'NotSupportedError')) {
+        throw error;
+      }
+    }
     return {
       imageDataHash: imageDataHash1,
       imageDataStable: imageDataHash1 === imageDataHash2,
+      modifiedPixelCount,
+      modifiedRgbOnly,
+      singlePixelReadsMatchFull,
+      sliceReadsMatchFull,
       dataUrlHash: hashString(dataUrl1),
       dataUrlStable: dataUrl1 === dataUrl2,
       blobHash: blobHash1,
-      blobStable: blobHash1 === blobHash2
+      blobStable: blobHash1 === blobHash2,
+      encodedPathsMatchPixels,
+      alphaHash: hashBytes(alphaBytes),
+      float16Stable,
+      float16ValuesValid
     };
   })()
 )";
@@ -194,12 +298,19 @@ constexpr char kPersonaWorkerFingerprintScript[] = R"(
     const context = canvas.getContext('2d');
     context.fillStyle = 'rgb(255, 0, 0)';
     context.fillRect(0, 0, canvas.width, canvas.height);
+    const canvasRead1 =
+        context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const canvasRead2 =
+        context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const canvasHash1 = hash(canvasRead1);
+    const canvasHash2 = hash(canvasRead2);
     const webglCanvas = new OffscreenCanvas(1, 1);
     const gl = webglCanvas.getContext('webgl');
     const debug = gl?.getExtension('WEBGL_debug_renderer_info');
     return {
       userAgent: navigator.userAgent,
-      canvas: hash(context.getImageData(0, 0, canvas.width, canvas.height).data),
+      canvas: canvasHash1,
+      canvasStable: canvasHash1 === canvasHash2,
       renderer: debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : '',
       audioApiExposed: typeof AudioContext !== 'undefined' ||
           typeof OfflineAudioContext !== 'undefined'
@@ -364,6 +475,35 @@ void ExpectDictBool(const base::DictValue& values,
   const std::optional<bool> value = values.FindBool(key);
   ASSERT_TRUE(value.has_value()) << key;
   EXPECT_EQ(expected, *value) << key;
+}
+
+std::array<int, 5> ExpectStableCanvasResult(
+    const content::EvalJsResult& result) {
+  const base::DictValue& values = result.ExtractDict();
+  ExpectDictBool(values, "imageDataStable", true);
+  ExpectDictBool(values, "singlePixelReadsMatchFull", true);
+  ExpectDictBool(values, "sliceReadsMatchFull", true);
+  ExpectDictBool(values, "dataUrlStable", true);
+  ExpectDictBool(values, "blobStable", true);
+  ExpectDictBool(values, "encodedPathsMatchPixels", true);
+  ExpectDictBool(values, "float16Stable", true);
+  ExpectDictBool(values, "float16ValuesValid", true);
+  ExpectDictBool(values, "modifiedRgbOnly", true);
+  const std::optional<int> image_data_hash = values.FindInt("imageDataHash");
+  const std::optional<int> data_url_hash = values.FindInt("dataUrlHash");
+  const std::optional<int> blob_hash = values.FindInt("blobHash");
+  const std::optional<int> alpha_hash = values.FindInt("alphaHash");
+  const std::optional<int> modified_pixel_count =
+      values.FindInt("modifiedPixelCount");
+  EXPECT_TRUE(image_data_hash.has_value());
+  EXPECT_TRUE(data_url_hash.has_value());
+  EXPECT_TRUE(blob_hash.has_value());
+  EXPECT_TRUE(alpha_hash.has_value());
+  EXPECT_TRUE(modified_pixel_count.has_value());
+  EXPECT_NE(-1, blob_hash.value_or(-1));
+  return {image_data_hash.value_or(-1), data_url_hash.value_or(-1),
+          blob_hash.value_or(-1), alpha_hash.value_or(-1),
+          modified_pixel_count.value_or(-1)};
 }
 
 void ExpectDictString(const base::DictValue& values,
@@ -713,6 +853,16 @@ class BraveNavigatorUserAgentFarblingBrowserTest : public InProcessBrowserTest {
   std::vector<std::string> request_paths_;
   std::vector<net::test_server::HttpRequest::HeaderMap> request_headers_;
   base::test::ScopedFeatureList feature_list_;
+};
+
+class BraveCanvasFarblingWithoutPersonaBrowserTest
+    : public BraveNavigatorUserAgentFarblingBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    BraveNavigatorUserAgentFarblingBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(
+        "disable-fingerprint-browser-persona-for-testing");
+  }
 };
 
 // Tests results of farbling user agent
@@ -1525,45 +1675,135 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
   SetFingerprintingDefault(kDomain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), https_server()->GetURL(kDomain, "/simple.html")));
-  const content::EvalJsResult persona_result =
-      EvalJs(contents(), kPersonaCanvasFingerprintScript);
-  const base::DictValue& persona_values = persona_result.ExtractDict();
-  ExpectDictBool(persona_values, "imageDataStable", true);
-  ExpectDictBool(persona_values, "dataUrlStable", true);
-  ExpectDictBool(persona_values, "blobStable", true);
-  const std::optional<int> persona_image_data_hash =
-      persona_values.FindInt("imageDataHash");
-  const std::optional<int> persona_data_url_hash =
-      persona_values.FindInt("dataUrlHash");
-  const std::optional<int> persona_blob_hash =
-      persona_values.FindInt("blobHash");
-  ASSERT_TRUE(persona_image_data_hash.has_value());
-  ASSERT_TRUE(persona_data_url_hash.has_value());
-  ASSERT_TRUE(persona_blob_hash.has_value());
-  EXPECT_NE(-1, *persona_blob_hash);
+  const std::array<int, 5> persona_hashes = ExpectStableCanvasResult(
+      EvalJs(contents(), kPersonaCanvasFingerprintScript));
+  EXPECT_EQ(16, persona_hashes[4]);
+
+  chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+  ASSERT_TRUE(content::WaitForLoadStop(contents()));
+  EXPECT_EQ(persona_hashes, ExpectStableCanvasResult(EvalJs(
+                                contents(), kPersonaCanvasFingerprintScript)));
+
+  content::RenderFrameHost* new_tab =
+      ui_test_utils::NavigateToURLWithDisposition(
+          browser(), https_server()->GetURL(kDomain, "/simple.html"),
+          WindowOpenDisposition::NEW_FOREGROUND_TAB,
+          ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_TRUE(new_tab);
+  EXPECT_EQ(persona_hashes, ExpectStableCanvasResult(EvalJs(
+                                contents(), kPersonaCanvasFingerprintScript)));
+
+  ASSERT_TRUE(EvalJs(contents(), R"(
+    new Promise((resolve, reject) => {
+      const frame = document.createElement('iframe');
+      frame.src = '/simple.html';
+      frame.onload = () => resolve(true);
+      frame.onerror = () => reject(new Error('iframe failed to load'));
+      document.body.appendChild(frame);
+    })
+  )")
+                  .ExtractBool());
+  content::RenderFrameHost* child =
+      content::ChildFrameAt(contents()->GetPrimaryMainFrame(), 0);
+  ASSERT_TRUE(child);
+  EXPECT_EQ(persona_hashes, ExpectStableCanvasResult(EvalJs(
+                                child, kPersonaCanvasFingerprintScript)));
 
   AllowFingerprinting(kDomain);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), https_server()->GetURL(kDomain, "/simple.html")));
-  const content::EvalJsResult real_result =
-      EvalJs(contents(), kPersonaCanvasFingerprintScript);
-  const base::DictValue& real_values = real_result.ExtractDict();
-  ExpectDictBool(real_values, "imageDataStable", true);
-  ExpectDictBool(real_values, "dataUrlStable", true);
-  ExpectDictBool(real_values, "blobStable", true);
-  const std::optional<int> real_image_data_hash =
-      real_values.FindInt("imageDataHash");
-  const std::optional<int> real_data_url_hash =
-      real_values.FindInt("dataUrlHash");
-  const std::optional<int> real_blob_hash = real_values.FindInt("blobHash");
-  ASSERT_TRUE(real_image_data_hash.has_value());
-  ASSERT_TRUE(real_data_url_hash.has_value());
-  ASSERT_TRUE(real_blob_hash.has_value());
-  EXPECT_NE(-1, *real_blob_hash);
+  const std::array<int, 5> real_hashes = ExpectStableCanvasResult(
+      EvalJs(contents(), kPersonaCanvasFingerprintScript));
+  EXPECT_NE(real_hashes[0], persona_hashes[0]);
+  EXPECT_NE(real_hashes[1], persona_hashes[1]);
+  EXPECT_NE(real_hashes[2], persona_hashes[2]);
+  EXPECT_EQ(real_hashes[3], persona_hashes[3]);
+  EXPECT_EQ(0, real_hashes[4]);
+}
 
-  EXPECT_NE(*real_image_data_hash, *persona_image_data_hash);
-  EXPECT_NE(*real_data_url_hash, *persona_data_url_hash);
-  EXPECT_NE(*real_blob_hash, *persona_blob_hash);
+IN_PROC_BROWSER_TEST_F(BraveCanvasFarblingWithoutPersonaBrowserTest,
+                       NativeCanvasFarblingRemainsEnabled) {
+  constexpr char kDomain[] = "native-canvas.test";
+  ASSERT_FALSE(fingerprint_browser::GetPersonaForProfile(browser()->profile()));
+
+  SetFingerprintingDefault(kDomain);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL(kDomain, "/simple.html")));
+  const int protected_hash = EvalJs(contents(), R"(
+    (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 32;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#c33';
+      context.fillRect(0, 0, 32, 32);
+      return [...context.getImageData(0, 0, 32, 32).data]
+          .reduce((sum, value, index) =>
+              (sum + value * ((index % 8191) + 1)) % 1000000007, 0);
+    })()
+  )")
+                                 .ExtractInt();
+
+  AllowFingerprinting(kDomain);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL(kDomain, "/simple.html")));
+  const int real_hash = EvalJs(contents(), R"(
+    (() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 32;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#c33';
+      context.fillRect(0, 0, 32, 32);
+      return [...context.getImageData(0, 0, 32, 32).data]
+          .reduce((sum, value, index) =>
+              (sum + value * ((index % 8191) + 1)) % 1000000007, 0);
+    })()
+  )")
+                            .ExtractInt();
+  EXPECT_NE(protected_hash, real_hash);
+}
+
+IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
+                       PersonaOffscreenCanvasWorkerOutputsAreStable) {
+  constexpr char kDomain[] = "persona-worker-canvas.test";
+  ASSERT_TRUE(fingerprint_browser::GetPersonaForProfile(browser()->profile()));
+
+  SetFingerprintingDefault(kDomain);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), https_server()->GetURL(kDomain, kPersonaWorkerPagePath)));
+  const content::EvalJsResult result = EvalJs(contents(), R"(
+    (async () => {
+      const runWorker = () => new Promise((resolve, reject) => {
+        const worker = new Worker('/persona-dedicated-worker.js');
+        worker.onmessage = (event) => {
+          worker.terminate();
+          resolve(event.data);
+        };
+        worker.onerror = (event) => {
+          worker.terminate();
+          reject(event.message);
+        };
+        worker.postMessage('fingerprint');
+      });
+      const first = await runWorker();
+      const second = await runWorker();
+      return {
+        firstCanvas: first.worker.canvas,
+        secondCanvas: second.worker.canvas,
+        firstRepeatedStable: first.worker.canvasStable,
+        secondRepeatedStable: second.worker.canvasStable,
+        nestedRepeatedStable: first.nested.canvasStable
+      };
+    })()
+  )");
+  const base::DictValue& values = result.ExtractDict();
+  ExpectDictBool(values, "firstRepeatedStable", true);
+  ExpectDictBool(values, "secondRepeatedStable", true);
+  ExpectDictBool(values, "nestedRepeatedStable", true);
+  const std::optional<int> first_canvas = values.FindInt("firstCanvas");
+  const std::optional<int> second_canvas = values.FindInt("secondCanvas");
+  ASSERT_TRUE(first_canvas.has_value());
+  ASSERT_TRUE(second_canvas.has_value());
+  EXPECT_EQ(*first_canvas, *second_canvas);
 }
 
 IN_PROC_BROWSER_TEST_F(BraveNavigatorUserAgentFarblingBrowserTest,
