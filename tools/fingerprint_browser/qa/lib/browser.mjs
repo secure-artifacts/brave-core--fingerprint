@@ -12,17 +12,27 @@ import {
   findFreePort,
   listProcesses,
   processesForProfile,
+  run,
   stopProfileProcesses,
   waitForJson,
 } from './system.mjs'
 
-async function launchProcess({ app, args, env, logDir, name }) {
-  const executable = path.join(
-    app,
-    'Contents',
-    'MacOS',
-    'Brave Browser Development',
+async function executablePathForApp(app) {
+  const infoPlist = path.join(app, 'Contents', 'Info.plist')
+  const result = await run(
+    '/usr/bin/plutil',
+    ['-extract', 'CFBundleExecutable', 'raw', infoPlist],
+    { check: true },
   )
+  const executable = result.stdout.trim()
+  if (!executable || executable.includes('/') || executable.includes('\\')) {
+    throw new Error('Invalid CFBundleExecutable: ' + executable)
+  }
+  return path.join(app, 'Contents', 'MacOS', executable)
+}
+
+async function launchProcess({ app, args, env, logDir, name }) {
+  const executable = await executablePathForApp(app)
   const stdoutFile = path.join(logDir, `${name}-stdout.log`)
   const stderrFile = path.join(logDir, `${name}-stderr.log`)
   const [stdout, stderr] = await Promise.all([
@@ -299,12 +309,7 @@ export async function startQaExtensionSession({
   await fs.mkdir(profilePath, { recursive: true })
   await fs.mkdir(logDir, { recursive: true })
   await stopProfileProcesses(profilePath)
-  const executablePath = path.join(
-    app,
-    'Contents',
-    'MacOS',
-    'Brave Browser Development',
-  )
+  const executablePath = await executablePathForApp(app)
   const stdoutFile = path.join(logDir, `${name}-stdout.log`)
   const stderrFile = path.join(logDir, `${name}-stderr.log`)
   await Promise.all([
@@ -357,7 +362,7 @@ export async function startQaExtensionSession({
   const version = await browserSession.send('Browser.getVersion')
   const processes = processesForProfile(await listProcesses(), profilePath)
   const mainProcess = processes.find(
-    (item) => !item.command.includes('Brave Browser Development Helper'),
+    (item) => !item.command.includes(' Helper'),
   )
 
   return {

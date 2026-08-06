@@ -7,6 +7,12 @@ import { createReadStream } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+import {
+  BUILD_APP_BUNDLE,
+  BUILD_PRODUCT_FULL_NAME,
+  PRODUCT_FULL_NAME,
+} from './product.mjs'
+
 import { pathExists, run, sha256 } from './system.mjs'
 
 export const SOURCE_GROUPS = {
@@ -51,6 +57,7 @@ export const SOURCE_GROUPS = {
     'browser/ui/webui/fingerprint_test',
     'browser/ui/webui/settings/fingerprint_profile_proxy_handler.cc',
     'browser/ui/webui/settings/fingerprint_profile_proxy_handler.h',
+    'app/theme/brave/BRANDING.development',
     'chromium_src/chrome/browser/content_settings',
     'chromium_src/chrome/renderer/worker_content_settings_client.cc',
     'chromium_src/net/base/host_port_pair.cc',
@@ -77,6 +84,8 @@ export const SOURCE_GROUPS = {
     'components/brave_shields/core/browser/brave_shields_settings_service.cc',
     'components/brave_shields/core/browser/brave_shields_settings_service.h',
     'components/fingerprint_browser/browser',
+    'components/omnibox/browser/vector_icons/brave/product.icon',
+    'components/omnibox/browser/vector_icons/brave/product_chrome_refresh.icon',
     'net/proxy_resolution/profile_proxy_config_service.cc',
     'net/proxy_resolution/profile_proxy_config_service.h',
     'patches/chrome-browser-net-proxy_config_monitor.cc.patch',
@@ -130,12 +139,29 @@ export const SOURCE_GROUPS = {
     'browser/resources/settings/brave_routes.ts',
     'components/fingerprint_browser/resources',
   ],
-  localeResources: ['app/brave_settings_strings.grdp'],
+  localeResources: [
+    'app/brave_settings_strings.grdp',
+    'app/brave_strings.grd',
+  ],
   scaledResources: [
+    'app/theme/default_100_percent/brave',
+    'app/theme/default_200_percent/brave',
     'components/fingerprint_browser/resources/fingerprint_proxy_flag_resources.grdp',
     'components/resources/brave_components_resources.grd',
   ],
   chromiumResources: [
+    'app/theme/brave/product_logo.svg',
+    'app/theme/brave/product_logo_animation.svg',
+    'app/theme/brave/product_logo_22_mono.png',
+    'app/theme/brave/product_logo_24.png',
+    'app/theme/brave/product_logo_48.png',
+    'app/theme/brave/product_logo_64.png',
+    'app/theme/brave/product_logo_128.png',
+    'app/theme/brave/product_logo_128_beta.png',
+    'app/theme/brave/product_logo_128_dev.png',
+    'app/theme/brave/product_logo_128_development.png',
+    'app/theme/brave/product_logo_128_nightly.png',
+    'app/theme/brave/product_logo_256.png',
     'chromium_src/ui/webui/resources/cr_elements/md_select_lit.css',
   ],
 }
@@ -219,16 +245,14 @@ async function sourceGroupIdentity(braveRoot, groupName) {
 }
 
 async function findFramework(outDir) {
-  const entries = await fs.readdir(outDir, { withFileTypes: true })
-  const entry = entries.find(
-    (candidate) =>
-      candidate.isDirectory()
-      && candidate.name.endsWith(' Framework.framework'),
+  const framework = path.join(
+    outDir,
+    `${BUILD_PRODUCT_FULL_NAME} Framework.framework`,
   )
-  if (!entry) {
-    throw new Error(`No unpacked framework found in ${outDir}`)
+  if (!(await pathExists(framework))) {
+    throw new Error(`Current unpacked framework not found: ${framework}`)
   }
-  return path.join(outDir, entry.name)
+  return framework
 }
 
 async function frameworkVersionDirectory(framework) {
@@ -268,6 +292,15 @@ async function fileRecord(file) {
     sha256: await sha256(file),
     size: stat.size,
   }
+}
+
+async function plistValue(file, key) {
+  const result = await run(
+    '/usr/bin/plutil',
+    ['-extract', key, 'raw', file],
+    { check: true },
+  )
+  return result.stdout.trim()
 }
 
 async function updateHashFromRange(hash, file, start, end) {
@@ -615,7 +648,7 @@ async function loadCommandMap(files) {
 
 export async function prepareAndVerifyArtifacts(config, log) {
   const { app, braveRoot, outDir, prepareApp } = config
-  const developmentApp = path.join(outDir, 'Brave Browser Development.app')
+  const developmentApp = path.join(outDir, BUILD_APP_BUNDLE)
   if (path.resolve(app) === path.resolve(developmentApp)) {
     throw new Error('QA app must be a dedicated copy, not the build output app')
   }
@@ -651,6 +684,55 @@ export async function prepareAndVerifyArtifacts(config, log) {
     baseAppRefreshed = true
     appExecutables = await appExecutableManifest(app)
     await log('Refreshed QA app executable, Framework, and Helper baseline')
+  }
+
+  const macBranding = await Promise.all(
+    ['app.icns', 'Assets.car'].map(async (name) => {
+      const source = path.join(
+        braveRoot,
+        'app',
+        'theme',
+        'brave',
+        'mac',
+        'development',
+        name,
+      )
+      const build = path.join(developmentApp, 'Contents', 'Resources', name)
+      const qa = path.join(app, 'Contents', 'Resources', name)
+      const [sourceRecord, buildRecord] = await Promise.all([
+        fileRecord(source),
+        fileRecord(build),
+      ])
+      if (sourceRecord.sha256 !== buildRecord.sha256) {
+        throw Object.assign(
+          new Error('Development app contains stale macOS branding: ' + name),
+          { details: { build: buildRecord, source: sourceRecord } },
+        )
+      }
+      return { build, name, qa, source }
+    }),
+  )
+  const buildInfoPlist = path.join(developmentApp, 'Contents', 'Info.plist')
+  const qaInfoPlist = path.join(app, 'Contents', 'Info.plist')
+  const buildDisplayName = await plistValue(
+    buildInfoPlist,
+    'CFBundleDisplayName',
+  )
+  const buildBundleName = await plistValue(buildInfoPlist, 'CFBundleName')
+  if (
+    buildDisplayName !== PRODUCT_FULL_NAME
+    || buildBundleName !== PRODUCT_FULL_NAME
+  ) {
+    throw Object.assign(
+      new Error('Development app does not expose the Chinese product name'),
+      {
+        details: {
+          expected: PRODUCT_FULL_NAME,
+          name: buildBundleName,
+          displayName: buildDisplayName,
+        },
+      },
+    )
   }
   if (sourceAppExecutables.digest !== appExecutables.digest) {
     throw Object.assign(
@@ -861,6 +943,14 @@ export async function prepareAndVerifyArtifacts(config, log) {
 
   const copied = []
   if (prepareApp) {
+    if (await copyIfDifferent(buildInfoPlist, qaInfoPlist)) {
+      copied.push(qaInfoPlist)
+    }
+    for (const item of macBranding) {
+      if (await copyIfDifferent(item.build, item.qa)) {
+        copied.push(item.qa)
+      }
+    }
     const initialAppDylibs = await dylibsIn(appDylibDir)
     const initialAppNames = new Map(
       initialAppDylibs.map((file) => [path.basename(file), file]),
@@ -1118,6 +1208,51 @@ export async function prepareAndVerifyArtifacts(config, log) {
       { details: mismatchedChromiumResources },
     )
   }
+  const macBrandingComparisons = await Promise.all(
+    macBranding.map(async (item) => {
+      const [source, build, qa] = await Promise.all([
+        fileRecord(item.source),
+        fileRecord(item.build),
+        fileRecord(item.qa),
+      ])
+      return {
+        build,
+        match:
+          source.sha256 === build.sha256 && source.sha256 === qa.sha256,
+        name: item.name,
+        qa,
+        source,
+      }
+    }),
+  )
+  const mismatchedMacBranding = macBrandingComparisons.filter(
+    (comparison) => !comparison.match,
+  )
+  if (mismatchedMacBranding.length > 0) {
+    throw Object.assign(
+      new Error('QA app macOS branding does not match current source'),
+      { details: mismatchedMacBranding },
+    )
+  }
+  const [qaDisplayName, qaBundleName] = await Promise.all([
+    plistValue(qaInfoPlist, 'CFBundleDisplayName'),
+    plistValue(qaInfoPlist, 'CFBundleName'),
+  ])
+  if (
+    qaDisplayName !== PRODUCT_FULL_NAME
+    || qaBundleName !== PRODUCT_FULL_NAME
+  ) {
+    throw Object.assign(
+      new Error('QA app does not expose the Chinese product name'),
+      {
+        details: {
+          expected: PRODUCT_FULL_NAME,
+          name: qaBundleName,
+          displayName: qaDisplayName,
+        },
+      },
+    )
+  }
   const sourceLibContentSha256 = sourceContentHashes.get(
     path.resolve(sourceLibchrome),
   )
@@ -1166,6 +1301,11 @@ export async function prepareAndVerifyArtifacts(config, log) {
       source: sourceLibRecord,
       sourceContentSha256: sourceLibContentSha256,
       sourceUuid: sourceUuids.get(path.resolve(sourceLibchrome)),
+    },
+    macBranding: macBrandingComparisons,
+    macIdentity: {
+      displayName: qaDisplayName,
+      name: qaBundleName,
     },
     resources: {
       allApp: appResourceRecords,

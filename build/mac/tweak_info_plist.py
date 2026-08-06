@@ -88,6 +88,10 @@ def Main():
     parser.add_argument('--enable_updater',
                         dest='enable_updater',
                         action='store_true')
+    parser.add_argument('--display_name_utf8_hex',
+                        dest='display_name_utf8_hex',
+                        action='store',
+                        default=None)
     args = parser.parse_args()
 
     # Read the plist into its parsed format. Convert the file to 'xml1' as
@@ -119,6 +123,11 @@ def Main():
 
     if args.brave_eddsa_key:
         plist['SUPublicEDKey'] = args.brave_eddsa_key
+
+    if args.display_name_utf8_hex:
+        display_name = bytes.fromhex(args.display_name_utf8_hex).decode('utf-8')
+        plist['CFBundleDisplayName'] = display_name
+        plist['CFBundleName'] = display_name
 
     _OverrideVersionKey(plist, args.brave_version)
 

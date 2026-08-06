@@ -219,8 +219,8 @@ src/out/Component_arm64/qa-results/<run-id>/
 ```
 
 Without `--app`, preparation creates and verifies a dedicated package at
-`src/out/Component_arm64/fingerprint-browser-qa/Brave Browser Development QA.app`.
-The runner rejects `src/out/Component_arm64/Brave Browser Development.app` as a
+`src/out/Component_arm64/fingerprint-browser-qa/指纹浏览器 QA.app`.
+The runner rejects `src/out/Component_arm64/Fingerprint Browser.app` as a
 launch target.
 
 On macOS, every QA session uses Chromium's `--use-mock-keychain` switch. This

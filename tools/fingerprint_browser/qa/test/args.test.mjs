@@ -17,7 +17,7 @@ test('parseArgs derives Brave Component defaults', () => {
     path.join(
       '/workspace/src/out/Component_arm64',
       'fingerprint-browser-qa',
-      'Brave Browser Development QA.app',
+      '指纹浏览器 QA.app',
     ),
   )
   assert.equal(parsed.prepareApp, true)

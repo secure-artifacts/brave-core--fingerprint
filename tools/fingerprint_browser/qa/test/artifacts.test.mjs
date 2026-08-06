@@ -14,9 +14,11 @@ test('artifact source groups cover fingerprint browser compiled inputs', () => {
   for (const source of [
     '../third_party/blink/renderer/modules/plugins/dom_plugin_array.cc',
     '../third_party/blink/renderer/platform/fonts/font_fallback_list.cc',
+    'app/theme/brave/BRANDING.development',
     'browser/brave_shields/brave_shields_web_contents_observer.cc',
     'chromium_src/third_party/blink/renderer/platform/fonts/font_fallback_list.cc',
     'components/brave_shields/core/common/shields_settings.mojom',
+    'components/omnibox/browser/vector_icons/brave/product.icon',
     'third_party/blink/renderer/BUILD.gn',
     'third_party/blink/renderer/core/farbling/brave_session_cache.h',
   ]) {
@@ -30,7 +32,18 @@ test('artifact source groups cover fingerprint browser compiled inputs', () => {
     assert.ok(SOURCE_GROUPS.braveResources.includes(source), source)
   }
   assert.ok(
+    SOURCE_GROUPS.chromiumResources.includes(
+      'app/theme/brave/product_logo.svg',
+    ),
+  )
+  assert.ok(SOURCE_GROUPS.localeResources.includes('app/brave_strings.grd'))
+  assert.ok(
     !SOURCE_GROUPS.scaledResources.includes('app/brave_settings_strings.grdp'),
+  )
+  assert.ok(
+    SOURCE_GROUPS.scaledResources.includes(
+      'app/theme/default_100_percent/brave',
+    ),
   )
 })
 
