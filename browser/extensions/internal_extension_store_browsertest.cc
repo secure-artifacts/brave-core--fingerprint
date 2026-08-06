@@ -19,6 +19,8 @@
 #include "chrome/browser/download/download_crx_util.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
+#include "chrome/browser/extensions/install_tracker_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/crx_file/crx_verifier.h"
@@ -30,6 +32,8 @@
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/install/crx_install_error.h"
+#include "extensions/browser/install_observer.h"
+#include "extensions/browser/install_tracker.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -41,19 +45,21 @@ namespace {
 
 class PromptResult {
  public:
-  void Succeeded(const Extension& extension, bool prompt_shown) {
-    extension_id_ = extension.id();
-    prompt_shown_ = prompt_shown;
-    run_loop_.Quit();
-  }
+  void PromptShown() { prompt_shown_ = true; }
 
-  void Failed(bool prompt_shown) {
-    prompt_shown_ = prompt_shown;
-    failed_ = true;
-    run_loop_.Quit();
+  void Completed(const ExtensionId& extension_id, bool success) {
+    extension_id_ = extension_id;
+    success_ = success;
+    completed_ = true;
+    if (run_loop_.running()) {
+      run_loop_.Quit();
+    }
   }
 
   bool Wait() {
+    if (completed_) {
+      return true;
+    }
     base::OneShotTimer timeout;
     timeout.Start(
         FROM_HERE, base::Seconds(15),
@@ -61,7 +67,7 @@ class PromptResult {
     run_loop_.Run();
     return !timed_out_;
   }
-  bool failed() const { return failed_; }
+  bool success() const { return success_; }
   bool prompt_shown() const { return prompt_shown_; }
   const ExtensionId& extension_id() const { return extension_id_; }
 
@@ -73,9 +79,35 @@ class PromptResult {
 
   base::RunLoop run_loop_;
   ExtensionId extension_id_;
-  bool failed_ = false;
+  bool success_ = false;
+  bool completed_ = false;
   bool prompt_shown_ = false;
   bool timed_out_ = false;
+};
+
+class InstallCompletionWaiter : public InstallObserver {
+ public:
+  InstallCompletionWaiter(Profile* profile,
+                          std::shared_ptr<PromptResult> result)
+      : profile_(profile), result_(std::move(result)) {
+    InstallTrackerFactory::GetForBrowserContext(profile_)->AddObserver(this);
+  }
+
+  ~InstallCompletionWaiter() override {
+    InstallTrackerFactory::GetForBrowserContext(profile_)->RemoveObserver(this);
+  }
+
+  void OnFinishCrxInstall(content::BrowserContext*,
+                          const base::FilePath&,
+                          const std::string& extension_id,
+                          const Extension*,
+                          bool success) override {
+    result_->Completed(extension_id, success);
+  }
+
+ private:
+  raw_ptr<Profile> profile_;
+  std::shared_ptr<PromptResult> result_;
 };
 
 class UpdateResult {
@@ -113,14 +145,15 @@ class TestInstallPrompt : public ExtensionInstallPrompt {
                     std::shared_ptr<PromptResult> result)
       : ExtensionInstallPrompt(web_contents), result_(std::move(result)) {}
 
-  void OnInstallSuccess(scoped_refptr<const Extension> extension,
-                        SkBitmap*) override {
-    result_->Succeeded(*extension, did_call_show_dialog());
+  void ConfirmInstall(DoneCallback install_callback,
+                      const Extension* extension) override {
+    result_->PromptShown();
+    ExtensionInstallPrompt::ConfirmInstall(std::move(install_callback),
+                                           extension);
   }
 
-  void OnInstallFailure(const CrxInstallError&) override {
-    result_->Failed(did_call_show_dialog());
-  }
+  void OnInstallSuccess(scoped_refptr<const Extension>, SkBitmap*) override {}
+  void OnInstallFailure(const CrxInstallError&) override {}
 
  private:
   std::shared_ptr<PromptResult> result_;
@@ -163,6 +196,7 @@ class InternalExtensionStoreBrowserTest : public ExtensionBrowserTest {
                    ServedPackage served_package) {
     served_package_ = served_package;
     auto result = std::make_shared<PromptResult>();
+    InstallCompletionWaiter install_waiter(profile(), result);
     ScopedTestDialogAutoConfirm auto_confirm(action);
     download_crx_util::SetMockInstallPromptForTesting(
         std::make_unique<TestInstallPrompt>(GetActiveWebContents(), result));
@@ -179,13 +213,13 @@ class InternalExtensionStoreBrowserTest : public ExtensionBrowserTest {
 
     if (action == ScopedTestDialogAutoConfirm::ACCEPT &&
         served_package == ServedPackage::kValid) {
-      EXPECT_FALSE(result->failed());
+      EXPECT_TRUE(result->success());
       EXPECT_TRUE(result->prompt_shown());
       EXPECT_EQ(extension_id_, result->extension_id());
       EXPECT_TRUE(
           extension_registry()->enabled_extensions().Contains(extension_id_));
     } else {
-      EXPECT_TRUE(result->failed());
+      EXPECT_FALSE(result->success());
       EXPECT_FALSE(extension_registry()->GetInstalledExtension(extension_id_));
       if (served_package == ServedPackage::kValid) {
         EXPECT_TRUE(result->prompt_shown());
@@ -224,7 +258,7 @@ class InternalExtensionStoreBrowserTest : public ExtensionBrowserTest {
     EXPECT_EQ(expected_version, installed_extension->VersionString());
   }
 
- private:
+ protected:
   base::FilePath CreateUnpackedUpdate(std::string_view directory_name,
                                       std::string_view version,
                                       const GURL& update_url) {

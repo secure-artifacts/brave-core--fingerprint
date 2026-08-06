@@ -52,7 +52,7 @@ bool HasInternalExtensionStoreOrigin(const GURL& url) {
 
 bool HasSafeInternalPath(const GURL& url) {
   std::string unescaped_path;
-  if (!base::UnescapeBinaryURLComponentSafe(url.path_piece(),
+  if (!base::UnescapeBinaryURLComponentSafe(url.path(),
                                             /*fail_on_path_separators=*/true,
                                             &unescaped_path)) {
     return false;
@@ -68,9 +68,9 @@ bool HasSafeInternalPath(const GURL& url) {
 
 bool IsInternalCrxPath(const GURL& url) {
   return HasSafeInternalPath(url) &&
-         base::StartsWith(url.path_piece(), kInternalExtensionStorePath,
+         base::StartsWith(url.path(), kInternalExtensionStorePath,
                           base::CompareCase::SENSITIVE) &&
-         base::EndsWith(url.path_piece(), kCrxSuffix,
+         base::EndsWith(url.path(), kCrxSuffix,
                         base::CompareCase::INSENSITIVE_ASCII);
 }
 
@@ -126,7 +126,7 @@ bool IsBraveInternalExtensionStoreDownload(
                                return HasInternalExtensionStoreOrigin(url) &&
                                       IsInternalCrxPath(url);
                              }) &&
-         base::StartsWith(referrer_url.path_piece(),
+         base::StartsWith(referrer_url.path(),
                           kInternalExtensionStorePath,
                           base::CompareCase::SENSITIVE) &&
          HasSupportedInternalCrxMimeType(download_item) &&
@@ -136,14 +136,14 @@ bool IsBraveInternalExtensionStoreDownload(
 bool IsBraveInternalExtensionStoreUpdateUrl(const GURL& update_url) {
   if (!HasInternalExtensionStoreOrigin(update_url) ||
       !HasSafeInternalPath(update_url) ||
-      !base::StartsWith(update_url.path_piece(), kInternalExtensionStorePath,
+      !base::StartsWith(update_url.path(), kInternalExtensionStorePath,
                         base::CompareCase::SENSITIVE) ||
-      !base::EndsWith(update_url.path_piece(), kUpdateManifestSuffix,
+      !base::EndsWith(update_url.path(), kUpdateManifestSuffix,
                       base::CompareCase::SENSITIVE)) {
     return false;
   }
 
-  return update_url.path_piece().size() >
+  return update_url.path().size() >
          std::string_view(kInternalExtensionStorePath).size() +
              std::string_view(kUpdateManifestSuffix).size();
 }

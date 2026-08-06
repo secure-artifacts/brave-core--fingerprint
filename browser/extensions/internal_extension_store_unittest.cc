@@ -9,10 +9,11 @@
 
 #include "chrome/browser/download/download_crx_util.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "components/download/public/common/download_item.h"
 #include "components/download/public/common/mock_download_item.h"
-#include "components/profile_metrics/browser_profile_type.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/crx_installer.h"
 #include "extensions/browser/extension_util.h"
@@ -397,7 +398,7 @@ TEST(InternalExtensionStoreDownloadTest,
 }
 
 TEST_F(InternalExtensionStoreIntegrationTest,
-       InternalStoreReasonRequiresRegularProfile) {
+       InternalStoreReasonAllowsRegularProfile) {
   const DownloadItemData data = MakeValidDownloadItemData();
   StrictMockDownloadItem download_item;
   ExpectDownloadItem(download_item, data);
@@ -410,6 +411,14 @@ TEST_F(InternalExtensionStoreIntegrationTest,
   EXPECT_EQ(CrxInstaller::OffStoreInstallAllowedFromBraveInternalStore,
             download_crx_util::CreateCrxInstaller(&profile, download_item)
                 ->off_store_install_allow_reason());
+}
+
+TEST_F(InternalExtensionStoreIntegrationTest,
+       InternalStoreRejectsIncognitoProfile) {
+  const DownloadItemData data = MakeValidDownloadItemData();
+  StrictMockDownloadItem download_item;
+  ExpectDownloadItem(download_item, data);
+  TestingProfile profile;
 
   auto policy_override =
       download_crx_util::OverrideOffstoreInstallAllowedForTesting(true);
@@ -422,6 +431,15 @@ TEST_F(InternalExtensionStoreIntegrationTest,
   EXPECT_FALSE(download_crx_util::IsTrustedExtensionDownload(otr_profile,
                                                              download_item));
 
+  profile.DestroyOffTheRecordProfile(otr_profile);
+}
+
+TEST_F(InternalExtensionStoreIntegrationTest,
+       InternalStoreRejectsGuestProfile) {
+  const DownloadItemData data = MakeValidDownloadItemData();
+  StrictMockDownloadItem download_item;
+  ExpectDownloadItem(download_item, data);
+
   TestingProfile::Builder guest_builder;
   std::unique_ptr<TestingProfile> guest_profile =
       guest_builder.SetGuestSession().Build();
@@ -429,14 +447,29 @@ TEST_F(InternalExtensionStoreIntegrationTest,
       guest_profile.get(), download_item));
   EXPECT_FALSE(download_crx_util::IsTrustedExtensionDownload(
       guest_profile.get(), download_item));
+}
 
-  TestingProfile system_profile;
-  profile_metrics::SetBrowserProfileType(
-      &system_profile, profile_metrics::BrowserProfileType::kSystem);
+TEST_F(InternalExtensionStoreIntegrationTest,
+       InternalStoreRejectsSystemProfile) {
+  const DownloadItemData data = MakeValidDownloadItemData();
+  StrictMockDownloadItem download_item;
+  ExpectDownloadItem(download_item, data);
+
+  TestingProfileManager profile_manager(TestingBrowserProcess::GetGlobal());
+  ASSERT_TRUE(profile_manager.SetUp());
+  TestingProfile* system_profile = profile_manager.CreateSystemProfile();
   EXPECT_FALSE(download_crx_util::IsBraveInternalExtensionStoreInstallAllowed(
-      &system_profile, download_item));
-  EXPECT_FALSE(download_crx_util::IsTrustedExtensionDownload(&system_profile,
+      system_profile, download_item));
+  EXPECT_FALSE(download_crx_util::IsTrustedExtensionDownload(system_profile,
                                                              download_item));
+}
+
+TEST_F(InternalExtensionStoreIntegrationTest,
+       InternalStoreRejectsTorProfile) {
+  const DownloadItemData data = MakeValidDownloadItemData();
+  StrictMockDownloadItem download_item;
+  ExpectDownloadItem(download_item, data);
+  TestingProfile profile;
 
   Profile* tor_profile = profile.GetOffTheRecordProfile(
       Profile::OTRProfileID::TorID(), /*create_if_needed=*/true);
@@ -445,6 +478,8 @@ TEST_F(InternalExtensionStoreIntegrationTest,
       tor_profile, download_item));
   EXPECT_FALSE(download_crx_util::IsTrustedExtensionDownload(tor_profile,
                                                              download_item));
+
+  profile.DestroyOffTheRecordProfile(tor_profile);
 }
 
 }  // namespace
