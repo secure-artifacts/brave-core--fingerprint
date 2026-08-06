@@ -1,0 +1,25 @@
+diff --git a/chrome/browser/extensions/chrome_extension_system.cc b/chrome/browser/extensions/chrome_extension_system.cc
+index c31a741d21e0206ee73860aa4cf7c643125f4c04..0a01bea7a5445178e75a65b72e506fd4ae1fe90f 100644
+--- a/chrome/browser/extensions/chrome_extension_system.cc
++++ b/chrome/browser/extensions/chrome_extension_system.cc
+@@ -68,6 +68,11 @@
+ #include "extensions/common/manifest_handlers/manifest_url_handlers.h"
+ #include "ui/message_center/public/cpp/notifier_id.h"
+
++#ifndef BRAVE_CHROME_EXTENSION_SYSTEM_CONFIGURE_UPDATE_INSTALLER
++#define BRAVE_CHROME_EXTENSION_SYSTEM_CONFIGURE_UPDATE_INSTALLER( \
++    profile, extension_id, installer)
++#endif
++
+ #if BUILDFLAG(ENABLE_EXTENSIONS)
+ #include "chrome/browser/extensions/chrome_app_sorting.h"
+ #else
+@@ -468,6 +473,8 @@ void ChromeExtensionSystem::InstallUpdate(
+
+   scoped_refptr<CrxInstaller> installer =
+       CrxInstaller::CreateSilent(profile_->GetOriginalProfile());
++  BRAVE_CHROME_EXTENSION_SYSTEM_CONFIGURE_UPDATE_INSTALLER(
++      profile_, extension_id, installer);
+   installer->set_delete_source(true);
+   installer->AddInstallerCallback(std::move(install_update_callback));
+   installer->set_install_immediately(install_immediately);

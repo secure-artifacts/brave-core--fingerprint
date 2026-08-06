@@ -1,0 +1,24 @@
+diff --git a/extensions/browser/crx_installer.cc b/extensions/browser/crx_installer.cc
+index d093f443863b06d96b091889ddcef71eb192084f..8d613e74a4b5c8be8fdecd674d37da58f3b78382 100644
+--- a/extensions/browser/crx_installer.cc
++++ b/extensions/browser/crx_installer.cc
+@@ -81,6 +81,10 @@
+ #include "third_party/skia/include/core/SkBitmap.h"
+ #include "ui/base/l10n/l10n_util.h"
+
++#ifndef BRAVE_CRX_INSTALLER_ALLOW_INSTALL
++#define BRAVE_CRX_INSTALLER_ALLOW_INSTALL(extension)
++#endif
++
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "components/user_manager/user_manager.h"
+ #endif
+@@ -387,6 +391,8 @@ std::optional<CrxInstallError> CrxInstaller::AllowInstall(
+     const Extension* extension) {
+   DCHECK(shared_file_task_runner_->RunsTasksInCurrentSequence());
+
++  BRAVE_CRX_INSTALLER_ALLOW_INSTALL(extension);
++
+   if (minimum_version_.IsValid() &&
+       extension->version().CompareTo(minimum_version_) < 0) {
+     return CrxInstallError(

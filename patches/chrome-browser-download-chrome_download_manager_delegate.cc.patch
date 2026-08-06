@@ -1,0 +1,55 @@
+diff --git a/chrome/browser/download/chrome_download_manager_delegate.cc b/chrome/browser/download/chrome_download_manager_delegate.cc
+index f02af613fc8be11a609bde344407925c178c7aca..75e759d63fbd2404c1527842bdd062d21ca17ed8 100644
+--- a/chrome/browser/download/chrome_download_manager_delegate.cc
++++ b/chrome/browser/download/chrome_download_manager_delegate.cc
+@@ -145,6 +145,18 @@
+ #include "extensions/common/user_script.h"
+ #endif
+
++#ifndef BRAVE_CHROME_DOWNLOAD_MANAGER_DELEGATE_APPLY_PREFS_INSTALL_REASON
++#define BRAVE_CHROME_DOWNLOAD_MANAGER_DELEGATE_APPLY_PREFS_INSTALL_REASON( \
++    profile, item)                                                         \
++  true
++#endif
++
++#ifndef BRAVE_CHROME_DOWNLOAD_MANAGER_DELEGATE_REJECT_EXTENSION_DOWNLOAD
++#define BRAVE_CHROME_DOWNLOAD_MANAGER_DELEGATE_REJECT_EXTENSION_DOWNLOAD( \
++    profile, item)                                                        \
++  false
++#endif
++
+ #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
+ #include "chrome/browser/offline_pages/offline_page_utils.h"  // nogncheck crbug.com/40147906
+ #include "components/offline_pages/core/client_namespace_constants.h"  // nogncheck crbug.com/40147906
+@@ -1006,7 +1018,8 @@ bool ChromeDownloadManagerDelegate::IsDownloadReadyForCompletion(
+              item->GetDangerType() !=
+                  download::DOWNLOAD_DANGER_TYPE_USER_VALIDATED &&
+              !item->IsUserConfirmed() &&
+-             download_prefs_->download_restriction() != policy::DownloadRestriction::MALICIOUS_FILES) {
++             download_prefs_->download_restriction() !=
++                 policy::DownloadRestriction::MALICIOUS_FILES) {
+     // Don't complete the download of a non-dangerous file until the user
+     // consents.
+     if (DownloadController::GetInstance()->ShowDangerousDownloadDialog(item)) {
+@@ -1071,12 +1084,20 @@ bool ChromeDownloadManagerDelegate::ShouldOpenDownload(
+     DownloadItem* item,
+     content::DownloadOpenDelayedCallback callback) {
+ #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
++  if (BRAVE_CHROME_DOWNLOAD_MANAGER_DELEGATE_REJECT_EXTENSION_DOWNLOAD(profile_,
++                                                                       *item)) {
++    std::move(callback).Run(false);
++    return false;
++  }
++
+   if (extensions::util::IsExtensionDownload(*item) &&
+       !extensions::WebstoreInstaller::GetAssociatedApproval(*item)) {
+     scoped_refptr<CrxInstaller> installer(
+         download_crx_util::CreateCrxInstaller(profile_, *item));
+
+-    if (download_crx_util::OffStoreInstallAllowedByPrefs(profile_, *item)) {
++    if (BRAVE_CHROME_DOWNLOAD_MANAGER_DELEGATE_APPLY_PREFS_INSTALL_REASON(
++            profile_, *item) &&
++        download_crx_util::OffStoreInstallAllowedByPrefs(profile_, *item)) {
+       installer->set_off_store_install_allow_reason(
+           CrxInstaller::OffStoreInstallAllowedBecausePref);
+     }
