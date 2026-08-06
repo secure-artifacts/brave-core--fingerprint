@@ -6,6 +6,8 @@
 #include "brave/third_party/blink/renderer/core/farbling/brave_session_cache.h"
 
 #include <algorithm>
+#include <array>
+#include <numeric>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -43,6 +45,8 @@
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/skia/include/core/SkColorType.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
 #include "url/url_constants.h"
 
 namespace {
@@ -58,6 +62,148 @@ constexpr std::string_view kLettersForRandomStrings =
 
 inline uint64_t lfsr_next(uint64_t v) {
   return ((v >> 1) | (((v << 62) ^ (v << 61)) & (~(~zero << 63) << 62)));
+}
+
+uint64_t MixPersonaValue(uint64_t value) {
+  value += 0x9e3779b97f4a7c15ULL;
+  value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+  return value ^ (value >> 31);
+}
+
+void WriteStableRgbMarker(base::span<uint8_t> bytes, uint64_t value) {
+  std::array<std::array<uint8_t, 3>, 4> markers;
+  for (size_t marker = 0; marker < markers.size(); ++marker) {
+    const uint8_t marker_value = static_cast<uint8_t>(value + marker * 53u);
+    markers[marker].fill(marker_value);
+  }
+
+  for (const auto& marker : markers) {
+    if (std::equal(marker.begin(), marker.end(), bytes.begin())) {
+      return;
+    }
+  }
+
+  const size_t start = static_cast<size_t>((value >> 32u) & 0x3u);
+  for (size_t offset = 0; offset < markers.size(); ++offset) {
+    const auto& marker = markers[(start + offset) % markers.size()];
+    if (marker[0] != bytes[0] && marker[1] != bytes[1] &&
+        marker[2] != bytes[2]) {
+      std::copy(marker.begin(), marker.end(), bytes.begin());
+      return;
+    }
+  }
+  NOTREACHED();
+}
+
+void WriteLowBits16(base::span<uint8_t> bytes,
+                    uint64_t value,
+                    bool skip_non_finite,
+                    bool normalized) {
+  for (size_t channel = 0; channel < 3u; ++channel) {
+    auto channel_bytes = bytes.subspan(channel * 2u).first<2u>();
+    uint16_t bits = base::U16FromLittleEndian(channel_bytes);
+    if (skip_non_finite && (bits & 0x7c00u) == 0x7c00u) {
+      continue;
+    }
+    const uint16_t low_bits =
+        static_cast<uint16_t>((value >> (channel * 3u)) & 0x7u);
+    if (normalized && bits == 0x3c00u) {
+      bits = static_cast<uint16_t>(0x3bf8u | low_bits);
+    } else {
+      bits = static_cast<uint16_t>((bits & 0xfff8u) | low_bits);
+    }
+    channel_bytes.copy_from(base::U16ToLittleEndian(bits));
+  }
+}
+
+void WriteLowBits32(base::span<uint8_t> bytes,
+                    uint64_t value,
+                    bool floating_point) {
+  for (size_t channel = 0; channel < 3u; ++channel) {
+    auto channel_bytes = bytes.subspan(channel * 4u).first<4u>();
+    uint32_t bits = base::U32FromLittleEndian(channel_bytes);
+    if (floating_point && (bits & 0x7f800000u) == 0x7f800000u) {
+      continue;
+    }
+    bits = (bits & 0xfffffff8u) |
+           static_cast<uint32_t>((value >> (channel * 3u)) & 0x7u);
+    channel_bytes.copy_from(base::U32ToLittleEndian(bits));
+  }
+}
+
+void WritePacked101010LowBits(base::span<uint8_t> bytes, uint64_t value) {
+  uint32_t bits = base::U32FromLittleEndian(bytes.first<4u>());
+  for (size_t channel = 0; channel < 3u; ++channel) {
+    const size_t shift = channel * 10u;
+    bits = (bits & ~(0x7u << shift)) |
+           (static_cast<uint32_t>((value >> (channel * 3u)) & 0x7u) << shift);
+  }
+  bytes.first<4u>().copy_from(base::U32ToLittleEndian(bits));
+}
+
+void WriteLowBits10x6(base::span<uint8_t> bytes, uint64_t value) {
+  uint64_t bits = base::U64FromLittleEndian(bytes.first<8u>());
+  for (size_t channel = 0; channel < 3u; ++channel) {
+    const size_t shift = 6u + channel * 16u;
+    bits = (bits & ~(uint64_t{0x7u} << shift)) |
+           ((value >> (channel * 3u) & 0x7u) << shift);
+  }
+  bytes.first<8u>().copy_from(base::U64ToLittleEndian(bits));
+}
+
+bool PerturbPersonaPixel(base::span<uint8_t> pixel,
+                         SkColorType color_type,
+                         uint64_t value) {
+  switch (color_type) {
+    case kRGBA_8888_SkColorType:
+    case kRGB_888x_SkColorType:
+    case kBGRA_8888_SkColorType:
+    case kSRGBA_8888_SkColorType:
+      if (pixel.size() < 4u) {
+        return false;
+      }
+      WriteStableRgbMarker(pixel.first<3u>(), value);
+      return true;
+    case kRGBA_1010102_SkColorType:
+    case kBGRA_1010102_SkColorType:
+    case kRGB_101010x_SkColorType:
+    case kBGR_101010x_SkColorType:
+      if (pixel.size() < 4u) {
+        return false;
+      }
+      WritePacked101010LowBits(pixel.first<4u>(), value);
+      return true;
+    case kRGBA_F16Norm_SkColorType:
+    case kRGBA_F16_SkColorType:
+    case kRGB_F16F16F16x_SkColorType:
+      if (pixel.size() < 8u) {
+        return false;
+      }
+      WriteLowBits16(pixel.first<8u>(), value, true,
+                     color_type == kRGBA_F16Norm_SkColorType);
+      return true;
+    case kRGBA_10x6_SkColorType:
+      if (pixel.size() < 8u) {
+        return false;
+      }
+      WriteLowBits10x6(pixel.first<8u>(), value);
+      return true;
+    case kR16G16B16A16_unorm_SkColorType:
+      if (pixel.size() < 8u) {
+        return false;
+      }
+      WriteLowBits16(pixel.first<8u>(), value, false, false);
+      return true;
+    case kRGBA_F32_SkColorType:
+      if (pixel.size() < 16u) {
+        return false;
+      }
+      WriteLowBits32(pixel.first<16u>(), value, true);
+      return true;
+    default:
+      return false;
+  }
 }
 
 std::optional<blink::String> BlinkStringFromUtf8IfNotEmpty(
@@ -347,10 +493,124 @@ BraveSessionCache::GetAudioFarblingHelper() {
   return audio_farbling_helper_;
 }
 
-void BraveSessionCache::FarbleAudioChannel(base::span<float> dst) {
+void BraveSessionCache::FarbleAudioChannel(base::span<float> dst,
+                                           size_t sample_offset) {
   const auto& audio_farbling_helper = GetAudioFarblingHelper();
   if (audio_farbling_helper) {
-    audio_farbling_helper->FarbleAudioChannel(dst);
+    if (default_shields_settings_->has_persona_farbling_token) {
+      audio_farbling_helper->FarbleAudioChannelForPersona(dst, sample_offset);
+    } else {
+      audio_farbling_helper->FarbleAudioChannel(dst);
+    }
+  }
+}
+
+void BraveSessionCache::FarbleAudioChannelCopy(base::span<float> source,
+                                               base::span<float> destination,
+                                               size_t sample_offset) {
+  CHECK_EQ(source.size(), destination.size());
+  const auto& audio_farbling_helper = GetAudioFarblingHelper();
+  if (!audio_farbling_helper) {
+    return;
+  }
+  if (!default_shields_settings_->has_persona_farbling_token) {
+    audio_farbling_helper->FarbleAudioChannel(destination);
+    return;
+  }
+  audio_farbling_helper->FarbleAudioChannelForPersona(source, sample_offset);
+  destination.copy_from(source);
+}
+
+void BraveSessionCache::PerturbCanvasPixels(base::span<uint8_t> data,
+                                            int surface_width,
+                                            int surface_height,
+                                            int read_x,
+                                            int read_y,
+                                            int read_width,
+                                            int read_height,
+                                            size_t row_bytes,
+                                            int color_type) {
+  if (GetBraveFarblingLevel(ContentSettingsType::BRAVE_WEBCOMPAT_CANVAS) ==
+      BraveFarblingLevel::OFF) {
+    return;
+  }
+  if (!default_shields_settings_->has_persona_farbling_token) {
+    PerturbPixelsInternal(data);
+    return;
+  }
+  PerturbCanvasPixelsForPersona(data, surface_width, surface_height, read_x,
+                                read_y, read_width, read_height, row_bytes,
+                                color_type);
+}
+
+void BraveSessionCache::PerturbCanvasPixelsForPersona(base::span<uint8_t> data,
+                                                      int surface_width,
+                                                      int surface_height,
+                                                      int read_x,
+                                                      int read_y,
+                                                      int read_width,
+                                                      int read_height,
+                                                      size_t row_bytes,
+                                                      int color_type_value) {
+  if (data.empty() || surface_width <= 0 || surface_height <= 0 ||
+      read_width <= 0 || read_height <= 0) {
+    return;
+  }
+
+  const size_t surface_pixel_count =
+      base::checked_cast<size_t>(surface_width) * surface_height;
+  if (color_type_value < 0 || color_type_value >= kSkColorTypeCnt) {
+    return;
+  }
+  const auto color_type = static_cast<SkColorType>(color_type_value);
+  const size_t bytes_per_pixel = SkColorTypeBytesPerPixel(color_type);
+  const size_t row_pixel_bytes =
+      base::checked_cast<size_t>(read_width) * bytes_per_pixel;
+  const size_t last_row_offset =
+      base::checked_cast<size_t>(read_height - 1) * row_bytes;
+  if (bytes_per_pixel == 0u || row_bytes < row_pixel_bytes ||
+      last_row_offset > data.size() ||
+      row_pixel_bytes > data.size() - last_row_offset) {
+    return;
+  }
+
+  const size_t watermark_count =
+      std::clamp(1u + (surface_pixel_count - 1u) / 64u, size_t{1}, size_t{32});
+  const uint64_t token_seed = default_shields_settings_->farbling_token.low() ^
+                              default_shields_settings_->farbling_token.high();
+  const size_t start = MixPersonaValue(token_seed) % surface_pixel_count;
+  size_t step = 0;
+  if (surface_pixel_count > 1u) {
+    step = 1u + (MixPersonaValue(token_seed ^ 0x726561646261636bULL) %
+                 (surface_pixel_count - 1u));
+    while (std::gcd(step, surface_pixel_count) != 1u) {
+      step = step + 1u == surface_pixel_count ? 1u : step + 1u;
+    }
+  }
+  const uint64_t watermark_salt =
+      MixPersonaValue(token_seed ^ 0x77617465726d6172ULL);
+  const int64_t read_left = read_x;
+  const int64_t read_top = read_y;
+  const int64_t read_right = read_left + read_width;
+  const int64_t read_bottom = read_top + read_height;
+
+  size_t surface_index = start;
+  for (size_t i = 0; i < watermark_count; ++i) {
+    const int x = static_cast<int>(surface_index % surface_width);
+    const int y = static_cast<int>(surface_index / surface_width);
+    if (x >= read_left && x < read_right && y >= read_top && y < read_bottom) {
+      const size_t local_x =
+          base::checked_cast<size_t>(static_cast<int64_t>(x) - read_left);
+      const size_t local_y =
+          base::checked_cast<size_t>(static_cast<int64_t>(y) - read_top);
+      const size_t pixel_offset =
+          local_y * row_bytes + local_x * bytes_per_pixel;
+      const uint64_t pixel_value =
+          MixPersonaValue(watermark_salt ^ surface_index);
+      PerturbPersonaPixel(data.subspan(pixel_offset, bytes_per_pixel),
+                          color_type, pixel_value);
+    }
+    surface_index = (surface_index + step) % surface_pixel_count;
   }
 }
 

@@ -19,15 +19,18 @@
     base::span<float> dst = destination->AsSpan();                            \
     if (!dst.empty()) {                                                       \
       if (ExecutionContext* context = ExecutionContext::From(script_state)) { \
-        brave::BraveSessionCache::From(*context).FarbleAudioChannel(dst);     \
+        brave::BraveSessionCache::From(*context).FarbleAudioChannel(dst, 0);  \
       }                                                                       \
     }                                                                         \
   }
 
-#define BRAVE_AUDIOBUFFER_COPYFROMCHANNEL                                 \
-  if (ExecutionContext* context = ExecutionContext::From(script_state)) { \
-    brave::BraveSessionCache::From(*context).FarbleAudioChannel(          \
-        dst.first(count));                                                \
+#define BRAVE_AUDIOBUFFER_COPYFROMCHANNEL                                      \
+  if (ExecutionContext* context = ExecutionContext::From(script_state)) {      \
+    NotShared<DOMFloat32Array> brave_channel = getChannelData(channel_number); \
+    base::span<float> brave_source =                                           \
+        brave_channel->AsSpan().subspan(buffer_offset, count);                 \
+    brave::BraveSessionCache::From(*context).FarbleAudioChannelCopy(           \
+        brave_source, dst.first(count), buffer_offset);                        \
   }
 
 #include <third_party/blink/renderer/modules/webaudio/audio_buffer.cc>

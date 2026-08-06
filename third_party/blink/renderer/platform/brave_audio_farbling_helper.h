@@ -21,6 +21,8 @@ class PLATFORM_EXPORT BraveAudioFarblingHelper final {
   ~BraveAudioFarblingHelper();
 
   void FarbleAudioChannel(base::span<float> dst) const;
+  void FarbleAudioChannelForPersona(base::span<float> dst,
+                                    size_t sample_offset) const;
   void FarbleFloatTimeDomainData(const AudioFloatArray& input_buffer,
                                  base::span<float>& destination,
                                  size_t len,

@@ -71,6 +71,7 @@ async function main() {
   const dirs = await makeDirectories(runDir)
   const profileRoot = `/tmp/fingerprint-browser-${runId}`
   const crashpadDir = path.join(profileRoot, 'Crashpad')
+  config.crashpadDir = crashpadDir
   process.env.BREAKPAD_DUMP_LOCATION = crashpadDir
   const logFile = path.join(dirs.logs, 'runner.log')
   const log = async (message) => {
@@ -357,9 +358,6 @@ async function main() {
           },
         )
       }
-      if (!config.keepProfile) {
-        await fs.rm(profileRoot, { recursive: true, force: true })
-      }
       return { keptProfile: config.keepProfile, residual: [] }
     })
 
@@ -397,6 +395,10 @@ async function main() {
           return { failures }
         },
       )
+    }
+
+    if (!config.keepProfile) {
+      await fs.rm(profileRoot, { recursive: true, force: true })
     }
 
     const finalReport = await writeReports(report, runDir)

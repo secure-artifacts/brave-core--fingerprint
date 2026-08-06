@@ -8,7 +8,12 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { SOURCE_GROUPS, unsignedMachOSha256 } from '../lib/artifacts.mjs'
+import {
+  artifactsForBuildMode,
+  nativeArtifactNamesForSource,
+  SOURCE_GROUPS,
+  unsignedMachOSha256,
+} from '../lib/artifacts.mjs'
 
 test('artifact source groups cover fingerprint browser compiled inputs', () => {
   for (const source of [
@@ -21,6 +26,7 @@ test('artifact source groups cover fingerprint browser compiled inputs', () => {
     'components/omnibox/browser/vector_icons/brave/product.icon',
     'third_party/blink/renderer/BUILD.gn',
     'third_party/blink/renderer/core/farbling/brave_session_cache.h',
+    'third_party/blink/renderer/platform/brave_audio_farbling_helper.cc',
   ]) {
     assert.ok(SOURCE_GROUPS.native.includes(source), source)
   }
@@ -45,6 +51,96 @@ test('artifact source groups cover fingerprint browser compiled inputs', () => {
       'app/theme/default_100_percent/brave',
     ),
   )
+})
+
+test('native freshness follows component-build ownership', () => {
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      'third_party/blink/renderer/core/farbling/brave_session_cache.cc',
+    ),
+    ['libblink_core.dylib'],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      'chromium_src/third_party/blink/renderer/modules/webaudio/audio_buffer.cc',
+    ),
+    ['libblink_modules.dylib'],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      'patches/third_party-blink-renderer-modules-webaudio-audio_buffer.cc.patch',
+    ),
+    ['libblink_modules.dylib'],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      'third_party/blink/renderer/platform/brave_audio_farbling_helper.cc',
+    ),
+    ['libblink_platform.dylib'],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource('../net/http/http_network_transaction.cc'),
+    ['libnet.dylib'],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      'chromium_src/content/browser/service_worker/service_worker_host.cc',
+    ),
+    ['libcontent.dylib'],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      'chromium_src/third_party/blink/public/mojom/worker/worker_content_settings_proxy.mojom',
+    ),
+    [
+      'libblink_common.dylib',
+      'libblink_platform.dylib',
+      'libblink_platform_media.dylib',
+      'libmojom_platform_shared.dylib',
+    ],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      '../chrome/browser/net/profile_network_context_service.cc',
+    ),
+    ['libchrome_dll.dylib'],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource(
+      'components/brave_shields/core/common/shields_settings.mojom',
+    ),
+    [
+      'libbrave_shields_mojom.dylib',
+      'libbrave_shields_mojom_shared.dylib',
+      'libblink_platform.dylib',
+    ],
+  )
+  assert.deepEqual(
+    nativeArtifactNamesForSource('browser/fingerprint_browser/service.cc'),
+    ['libchrome_dll.dylib'],
+  )
+})
+
+test('resources-only manifests retain native build identities', () => {
+  const previous = {
+    native: 'old-libchrome',
+    nativeSet: { count: 2, digest: 'old-native-set' },
+    network: 'old-network',
+  }
+  const current = {
+    braveResources: 'new-resources',
+    native: 'new-libchrome',
+    nativeSet: { count: 3, digest: 'new-native-set' },
+    network: 'new-network',
+  }
+
+  assert.deepEqual(artifactsForBuildMode('resources', current, previous), {
+    braveResources: 'new-resources',
+    native: 'old-libchrome',
+    nativeSet: { count: 2, digest: 'old-native-set' },
+    network: 'old-network',
+  })
+  assert.equal(artifactsForBuildMode('cpp', current, previous), current)
 })
 
 function fakeSignedMachO(signature) {

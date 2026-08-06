@@ -12,8 +12,10 @@
     sk_sp<SkImage> farbled_image = SkImages::RasterFromPixmapCopy(src_data_); \
     if (farbled_image && farbled_image->peekPixels(&src_data_)) {             \
       skia_image_ = std::move(farbled_image);                                 \
-      brave::BraveSessionCache::From(*context_).PerturbPixels(                \
-          gfx::SkPixmapToWritableSpan(src_data_));                            \
+      brave::BraveSessionCache::From(*context_).PerturbCanvasPixels(          \
+          gfx::SkPixmapToWritableSpan(src_data_), src_data_.width(),          \
+          src_data_.height(), 0, 0, src_data_.width(), src_data_.height(),    \
+          src_data_.rowBytes(), static_cast<int>(src_data_.colorType()));     \
     }                                                                         \
   }
 

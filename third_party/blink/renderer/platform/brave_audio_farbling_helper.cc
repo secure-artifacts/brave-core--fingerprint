@@ -7,6 +7,9 @@
 
 #include <limits.h>
 
+#include <bit>
+#include <cmath>
+
 #include "base/compiler_specific.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 
@@ -18,6 +21,13 @@ constexpr double maxUInt64AsDouble = static_cast<double>(UINT64_MAX);
 
 inline uint64_t lfsr_next(uint64_t v) {
   return ((v >> 1) | (((v << 62) ^ (v << 61)) & (~(~zero << 63) << 62)));
+}
+
+uint64_t MixPersonaSeed(uint64_t value) {
+  value += 0x9e3779b97f4a7c15ULL;
+  value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+  return value ^ (value >> 31);
 }
 
 }  // namespace
@@ -40,6 +50,23 @@ void BraveAudioFarblingHelper::FarbleAudioChannel(base::span<float> dst) const {
     for (auto& value : dst) {
       value = value * fudge_factor_;
     }
+  }
+}
+
+void BraveAudioFarblingHelper::FarbleAudioChannelForPersona(
+    base::span<float> dst,
+    size_t) const {
+  constexpr uint32_t kMantissaMask = 0xff;
+  for (float& sample : dst) {
+    if (sample == 0 || !std::isfinite(sample)) {
+      continue;
+    }
+    uint32_t bits = std::bit_cast<uint32_t>(sample);
+    const uint32_t normalized_bits = bits & ~kMantissaMask;
+    const uint32_t stable_bits = static_cast<uint32_t>(
+        MixPersonaSeed(seed_ ^ normalized_bits) & kMantissaMask);
+    bits = (bits & ~kMantissaMask) | stable_bits;
+    sample = std::bit_cast<float>(bits);
   }
 }
 

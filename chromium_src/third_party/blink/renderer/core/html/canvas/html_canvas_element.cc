@@ -8,17 +8,21 @@
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 #include "ui/gfx/skia_span_util.h"
 
-#define BRAVE_TO_DATA_URL_INTERNAL                                          \
-  {                                                                         \
-    ExecutionContext* execution_context = GetExecutionContext();            \
-    if (!execution_context) {                                               \
-      execution_context = scoped_execution_context_.Get();                  \
-    }                                                                       \
-    if (execution_context) {                                                \
-      brave::BraveSessionCache::From(*execution_context)                    \
-          .PerturbPixels(                                                   \
-              gfx::SkPixmapToWritableSpan(data_buffer->pixmap_multable())); \
-    }                                                                       \
+#define BRAVE_TO_DATA_URL_INTERNAL                                             \
+  {                                                                            \
+    ExecutionContext* execution_context = GetExecutionContext();               \
+    if (!execution_context) {                                                  \
+      execution_context = scoped_execution_context_.Get();                     \
+    }                                                                          \
+    if (execution_context) {                                                   \
+      const SkPixmap& brave_pixmap = data_buffer->pixmap_multable();           \
+      brave::BraveSessionCache::From(*execution_context)                       \
+          .PerturbCanvasPixels(gfx::SkPixmapToWritableSpan(brave_pixmap),      \
+                               brave_pixmap.width(), brave_pixmap.height(), 0, \
+                               0, brave_pixmap.width(), brave_pixmap.height(), \
+                               brave_pixmap.rowBytes(),                        \
+                               static_cast<int>(brave_pixmap.colorType()));    \
+    }                                                                          \
   }
 
 #include <third_party/blink/renderer/core/html/canvas/html_canvas_element.cc>
