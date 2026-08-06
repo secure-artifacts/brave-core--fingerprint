@@ -9,6 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_service.h"
+#include "brave/browser/fingerprint_browser/fingerprint_proxy_ui_strings.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
@@ -17,6 +18,28 @@ class Browser;
 namespace views {
 class Widget;
 }
+
+namespace fingerprint_browser {
+
+enum class FingerprintProxyIndicatorStatus {
+  kHealthy,
+  kWarning,
+  kError,
+};
+
+inline FingerprintProxyIndicatorStatus GetFingerprintProxyIndicatorStatus(
+    const FingerprintProxyState& state) {
+  if (state.state == kProxyStateError) {
+    return FingerprintProxyIndicatorStatus::kError;
+  }
+  if (state.state == kProxyStateActive && state.geo &&
+      state.warning_code == kProxyWarningNone) {
+    return FingerprintProxyIndicatorStatus::kHealthy;
+  }
+  return FingerprintProxyIndicatorStatus::kWarning;
+}
+
+}  // namespace fingerprint_browser
 
 class FingerprintProxyButton
     : public ToolbarButton,
