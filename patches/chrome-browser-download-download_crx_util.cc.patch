@@ -1,0 +1,51 @@
+diff --git a/chrome/browser/download/download_crx_util.cc b/chrome/browser/download/download_crx_util.cc
+index 3d7b5fa807be47c677a81c72735c060e3a25b72f..20a63cd5762676b030cde456dc0b353e41ec9723 100644
+--- a/chrome/browser/download/download_crx_util.cc
++++ b/chrome/browser/download/download_crx_util.cc
+@@ -26,6 +26,19 @@
+ #include "extensions/common/extension_urls.h"
+ #include "extensions/common/user_script.h"
+
++#ifndef BRAVE_DOWNLOAD_CRX_UTIL_CONFIGURE_INSTALLER
++#define BRAVE_DOWNLOAD_CRX_UTIL_CONFIGURE_INSTALLER(profile, item, installer)
++#endif
++
++#ifndef BRAVE_DOWNLOAD_CRX_UTIL_IS_TRUSTED_EXTENSION_DOWNLOAD
++#define BRAVE_DOWNLOAD_CRX_UTIL_IS_TRUSTED_EXTENSION_DOWNLOAD(profile, item)
++#endif
++
++#ifndef BRAVE_DOWNLOAD_CRX_UTIL_IS_EXTENSION_DOWNLOAD_ALLOWED
++#define BRAVE_DOWNLOAD_CRX_UTIL_IS_EXTENSION_DOWNLOAD_ALLOWED(profile, item) \
++  true
++#endif
++
+ #if !BUILDFLAG(IS_ANDROID)
+ #include "chrome/browser/ui/browser.h"
+ #endif
+@@ -95,6 +108,7 @@ bool OffStoreInstallAllowedByPrefs(Profile* profile, const DownloadItem& item) {
+ // to be used to confirm permissions on a downloaded CRX.
+ void SetMockInstallPromptForTesting(
+     std::unique_ptr<ExtensionInstallPrompt> mock_prompt) {
++  delete mock_install_prompt_for_testing;
+   mock_install_prompt_for_testing = mock_prompt.release();
+ }
+
+@@ -112,12 +126,17 @@ scoped_refptr<extensions::CrxInstaller> CreateCrxInstaller(
+   installer->set_original_mime_type(download_item.GetOriginalMimeType());
+   installer->set_apps_require_extension_mime_type(true);
+
++  BRAVE_DOWNLOAD_CRX_UTIL_CONFIGURE_INSTALLER(profile, download_item,
++                                              installer);
++
+   return installer;
+ }
+
+ bool IsTrustedExtensionDownload(Profile* profile, const DownloadItem& item) {
+   return extensions::util::IsExtensionDownload(item) &&
+-         (OffStoreInstallAllowedByPrefs(profile, item) ||
++         BRAVE_DOWNLOAD_CRX_UTIL_IS_EXTENSION_DOWNLOAD_ALLOWED(profile, item) &&
++         (BRAVE_DOWNLOAD_CRX_UTIL_IS_TRUSTED_EXTENSION_DOWNLOAD(profile, item)
++              OffStoreInstallAllowedByPrefs(profile, item) ||
+           extension_urls::IsWebstoreUpdateUrl(item.GetOriginalUrl()) ||
+           extension_urls::IsWebstoreDomain(item.GetOriginalUrl()));
+ }

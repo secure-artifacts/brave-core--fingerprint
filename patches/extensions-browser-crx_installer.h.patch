@@ -1,0 +1,22 @@
+diff --git a/extensions/browser/crx_installer.h b/extensions/browser/crx_installer.h
+index b12d3bdac536ee86554c72ca6d9e3def25848616..85927474eb61e0f3c4c4d92596f4aa13c4e37546 100644
+--- a/extensions/browser/crx_installer.h
++++ b/extensions/browser/crx_installer.h
+@@ -30,6 +30,10 @@
+ #include "extensions/common/extension_id.h"
+ #include "extensions/common/manifest.h"
+
++#ifndef BRAVE_CRX_INSTALLER_OFFSTORE_INSTALL_ALLOW_REASON
++#define BRAVE_CRX_INSTALLER_OFFSTORE_INSTALL_ALLOW_REASON
++#endif
++
+ static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
+ class SkBitmap;
+@@ -93,5 +97,6 @@ class CrxInstaller : public SandboxedUnpackerClient {
+     OffStoreInstallAllowedFromSettingsPage,
+     OffStoreInstallAllowedBecausePref,
+     OffStoreInstallAllowedInTest,
++    BRAVE_CRX_INSTALLER_OFFSTORE_INSTALL_ALLOW_REASON
+     NumOffStoreInstallAllowReasons
+   };
