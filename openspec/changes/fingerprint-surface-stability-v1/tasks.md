@@ -24,4 +24,4 @@
 - [x] 5.1 Run targeted unit and browser tests through the incremental build workflow
 - [x] 5.2 Build and verify current dylibs, resources, signed QA app, and artifact hashes
 - [x] 5.3 Run 20 repeated probes, three cold restarts, external detector evidence, and Google Meet/WebAudio smoke
-- [ ] 5.4 Run OpenSpec verification, code review, unai cleanup, commit, rebase, and push
+- [x] 5.4 Run OpenSpec verification, code review, unai cleanup, commit, rebase, and push
