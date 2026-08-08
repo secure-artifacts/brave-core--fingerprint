@@ -14,3 +14,15 @@ substitutions:
       friend_type:
         - class ::BraveBrowsingDataRemoverDelegate
         - class brave::ProcessLauncher
+  - description: |
+      Omit the Brave-only friends while bootstrapping redirect_cc, where the
+      chromium_src forward declarations are intentionally unavailable.
+    regex:
+      pattern: |-
+        friend class ::BraveBrowsingDataRemoverDelegate;
+          friend class brave::ProcessLauncher;
+      replace: |-
+        #if !defined(BRAVE_SCOPED_ALLOW_BASE_SYNC_PRIMITIVES_H)
+          friend class ::BraveBrowsingDataRemoverDelegate;
+          friend class brave::ProcessLauncher;
+        #endif

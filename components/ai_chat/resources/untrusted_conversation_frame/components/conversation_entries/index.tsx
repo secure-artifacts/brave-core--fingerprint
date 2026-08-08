@@ -195,8 +195,19 @@ function ConversationEntries(props: {
   const [editInputId, setEditInputId] = React.useState<number>()
   const entryPairs = usePairedConversationGroups()
   const hasGenerated = React.useRef(false)
+  const hasScrolledToLastEntry = React.useRef(false)
   hasGenerated.current =
     hasGenerated.current || conversationContext.isGenerating
+
+  const scrollLastEntryIntoView = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node && !hasScrolledToLastEntry.current) {
+        hasScrolledToLastEntry.current = true
+        scrollToBottom?.()
+      }
+    },
+    [scrollToBottom],
+  )
 
   const showHumanMenu = (id: number) => {
     setActiveMenuId(id)
@@ -534,7 +545,7 @@ function ConversationEntries(props: {
           className={styles.entryPair}
           ref={
             pairIndex === entryPairs.length - 1 && hasGenerated.current
-              ? scrollToBottom
+              ? scrollLastEntryIntoView
               : undefined
           }
         >

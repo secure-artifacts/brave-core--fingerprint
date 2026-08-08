@@ -11,6 +11,8 @@ substitutions:
     preempt_function_impl:
       function_name: print_rust_log
       code: |-
+        #if !defined(BRAVE_PRINT_RUST_LOG_FFI_CC)
         if (!ShouldPrintRustLog(severity)) {
           return;
         }
+        #endif

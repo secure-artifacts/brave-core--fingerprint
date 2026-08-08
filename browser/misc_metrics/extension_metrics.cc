@@ -108,29 +108,33 @@ void ExtensionMetrics::OnExtensionUninstalled(
 
   ScheduleMetricsReport();
 
-  fingerprint_browser::diagnostics::DiagnosticsEventFields fields;
-  fields.extension_id = extension->id();
-  fields.extension_version = extension->version().GetString();
-  fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
-      browser_context->GetPath().DirName(),
-      fingerprint_browser::diagnostics::DiagnosticsEventType::
-          kExtensionUninstalled,
-      fields);
+  if (browser_context) {
+    fingerprint_browser::diagnostics::DiagnosticsEventFields fields;
+    fields.extension_id = extension->id();
+    fields.extension_version = extension->version().GetString();
+    fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
+        browser_context->GetPath().DirName(),
+        fingerprint_browser::diagnostics::DiagnosticsEventType::
+            kExtensionUninstalled,
+        fields);
+  }
 }
 
 void ExtensionMetrics::OnExtensionInstalled(
     content::BrowserContext* browser_context,
     const extensions::Extension* extension,
     bool is_update) {
-  fingerprint_browser::diagnostics::DiagnosticsEventFields fields;
-  fields.status = is_update ? "updated" : "installed";
-  fields.extension_id = extension->id();
-  fields.extension_version = extension->version().GetString();
-  fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
-      browser_context->GetPath().DirName(),
-      fingerprint_browser::diagnostics::DiagnosticsEventType::
-          kExtensionInstalled,
-      fields);
+  if (browser_context) {
+    fingerprint_browser::diagnostics::DiagnosticsEventFields fields;
+    fields.status = is_update ? "updated" : "installed";
+    fields.extension_id = extension->id();
+    fields.extension_version = extension->version().GetString();
+    fingerprint_browser::diagnostics::RecordDiagnosticsEvent(
+        browser_context->GetPath().DirName(),
+        fingerprint_browser::diagnostics::DiagnosticsEventType::
+            kExtensionInstalled,
+        fields);
+  }
 }
 
 void ExtensionMetrics::ScheduleMetricsReport() {

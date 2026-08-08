@@ -130,7 +130,7 @@ constexpr char kPersonaCanvasFingerprintScript[] = R"(
     const canvas = document.createElement('canvas');
     canvas.width = 32;
     canvas.height = 32;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', {willReadFrequently: true});
     ctx.fillStyle = 'rgb(255, 0, 0)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 

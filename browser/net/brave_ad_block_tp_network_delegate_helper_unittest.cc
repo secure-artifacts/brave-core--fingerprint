@@ -344,6 +344,7 @@ TYPED_TEST(BraveAdBlockTPNetworkDelegateHelperTest, Default1pException) {
 TYPED_TEST(BraveAdBlockTPNetworkDelegateHelperTest,
            CnameUncloakingRunsWithBrowserContext) {
   this->ResetAdblockInstance("");
+  this->host_resolver_->rules()->AddRule("tracker.example", "127.0.0.1");
 
   TestingProfile profile;
   const GURL url("https://tracker.example/script.js");

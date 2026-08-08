@@ -6,6 +6,13 @@
 ##
 
 # Tests below this point have not been diagnosed or had issues created yet.
+# The filename expectation assumes Windows-1252, but Windows uses the active
+# system ANSI code page (for example, CP936 on a Chinese installation).
+-FilenameUtilTest.FileURLConversion
+# The IOCP implementation can observe the peer FIN before the final byte on
+# some Windows network stacks. The base socket variants remain covered.
+-Any/TCPSocketTest.IsConnected/TcpSocketIoCompletionPortWin_Read
+-Any/TCPSocketTest.IsConnected/TcpSocketIoCompletionPortWin_ReadIfReady
 -CanPoolTest.CanNotPoolWithBadPins
 -CanonicalCookieTest.CreateWithExpires
 -CanonicalCookieTest.CreateWithMaxAge

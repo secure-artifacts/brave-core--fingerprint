@@ -6,6 +6,11 @@
 #ifndef BRAVE_CHROMIUM_SRC_NET_BASE_PROXY_STRING_UTIL_H_
 #define BRAVE_CHROMIUM_SRC_NET_BASE_PROXY_STRING_UTIL_H_
 
+#define ProxyServerToPacResultElement                                  \
+  ProxyServerToPacResultElement_ChromiumImpl(                          \
+      const ProxyServer& proxy_server);                                \
+  NET_EXPORT std::string ProxyServerToPacResultElement
+
 #define ProxyServerToProxyUri                                          \
   ProxyServerToProxyUri_ChromiumImpl(const ProxyServer& proxy_server); \
   NET_EXPORT std::string ProxyServerToProxyUri
@@ -13,5 +18,6 @@
 #include <net/base/proxy_string_util.h>  // IWYU pragma: export
 
 #undef ProxyServerToProxyUri
+#undef ProxyServerToPacResultElement
 
 #endif  // BRAVE_CHROMIUM_SRC_NET_BASE_PROXY_STRING_UTIL_H_

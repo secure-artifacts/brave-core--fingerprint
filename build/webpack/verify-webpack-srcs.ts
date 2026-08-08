@@ -18,9 +18,23 @@ import type { TranspileWebUiCliOptions } from './transpile-web-ui-command.ts'
 // https://gn.googlesource.com/gn/+/main/docs/reference.md#cmd_analyze
 export async function verifyWebpackSrcs(options: TranspileWebUiCliOptions) {
   const srcFolder = path.resolve(options.root_src_dir).replace(/\\/g, '/')
+  // On Windows, pnpm and Node resolve the //brave directory junction to its
+  // physical checkout path. Map that path back to GN's //brave namespace so
+  // dependency validation behaves the same as on non-junction checkouts.
+  const braveFolder = (
+    await fs.realpath(path.resolve(options.root_src_dir, 'brave'))
+  ).replace(/\\/g, '/')
 
-  const makeSourceAbsolute = (filePath: string): string =>
-    path.resolve(filePath).replace(/\\/g, '/').replace(srcFolder, '/')
+  const makeSourceAbsolute = (filePath: string): string => {
+    const absolutePath = path.resolve(filePath).replace(/\\/g, '/')
+    if (
+      absolutePath === braveFolder ||
+      absolutePath.startsWith(braveFolder + '/')
+    ) {
+      return absolutePath.replace(braveFolder, '//brave')
+    }
+    return absolutePath.replace(srcFolder, '/')
+  }
 
   const outDir = makeSourceAbsolute(
     path.resolve(path.dirname(path.dirname(options.root_gen_dir))),
