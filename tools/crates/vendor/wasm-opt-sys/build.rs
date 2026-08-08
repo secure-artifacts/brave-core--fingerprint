@@ -62,6 +62,10 @@ fn main() -> anyhow::Result<()> {
         } else {
             &[
                 "/std:c++17",
+                // Binaryen headers contain UTF-8 box-drawing characters in
+                // comments. On non-English Windows code pages MSVC can
+                // misdecode them and splice comment lines, hiding declarations.
+                "/utf-8",
                 "/w",
                 "/DTHROW_ON_FATAL",
                 #[cfg(feature = "dwarf")]

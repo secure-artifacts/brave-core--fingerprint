@@ -12,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
@@ -57,6 +56,13 @@ NOINLINE void CrashBrowserProcessForDiagnosticsTesting() {
 }  // namespace fingerprint_browser::diagnostics
 
 namespace {
+
+// Chromium only exposes kEnableCrashReporterForTesting on POSIX, but the
+// diagnostics QA hook is intentionally available on every desktop platform.
+// Keep the command-line spelling in one local constant so Windows builds can
+// opt into the same guarded test-only behavior.
+constexpr char kEnableCrashReporterForTestingSwitch[] =
+    "enable-crash-reporter-for-testing";
 
 using fingerprint_browser::diagnostics::BuildDiagnosticsBundle;
 using fingerprint_browser::diagnostics::CollectDiagnosticsProfileData;
@@ -208,7 +214,7 @@ class DiagnosticsMessageHandler : public content::WebUIMessageHandler,
         base::BindRepeating(&DiagnosticsMessageHandler::HandleOpenExportFolder,
                             base::Unretained(this)));
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-            switches::kEnableCrashReporterForTesting)) {
+            kEnableCrashReporterForTestingSwitch)) {
       web_ui()->RegisterMessageCallback(
           "crashDiagnosticsForTesting",
           base::BindRepeating(

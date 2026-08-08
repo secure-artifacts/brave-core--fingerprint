@@ -26,6 +26,10 @@ ProxyServer CreateProxyServerWithAuthInfo(const ProxyServer::Scheme& scheme,
                       &password_component, &hostname_component,
                       &port_component);
 
+  if (!hostname_component.is_nonempty()) {
+    return ProxyServer();
+  }
+
   std::string_view hostname =
       host_and_port.substr(hostname_component.begin, hostname_component.len);
   if (port_component.is_valid() && !port_component.is_nonempty())
@@ -80,16 +84,9 @@ std::string ProxyServerToPacResultElement_ChromiumImpl(
 
 #define ParseAuthority(HOST_AND_PORT, AUTH, PARSER_MODE, USER, PASS, HOST, \
                        PORT)                                               \
-  ParseAuthority(host_and_port.data(),                                     \
-                 url::Component(0, host_and_port.size()), PARSER_MODE,     \
-                 &username_component, &password_component,                 \
-                 &hostname_component, &port_component);                    \
-  url::ParseAuthority(HOST_AND_PORT, AUTH, PARSER_MODE, USER, PASS, HOST,  \
-                      PORT);                                               \
-  if (!hostname_component.is_nonempty())                                   \
-    return ProxyServer();                                                  \
-  else                                                                     \
-    return CreateProxyServerWithAuthInfo(scheme, host_and_port);
+  ParseAuthority(std::string_view(), url::Component(0, 0), PARSER_MODE,    \
+                 USER, PASS, HOST, PORT);                                  \
+  return CreateProxyServerWithAuthInfo(scheme, host_and_port);
 
 #include <net/base/proxy_string_util.cc>
 

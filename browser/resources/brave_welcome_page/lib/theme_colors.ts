@@ -9,7 +9,7 @@ import {
   Color,
   LIGHT_BASELINE_GREY_COLOR,
   DARK_BASELINE_GREY_COLOR,
-} from '../../../../../ui/webui/resources/cr_components/theme_color_picker/color_utils'
+} from 'chrome://resources/cr_components/theme_color_picker/color_utils.js'
 
 export { Color as SwatchColor }
 

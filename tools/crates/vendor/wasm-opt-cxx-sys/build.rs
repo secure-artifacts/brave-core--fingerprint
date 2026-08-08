@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
         let flags: &[_] = if target_env != "msvc" {
             &["-std=c++17", "-Wno-unused-parameter", "-DBUILD_LLVM_DWARF"]
         } else {
-            &["/std:c++17", "/DBUILD_LLVM_DWARF"]
+            &["/std:c++17", "/utf-8", "/DBUILD_LLVM_DWARF"]
         };
 
         for flag in flags {
