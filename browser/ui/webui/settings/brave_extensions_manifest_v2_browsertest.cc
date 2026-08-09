@@ -11,6 +11,7 @@
 #include "base/time/time.h"
 #include "brave/browser/ui/webui/brave_settings_ui.h"
 #include "brave/components/constants/brave_paths.h"
+#include "chrome/browser/buildflags.h"
 #include "chrome/browser/extensions/chrome_content_verifier_delegate.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
@@ -276,6 +277,9 @@ class BraveExtensionsManifestV2InstallerBrowserTest
 
 IN_PROC_BROWSER_TEST_F(BraveExtensionsManifestV2InstallerBrowserTest,
                        InstallExtension) {
+#if !BUILDFLAG(ENABLE_UPDATER)
+  GTEST_SKIP() << "The extension installer UI requires the updater service";
+#else
   extensions::ScopedInstallVerifierBypassForTest scoped_install_verifier{
       extensions::ScopedInstallVerifierBypassForTest::kForceOn};
 
@@ -296,6 +300,7 @@ IN_PROC_BROWSER_TEST_F(BraveExtensionsManifestV2InstallerBrowserTest,
 
   EXPECT_TRUE(IsExtensionInstalled());
   EXPECT_TRUE(IsExtensionEnabled());
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(BraveExtensionsManifestV2InstallerBrowserTest,
@@ -392,6 +397,9 @@ class BraveExtensionsManifestV2ReplaceBrowserTest
 
 IN_PROC_BROWSER_TEST_F(BraveExtensionsManifestV2ReplaceBrowserTest,
                        AutoReplaceWithBraveHosted) {
+#if !BUILDFLAG(ENABLE_UPDATER)
+  GTEST_SKIP() << "Brave-hosted replacement requires the updater service";
+#else
   auto extension =
       extensions::ExtensionBuilder("test")
           .SetID(extensions_mv2::kWebStoreNoScriptId)
@@ -412,4 +420,5 @@ IN_PROC_BROWSER_TEST_F(BraveExtensionsManifestV2ReplaceBrowserTest,
   EXPECT_FALSE(
       registry->GetInstalledExtension(extensions_mv2::kWebStoreNoScriptId));
   EXPECT_TRUE(registry->GetInstalledExtension(extensions_mv2::kNoScriptId));
+#endif
 }

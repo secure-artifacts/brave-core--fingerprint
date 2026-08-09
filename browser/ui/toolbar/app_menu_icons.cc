@@ -78,6 +78,7 @@ constexpr auto kCommandIcons =
         {IDC_ABOUT, &kLeoBraveIconMonochromeIcon},
         {IDC_HELP_PAGE_VIA_MENU, &kLeoHelpOutlineIcon},
         {IDC_SHOW_BRAVE_WEBCOMPAT_REPORTER, &kLeoWarningTriangleOutlineIcon},
+        {IDC_SHOW_FINGERPRINT_GUIDE, &kLeoHelpOutlineIcon},
         {IDC_EXPORT_DIAGNOSTICS, &kLeoFileDownloadIcon},
 
         // The `Passwords and autofill` submenu

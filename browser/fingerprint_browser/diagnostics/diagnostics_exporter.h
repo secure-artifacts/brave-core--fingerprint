@@ -76,6 +76,9 @@ bool IsCrashReportPathSafe(const base::FilePath& database_path,
 
 std::string HashSensitiveValue(std::string_view salt, std::string_view value);
 
+std::vector<CrashReportDescriptor> GetCrashReportsFromCrashpadDatabase(
+    const base::FilePath& database_path);
+
 std::vector<CrashReportDescriptor> GetCrashReportsFromCrashpad();
 
 DiagnosticsExportResult BuildDiagnosticsBundle(

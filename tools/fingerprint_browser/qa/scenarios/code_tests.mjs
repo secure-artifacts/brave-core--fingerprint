@@ -29,6 +29,8 @@ const NET_FILTER = [
 const PERFORMANCE_MANAGER_FILTER =
   'WorkerWatcherTest.ServiceWorkerStopsAfterSharedWorkerClientDies'
 
+const BLINK_INLINE_LAYOUT_FILTER = '*'
+
 const LEGACY_PERSONA_CONFLICT_FILTERS = [
   'EphemeralStorage1pBrowserTest.FarblingTokenIsEphemeral',
   'BraveDeviceMemoryFarblingBrowserTest.FarbleDeviceMemory',
@@ -109,6 +111,18 @@ const TEST_SOURCE_GROUPS = {
     '../components/performance_manager/worker_watcher_unittest.cc',
     'patches/components-performance_manager-worker_watcher.cc.patch',
     'patches/components-performance_manager-worker_watcher_unittest.cc.patch',
+  ],
+  blinkInlineLayout: [
+    '../third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.cc',
+    '../third_party/blink/renderer/core/layout/base_layout_algorithm_test.cc',
+    '../third_party/blink/renderer/core/layout/inline/inline_item_result.cc',
+    '../third_party/blink/renderer/core/layout/inline/inline_layout_algorithm_test.cc',
+    '../third_party/blink/renderer/core/layout/inline/inline_node_test.cc',
+    '../third_party/blink/renderer/core/layout/inline/line_breaker_test.cc',
+    '../third_party/blink/renderer/core/layout/inline/line_info_test.cc',
+    '../third_party/blink/renderer/core/layout/inline/paragraph_line_breaker_test.cc',
+    '../third_party/blink/renderer/core/layout/inline/score_line_breaker_test.cc',
+    '../third_party/blink/renderer/core/layout/inline_layout_test.cc',
   ],
 }
 
@@ -235,6 +249,19 @@ export async function runPerformanceManagerTests({ braveRoot, dirs, outDir }) {
     source: await latestTestSource(
       braveRoot,
       TEST_SOURCE_GROUPS.performanceManager,
+    ),
+    timeoutMs: 20 * 60 * 1000,
+  })
+}
+
+export async function runBlinkInlineLayoutTests({ braveRoot, dirs, outDir }) {
+  return await runTestBinary({
+    binary: path.join(outDir, 'fingerprint_browser_inline_layout_unittests'),
+    filter: BLINK_INLINE_LAYOUT_FILTER,
+    logFile: path.join(dirs.logs, 'blink_inline_layout_unit_tests.log'),
+    source: await latestTestSource(
+      braveRoot,
+      TEST_SOURCE_GROUPS.blinkInlineLayout,
     ),
     timeoutMs: 20 * 60 * 1000,
   })

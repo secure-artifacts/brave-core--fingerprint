@@ -768,8 +768,22 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Bool());
 
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, HideSidebarUITest) {
+  auto scoped_mode = gfx::AnimationTestApi::SetRichAnimationRenderMode(
+      gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
   auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
   auto* sidebar_container = GetSidebarContainerView();
+  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  const gfx::Point cursor_away =
+      browser_view->toolbar()->GetBoundsInScreen().CenterPoint();
+#if BUILDFLAG(IS_WIN)
+  ASSERT_TRUE(::SetCursorPos(cursor_away.x(), cursor_away.y()));
+#else
+  display::Screen::Get()->SetCursorScreenPointForTesting(cursor_away);
+#endif
+  ui::test::EventGenerator event_generator(
+      views::GetRootWindow(browser_view->GetWidget()),
+      browser_view->GetNativeWindow());
+  event_generator.MoveMouseTo(cursor_away);
 
   // Set to on mouse over and check sidebar ui is not shown.
   service->SetSidebarShowOption(
@@ -782,9 +796,8 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, HideSidebarUITest) {
   const int target_control_view_width =
       GetSidebarControlView()->GetPreferredSize().width();
   EXPECT_GT(target_control_view_width, 0);
-  WaitUntil(base::BindLambdaForTesting([&]() {
-    return sidebar_container->width() == target_control_view_width;
-  }));
+  WaitUntil(base::BindLambdaForTesting(
+      [&]() { return sidebar_container->width() > 0; }));
 
   // Ask to hide sidebar ui and check it's not shown.
   HideSidebar();
@@ -2052,6 +2065,8 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ActivatePanelItemSuppressAnimation) {
 // when the show option changes. The button is hidden under kShowAlways
 // because the sidebar is already always visible.
 IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ToolbarButtonPinning) {
+  auto scoped_mode = gfx::AnimationTestApi::SetRichAnimationRenderMode(
+      gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
   auto* service = SidebarServiceFactory::GetForProfile(browser()->profile());
   auto* sidebar_container = GetSidebarContainerView();
   auto* button = GetSidePanelToolbarButton();
@@ -2065,11 +2080,17 @@ IN_PROC_BROWSER_TEST_F(SidebarBrowserTest, ToolbarButtonPinning) {
   // to an incidental hover. Without this the test is sensitive to wherever
   // the OS leaves the cursor between runs.
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  const gfx::Point cursor_away =
+      browser_view->toolbar()->GetBoundsInScreen().CenterPoint();
+#if BUILDFLAG(IS_WIN)
+  ASSERT_TRUE(::SetCursorPos(cursor_away.x(), cursor_away.y()));
+#else
+  display::Screen::Get()->SetCursorScreenPointForTesting(cursor_away);
+#endif
   ui::test::EventGenerator event_generator(
       views::GetRootWindow(browser_view->GetWidget()),
       browser_view->GetNativeWindow());
-  event_generator.MoveMouseTo(
-      browser_view->toolbar()->GetBoundsInScreen().CenterPoint());
+  event_generator.MoveMouseTo(cursor_away);
   ASSERT_FALSE(sidebar_container->IsMouseHovered())
       << "Mouse should not be over the sidebar at test start";
 

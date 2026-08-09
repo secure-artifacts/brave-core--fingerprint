@@ -1,0 +1,48 @@
+diff --git a/third_party/blink/renderer/controller/BUILD.gn b/third_party/blink/renderer/controller/BUILD.gn
+index 06bc38e673dcb84424bfa8fd3b1b4fcdffa9d367..e246629384f3fa0d0596427754a026f8444c93ce 100644
+--- a/third_party/blink/renderer/controller/BUILD.gn
++++ b/third_party/blink/renderer/controller/BUILD.gn
+@@ -333,3 +333,42 @@ source_set("blink_unittests_sources") {
+ }
+-
++
++source_set("fingerprint_browser_inline_layout_test_sources") {
++  testonly = true
++  visibility += [ "//brave/tools/fingerprint_browser/qa:*" ]
++
++  sources = [
++    "//third_party/blink/renderer/controller/tests/run_all_tests.cc",
++    "//third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.cc",
++    "//third_party/blink/renderer/core/layout/base_layout_algorithm_test.cc",
++    "//third_party/blink/renderer/core/layout/inline/inline_layout_algorithm_test.cc",
++    "//third_party/blink/renderer/core/layout/inline/inline_node_test.cc",
++    "//third_party/blink/renderer/core/layout/inline/line_breaker_test.cc",
++    "//third_party/blink/renderer/core/layout/inline/line_info_test.cc",
++    "//third_party/blink/renderer/core/layout/inline/paragraph_line_breaker_test.cc",
++    "//third_party/blink/renderer/core/layout/inline/score_line_breaker_test.cc",
++    "//third_party/blink/renderer/core/layout/inline_layout_test.cc",
++  ]
++
++  deps = [
++    ":controller",
++    "//base",
++    "//base/test:test_support",
++    "//content/test:test_support",
++    "//testing/gmock",
++    "//testing/gtest",
++    "//third_party/blink/renderer/core",
++    "//third_party/blink/renderer/core:testing",
++    "//third_party/blink/renderer/core:unit_test_support",
++    "//third_party/blink/renderer/platform",
++    "//third_party/blink/renderer/platform:test_support",
++    "//third_party/blink/renderer/platform/wtf",
++  ]
++
++  configs += [
++    "//third_party/blink/renderer:config",
++    "//third_party/blink/renderer:inside_blink",
++    "//third_party/blink/renderer/core:blink_core_pch",
++  ]
++}
++
+ if (is_ios) {

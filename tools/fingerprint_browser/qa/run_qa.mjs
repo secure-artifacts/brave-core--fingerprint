@@ -20,6 +20,7 @@ import {
   stopProfileProcesses,
 } from './lib/system.mjs'
 import {
+  runBlinkInlineLayoutTests,
   runBrowserTests,
   runNetTests,
   runPerformanceManagerTests,
@@ -200,6 +201,16 @@ async function main() {
             'code-tests-performance-manager',
             async () =>
               await runPerformanceManagerTests({
+                braveRoot: config.braveRoot,
+                dirs,
+                outDir: config.outDir,
+              }),
+          ),
+          await runScenario(
+            report,
+            'code-tests-blink-inline-layout',
+            async () =>
+              await runBlinkInlineLayoutTests({
                 braveRoot: config.braveRoot,
                 dirs,
                 outDir: config.outDir,
