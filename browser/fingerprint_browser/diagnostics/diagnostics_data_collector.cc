@@ -54,6 +54,8 @@ base::DictValue CollectBrowserState(bool has_native_reports) {
   state.Set("architecture", base::SysInfo::OperatingSystemArchitecture());
 #if BUILDFLAG(IS_MAC)
   state.Set("nativeReportSource", "macos_diagnostic_reports");
+#elif BUILDFLAG(IS_WIN)
+  state.Set("nativeReportSource", "windows_crashpad");
 #else
   state.Set("nativeReportSource", "unavailable_on_platform");
 #endif
@@ -180,11 +182,11 @@ std::vector<base::FilePath> CollectNativeReports(
   if (!base::NormalizeFilePath(directory, &normalized_directory)) {
     return {};
   }
-  const std::string process_name = base::ToLowerASCII(
-      base::CommandLine::ForCurrentProcess()
-          ->GetProgram()
-          .BaseName()
-          .AsUTF8Unsafe());
+  const std::string process_name =
+      base::ToLowerASCII(base::CommandLine::ForCurrentProcess()
+                             ->GetProgram()
+                             .BaseName()
+                             .AsUTF8Unsafe());
   if (process_name.empty()) {
     return {};
   }
@@ -305,7 +307,8 @@ CollectedDiagnosticsData CompleteDiagnosticsData(
     const std::vector<CrashReportDescriptor>& crash_reports) {
   data.native_reports = CollectNativeReports(scope, now, crash_reports);
   data.state_files.emplace("browser",
-                           CollectBrowserState(!data.native_reports.empty()));
+                           CollectBrowserState(!data.native_reports.empty() ||
+                                               !crash_reports.empty()));
   data.event_logs = GetDiagnosticsEventLogs(user_data_dir, now);
   data.debug_logs = CollectDebugLogs();
   CollectModuleIdentity(&data);

@@ -17,3 +17,10 @@ test("fingerprint_browser_worker_watcher_unittests") {
     "//testing/gtest",
   ]
 }
+
+# Keep the Facebook crash regression focused on Blink inline layout. The
+# monolithic blink_unittests target also compiles unrelated Brave override
+# tests, so this target gives release validation a small, deterministic gate.
+test("fingerprint_browser_inline_layout_unittests") {
+  deps = [ "//third_party/blink/renderer/controller:fingerprint_browser_inline_layout_test_sources" ]
+}

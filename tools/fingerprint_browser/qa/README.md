@@ -257,7 +257,8 @@ main app/Framework/Helper executable set, the full root dylib name, Mach-O UUID,
 `otool -L` version/dependency set, exact libchrome and resource hashes, and
 `codesign --verify --deep --strict`. Full runs also require current
 `brave_components_unittests`, `brave_unit_tests`, `net_unittests`,
-`fingerprint_browser_worker_watcher_unittests`, and `brave_browser_tests`
+`fingerprint_browser_worker_watcher_unittests`,
+`fingerprint_browser_inline_layout_unittests`, and `brave_browser_tests`
 binaries. The focused WorkerWatcher binary covers the service/shared-worker
 shutdown crash regression without building Chromium's entire `unit_tests`
 target. When preparation is enabled, a mismatched app executable baseline is

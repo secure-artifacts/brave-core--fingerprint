@@ -9,6 +9,7 @@
 #include <array>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -149,6 +150,29 @@ std::vector<CrashReportDescriptor> ConvertCrashpadReports(
   return converted;
 }
 
+std::optional<std::vector<CrashReportDescriptor>> ReadCrashpadReports(
+    crashpad::CrashReportDatabase* database) {
+  if (!database) {
+    return std::nullopt;
+  }
+
+  std::vector<crashpad::CrashReportDatabase::Report> pending;
+  std::vector<crashpad::CrashReportDatabase::Report> completed;
+  if (database->GetPendingReports(&pending) !=
+          crashpad::CrashReportDatabase::kNoError ||
+      database->GetCompletedReports(&completed) !=
+          crashpad::CrashReportDatabase::kNoError) {
+    return std::nullopt;
+  }
+
+  std::vector<CrashReportDescriptor> reports = ConvertCrashpadReports(pending);
+  auto completed_reports = ConvertCrashpadReports(completed);
+  reports.insert(reports.end(),
+                 std::make_move_iterator(completed_reports.begin()),
+                 std::make_move_iterator(completed_reports.end()));
+  return reports;
+}
+
 std::optional<std::map<std::string, std::string>> BuildFileHashInventory(
     const base::FilePath& root) {
   std::map<std::string, std::string> inventory;
@@ -250,27 +274,32 @@ std::string HashSensitiveValue(std::string_view salt, std::string_view value) {
   return base::HexEncodeLower(crypto::SHA256HashString(input));
 }
 
-std::vector<CrashReportDescriptor> GetCrashReportsFromCrashpad() {
-  auto* database = crash_reporter::internal::GetCrashReportDatabase();
+std::vector<CrashReportDescriptor> GetCrashReportsFromCrashpadDatabase(
+    const base::FilePath& database_path) {
+  if (database_path.empty() || !base::DirectoryExists(database_path)) {
+    return {};
+  }
+
+  std::unique_ptr<crashpad::CrashReportDatabase> database =
+      crashpad::CrashReportDatabase::InitializeWithoutCreating(database_path);
   if (!database) {
     return {};
   }
+  return ReadCrashpadReports(database.get())
+      .value_or(std::vector<CrashReportDescriptor>());
+}
 
-  std::vector<crashpad::CrashReportDatabase::Report> pending;
-  std::vector<crashpad::CrashReportDatabase::Report> completed;
-  if (database->GetPendingReports(&pending) !=
-          crashpad::CrashReportDatabase::kNoError ||
-      database->GetCompletedReports(&completed) !=
-          crashpad::CrashReportDatabase::kNoError) {
-    return {};
+std::vector<CrashReportDescriptor> GetCrashReportsFromCrashpad() {
+  auto* database = crash_reporter::internal::GetCrashReportDatabase();
+  if (auto reports = ReadCrashpadReports(database)) {
+    return std::move(*reports);
   }
 
-  std::vector<CrashReportDescriptor> reports = ConvertCrashpadReports(pending);
-  auto completed_reports = ConvertCrashpadReports(completed);
-  reports.insert(reports.end(),
-                 std::make_move_iterator(completed_reports.begin()),
-                 std::make_move_iterator(completed_reports.end()));
-  return reports;
+  const auto database_path = crash_reporter::GetCrashpadDatabasePath();
+  if (!database_path) {
+    return {};
+  }
+  return GetCrashReportsFromCrashpadDatabase(*database_path);
 }
 
 DiagnosticsExportResult BuildDiagnosticsBundle(

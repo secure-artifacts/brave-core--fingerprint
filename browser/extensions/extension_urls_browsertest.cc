@@ -7,6 +7,7 @@
 
 #include "base/command_line.h"
 #include "brave/components/update_client/buildflags.h"
+#include "chrome/browser/buildflags.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
 #include "components/component_updater/component_updater_switches.h"
@@ -19,7 +20,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionUrlsBrowserTest, IsWebstoreUpdateUrl) {
   EXPECT_TRUE(extension_urls::IsWebstoreUpdateUrl(url));
 
   url = GURL(BUILDFLAG(UPDATER_PROD_ENDPOINT));
+#if BUILDFLAG(ENABLE_UPDATER)
   EXPECT_TRUE(base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kComponentUpdater));
   EXPECT_TRUE(extension_urls::IsWebstoreUpdateUrl(url));
+#else
+  EXPECT_TRUE(url.is_valid());
+  EXPECT_FALSE(extension_urls::IsWebstoreUpdateUrl(url));
+#endif
 }

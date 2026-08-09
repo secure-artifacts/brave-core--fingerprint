@@ -5,7 +5,10 @@
 
 #include "brave/browser/fingerprint_browser/diagnostics/diagnostics_exporter.h"
 
+#include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -16,6 +19,8 @@
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/crashpad/crashpad/client/crash_report_database.h"
+#include "third_party/crashpad/crashpad/util/misc/uuid.h"
 #include "third_party/zlib/google/zip_reader.h"
 
 namespace fingerprint_browser::diagnostics {
@@ -32,6 +37,17 @@ CrashReportDescriptor Report(std::string id,
                            .AppendASCII(id + ".dmp"),
           .capture_time = capture_time,
           .size = size};
+}
+
+void CreateCrashpadReport(crashpad::CrashReportDatabase* database,
+                          std::string_view contents,
+                          crashpad::UUID* uuid) {
+  std::unique_ptr<crashpad::CrashReportDatabase::NewReport> report;
+  ASSERT_EQ(database->PrepareNewCrashReport(&report),
+            crashpad::CrashReportDatabase::kNoError);
+  ASSERT_TRUE(report->Writer()->Write(contents.data(), contents.size()));
+  ASSERT_EQ(database->FinishedWritingCrashReport(std::move(report), uuid),
+            crashpad::CrashReportDatabase::kNoError);
 }
 
 TEST(DiagnosticsExporterTest, SelectsLatestIncidentNewestFirst) {
@@ -127,6 +143,62 @@ TEST(DiagnosticsExporterTest, SensitiveHashUsesExportSalt) {
   EXPECT_NE(first, HashSensitiveValue("salt-b", "proxy.example"));
   EXPECT_NE(first, HashSensitiveValue("salt-a", "other.example"));
   EXPECT_EQ(first.size(), 64u);
+}
+
+TEST(DiagnosticsExporterTest, RejectsMissingCrashpadDatabase) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath missing = temp_dir.GetPath().AppendASCII("missing");
+
+  EXPECT_TRUE(GetCrashReportsFromCrashpadDatabase(base::FilePath()).empty());
+  EXPECT_TRUE(GetCrashReportsFromCrashpadDatabase(missing).empty());
+  EXPECT_FALSE(base::PathExists(missing));
+}
+
+TEST(DiagnosticsExporterTest, RejectsFileInsteadOfCrashpadDatabase) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath invalid = temp_dir.GetPath().AppendASCII("Crashpad");
+  ASSERT_TRUE(base::WriteFile(invalid, "not-a-database"));
+
+  EXPECT_TRUE(GetCrashReportsFromCrashpadDatabase(invalid).empty());
+}
+
+TEST(DiagnosticsExporterTest,
+     ReadsPendingAndCompletedReportsFromCrashpadDatabase) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath database_path =
+      temp_dir.GetPath().AppendASCII("Crashpad");
+  std::unique_ptr<crashpad::CrashReportDatabase> database =
+      crashpad::CrashReportDatabase::Initialize(database_path);
+  ASSERT_TRUE(database);
+
+  crashpad::UUID pending_uuid;
+  crashpad::UUID completed_uuid;
+  CreateCrashpadReport(database.get(), "MDMPpending", &pending_uuid);
+  CreateCrashpadReport(database.get(), "MDMPcompleted", &completed_uuid);
+  std::unique_ptr<const crashpad::CrashReportDatabase::UploadReport>
+      upload_report;
+  ASSERT_EQ(
+      database->GetReportForUploading(completed_uuid, &upload_report, false),
+      crashpad::CrashReportDatabase::kNoError);
+  ASSERT_EQ(database->RecordUploadComplete(std::move(upload_report),
+                                           "completed-report"),
+            crashpad::CrashReportDatabase::kNoError);
+
+  const std::vector<CrashReportDescriptor> reports =
+      GetCrashReportsFromCrashpadDatabase(database_path);
+
+  ASSERT_EQ(reports.size(), 2u);
+  EXPECT_EQ(reports[0].local_id, pending_uuid.ToString());
+  EXPECT_EQ(reports[1].local_id, completed_uuid.ToString());
+  EXPECT_EQ(reports[0].file_path.Extension(), FILE_PATH_LITERAL(".dmp"));
+  EXPECT_EQ(reports[1].file_path.Extension(), FILE_PATH_LITERAL(".dmp"));
+  EXPECT_TRUE(IsCrashReportPathSafe(database_path, reports[0]));
+  EXPECT_TRUE(IsCrashReportPathSafe(database_path, reports[1]));
+  EXPECT_GT(reports[0].size, 0u);
+  EXPECT_GT(reports[1].size, 0u);
 }
 
 TEST(DiagnosticsExporterTest, BuildsIntegrityCheckedArchive) {
