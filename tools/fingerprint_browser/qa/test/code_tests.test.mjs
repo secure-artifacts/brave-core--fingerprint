@@ -8,7 +8,26 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { latestTestSource, runTestBinary } from '../scenarios/code_tests.mjs'
+import {
+  latestTestSource,
+  NET_FILTER,
+  runTestBinary,
+  TEST_SOURCE_GROUPS,
+} from '../scenarios/code_tests.mjs'
+
+test('net gate covers SOCKS5 tests and patched sources', () => {
+  assert.match(NET_FILTER, /SOCKS5ClientSocketTest\.\*/)
+  assert.ok(
+    TEST_SOURCE_GROUPS.net.includes(
+      'chromium_src/net/socket/socks5_client_socket.cc',
+    ),
+  )
+  assert.ok(
+    TEST_SOURCE_GROUPS.net.includes(
+      'patches/net-socket-socks_connect_job.cc.patch',
+    ),
+  )
+})
 
 test('runTestBinary rejects a filter that matches no tests', async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'fingerprint-qa-tests-'))

@@ -66,7 +66,7 @@ test('rejects required sources missing with ENOENT', async () => {
 test('allows technical tokens and machine data', () => {
   assert.equal(
     disallowedEnglish(
-      'HTTP HTTPS WebRTC UA UA-CH WebGL WebGPU IP IANA JSON ZIP '
+      'HTTP HTTPS SOCKS5 WebRTC UA UA-CH WebGL WebGPU IP IANA JSON ZIP '
         + 'Profile Crashpad Chrome Web Store',
     ),
     '',

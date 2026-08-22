@@ -7,8 +7,10 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
@@ -16,6 +18,7 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
+#include "brave/browser/farbling/local_socks5_test_server.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_service.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_service_factory.h"
 #include "brave/browser/fingerprint_browser/fingerprint_proxy_ui_strings.h"
@@ -40,6 +43,7 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/webui_config_map.h"
 #include "content/public/test/browser_test.h"
@@ -107,6 +111,7 @@ std::unique_ptr<net::test_server::BasicHttpResponse> TextResponse(
   response->set_content(body);
   return response;
 }
+using fingerprint_browser::test::LocalSocks5TestServer;
 
 bool SettingsRuntimeErrorIsVisible(content::WebContents* web_contents,
                                    std::string_view expected_error) {
@@ -605,55 +610,227 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
-                       UnsupportedSocks5DraftIsRejectedBeforeNetwork) {
+                       Socks5NoAuthVerifiesUsesProxyDnsAndFailsClosed) {
+  LocalSocks5TestServer socks5_server("", "");
+  ASSERT_TRUE(socks5_server.Start());
   Profile* profile = CreateTestProfile();
-  const size_t request_count = ProxyRequestCount();
+  auto* service = GetProxyService(profile);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return service->IsCredentialStoreReadyForTesting(); }));
 
   const auto verification = VerifyDraft(
-      profile,
-      {.scheme = fingerprint_browser::prefs::kProfileProxySchemeSocks5,
-       .host = "127.0.0.1",
-       .port = ProxyPort(),
-       .username = "foo",
-       .password = "bar"});
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeSocks5,
+                .host = "127.0.0.1",
+                .port = socks5_server.port()});
+
+  ASSERT_TRUE(verification.success) << verification.error_code;
+  EXPECT_TRUE(socks5_server.SawTargetHost("freeipapi.test"));
+  const auto apply = ApplyVerified(profile, verification.verification_id);
+  ASSERT_TRUE(apply.success) << apply.error_code;
+
+  Browser* proxied_browser = CreateBrowser(profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      proxied_browser, OriginUrl("socks-target.test", "/socks-no-auth")));
+  EXPECT_EQ(kProxyBody, BodyText(proxied_browser));
+  EXPECT_TRUE(socks5_server.SawTargetHost("socks-target.test"));
+  EXPECT_EQ(0, OriginRequestsForPath("/socks-no-auth"));
+
+  socks5_server.Stop();
+  ui_test_utils::NavigateToURL(
+      proxied_browser, OriginUrl("socks-target.test", "/socks-disconnected"));
+  PrefService* prefs = profile->GetPrefs();
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return GetProxyService(profile)->GetState().state ==
+           fingerprint_browser::kProxyStateError;
+  }));
+  const int net_error =
+      prefs->GetInteger(fingerprint_browser::prefs::kProfileProxyLastErrorCode);
+  EXPECT_TRUE(net_error == net::ERR_PROXY_CONNECTION_FAILED ||
+              net_error == net::ERR_SOCKS_CONNECTION_FAILED);
+  EXPECT_EQ(0, OriginRequestsForPath("/socks-disconnected"));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       Socks5UsernamePasswordAuthenticatesWithoutPrompt) {
+  LocalSocks5TestServer socks5_server("foo", "bar");
+  ASSERT_TRUE(socks5_server.Start());
+  Profile* profile = CreateTestProfile();
+  auto* service = GetProxyService(profile);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return service->IsCredentialStoreReadyForTesting(); }));
+
+  const auto verification = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeSocks5,
+                .host = "127.0.0.1",
+                .port = socks5_server.port(),
+                .username = "foo",
+                .password = "bar"});
+
+  ASSERT_TRUE(verification.success) << verification.error_code;
+  EXPECT_TRUE(socks5_server.SawTargetHost("freeipapi.test"));
+  EXPECT_GE(socks5_server.successful_authentications(), 1);
+  const auto apply = ApplyVerified(profile, verification.verification_id);
+  ASSERT_TRUE(apply.success) << apply.error_code;
+
+  Browser* proxied_browser = CreateBrowser(profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      proxied_browser, OriginUrl("socks-auth.test", "/socks-auth")));
+  EXPECT_EQ(kProxyBody, BodyText(proxied_browser));
+  EXPECT_TRUE(socks5_server.SawTargetHost("socks-auth.test"));
+  EXPECT_GE(socks5_server.successful_authentications(), 2);
+  EXPECT_EQ(0, OriginRequestsForPath("/socks-auth"));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       Socks5AuthenticationFailureDoesNotEnableProxy) {
+  LocalSocks5TestServer socks5_server("expected", "secret");
+  ASSERT_TRUE(socks5_server.Start());
+  Profile* profile = CreateTestProfile();
+
+  const auto verification = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeSocks5,
+                .host = "127.0.0.1",
+                .port = socks5_server.port(),
+                .username = "foo",
+                .password = "bar"});
 
   EXPECT_FALSE(verification.success);
-  EXPECT_EQ(fingerprint_browser::kProxyMessageInvalidConfig,
-            verification.error_code);
-  EXPECT_EQ(request_count, ProxyRequestCount());
+  EXPECT_EQ(fingerprint_browser::kProxyMessageConnectionFailed,
+            verification.error_code)
+      << verification.net_error;
+  EXPECT_GE(socks5_server.rejected_authentications(), 1);
   EXPECT_FALSE(profile->GetPrefs()->GetBoolean(
       fingerprint_browser::prefs::kProfileProxyEnabled));
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
-                       LegacySocks5ConfigurationRemainsFailClosed) {
+                       SavedSocks5ConfigurationRevalidatesAfterServiceRestart) {
+  LocalSocks5TestServer socks5_server("foo", "bar");
+  ASSERT_TRUE(socks5_server.Start());
   Profile* profile = CreateTestProfile();
-  PrefService* prefs = profile->GetPrefs();
-  prefs->SetBoolean(fingerprint_browser::prefs::kProfileProxyEnabled, true);
-  prefs->SetString(fingerprint_browser::prefs::kProfileProxyScheme,
-                   fingerprint_browser::prefs::kProfileProxySchemeSocks5);
-  prefs->SetString(fingerprint_browser::prefs::kProfileProxyHost,
-                   "127.0.0.1");
-  prefs->SetInteger(fingerprint_browser::prefs::kProfileProxyPort,
-                    ProxyPort());
+  auto* service = GetProxyService(profile);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return service->IsCredentialStoreReadyForTesting(); }));
+  const auto verification = VerifyDraft(
+      profile, {.scheme = fingerprint_browser::prefs::kProfileProxySchemeSocks5,
+                .host = "127.0.0.1",
+                .port = socks5_server.port(),
+                .username = "foo",
+                .password = "bar"});
+  ASSERT_TRUE(verification.success) << verification.error_code;
+  ASSERT_TRUE(ApplyVerified(profile, verification.verification_id).success);
+  const int authentications_before_reload =
+      socks5_server.successful_authentications();
+  service = static_cast<fingerprint_browser::FingerprintProxyService*>(
+      fingerprint_browser::FingerprintProxyServiceFactory::GetInstance()
+          ->SetTestingFactoryAndUse(
+              profile,
+              base::BindRepeating([](content::BrowserContext* context) {
+                return std::make_unique<
+                    fingerprint_browser::FingerprintProxyService>(
+                    Profile::FromBrowserContext(context));
+              })));
+  ASSERT_TRUE(service);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&] { return service->IsCredentialStoreReadyForTesting(); }));
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return service->GetState().state == fingerprint_browser::kProxyStateActive;
+  }));
+  EXPECT_TRUE(socks5_server.SawTargetHost("freeipapi.test"));
+  EXPECT_GT(socks5_server.successful_authentications(),
+            authentications_before_reload);
 
-  fingerprint_browser::FingerprintProxyService legacy_service(profile);
-  const auto state = legacy_service.GetState();
-  EXPECT_TRUE(state.enabled);
-  EXPECT_EQ(fingerprint_browser::kProxyStateError, state.state);
-  EXPECT_EQ(fingerprint_browser::kProxyMessageInvalidConfig,
-            state.status_code);
-
-  const auto proxy = legacy_service.GetProxyServer();
+  const auto proxy = service->GetProxyServer();
   ASSERT_TRUE(proxy);
-  EXPECT_EQ(net::ProxyServer::SCHEME_HTTP, proxy->scheme());
+  EXPECT_EQ(net::ProxyServer::SCHEME_SOCKS5, proxy->scheme());
   EXPECT_EQ("127.0.0.1", proxy->host_port_pair().host());
-  EXPECT_EQ(9, proxy->host_port_pair().port());
+  EXPECT_EQ(socks5_server.port(), proxy->host_port_pair().port());
+}
 
-  const auto revalidation = Revalidate(profile);
-  EXPECT_FALSE(revalidation.success);
-  EXPECT_EQ(fingerprint_browser::kProxyMessageInvalidConfig,
-            revalidation.error_code);
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       WebUiSavesAndReloadsSocks5Selection) {
+  LocalSocks5TestServer socks5_server("", "");
+  ASSERT_TRUE(socks5_server.Start());
+  Profile* profile = CreateTestProfile();
+  Browser* settings_browser = CreateBrowser(profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      settings_browser, GURL("brave://settings/fingerprintProfileProxy")));
+  auto* web_contents =
+      settings_browser->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  constexpr char kConfigureScript[] = R"js(
+    (async () => {
+      for (let attempt = 0; attempt < 200; ++attempt) {
+        const root = window.testing?.fingerprintProfileProxySubpage;
+        const scheme = root?.getElementById('scheme');
+        const verify = root?.getElementById('verify');
+        if (scheme && verify) {
+          scheme.value = 'socks5';
+          scheme.dispatchEvent(new Event('change', {bubbles: true}));
+          for (const [id, value] of [
+            ['host', '127.0.0.1'], ['port', String($1)]
+          ]) {
+            const input = root.getElementById(id);
+            input.value = value;
+            input.dispatchEvent(new Event('input', {bubbles: true}));
+          }
+          verify.click();
+          for (let resultAttempt = 0; resultAttempt < 200; ++resultAttempt) {
+            const result = root.getElementById('verificationResult');
+            if (result) {
+              result.querySelector('.action-button').click();
+              break;
+            }
+            const error = root.getElementById('actionError');
+            if (error) {
+              return `verify-error:${error.innerText}`;
+            }
+            await new Promise(resolve => setTimeout(resolve, 25));
+          }
+          for (let applyAttempt = 0; applyAttempt < 200; ++applyAttempt) {
+            if (root.getElementById('activeProxy')) {
+              return scheme.value;
+            }
+            const error = root.getElementById('actionError');
+            if (error) {
+              return `apply-error:${error.innerText}`;
+            }
+            await new Promise(resolve => setTimeout(resolve, 25));
+          }
+          return 'apply-timeout';
+        }
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      return 'missing';
+    })()
+  )js";
+  EXPECT_EQ(
+      content::EvalJs(web_contents, content::JsReplace(kConfigureScript,
+                                                       socks5_server.port())),
+      "socks5");
+  EXPECT_EQ(fingerprint_browser::prefs::kProfileProxySchemeSocks5,
+            profile->GetPrefs()->GetString(
+                fingerprint_browser::prefs::kProfileProxyScheme));
+  EXPECT_EQ(fingerprint_browser::kProxyStateActive,
+            GetProxyService(profile)->GetState().state);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      settings_browser, GURL("brave://settings/fingerprintProfileProxy")));
+  EXPECT_EQ(content::EvalJs(web_contents, R"js(
+    (async () => {
+      for (let attempt = 0; attempt < 200; ++attempt) {
+        const root = window.testing?.fingerprintProfileProxySubpage;
+        const scheme = root?.getElementById('scheme');
+        if (scheme) {
+          return scheme.value;
+        }
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      return 'missing';
+    })()
+  )js"),
+            "socks5");
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,

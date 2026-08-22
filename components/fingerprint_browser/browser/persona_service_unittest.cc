@@ -461,6 +461,68 @@ TEST(ProfileProxyConfigTest, BuildsEverySupportedSchemeWithoutCredentials) {
   }
 }
 
+TEST(ProfileProxyConfigTest, RejectsInvalidSocks5UsernamePasswordCredentials) {
+  EXPECT_FALSE(
+      BuildProfileProxyServer({.scheme = prefs::kProfileProxySchemeSocks5,
+                               .host = "proxy.example",
+                               .port = 1080,
+                               .username = "user"}));
+  EXPECT_FALSE(
+      BuildProfileProxyServer({.scheme = prefs::kProfileProxySchemeSocks5,
+                               .host = "proxy.example",
+                               .port = 1080,
+                               .password = "pass"}));
+  EXPECT_FALSE(
+      BuildProfileProxyServer({.scheme = prefs::kProfileProxySchemeSocks5,
+                               .host = "proxy.example",
+                               .port = 1080,
+                               .username = std::string(256, 'u'),
+                               .password = "pass"}));
+  EXPECT_FALSE(
+      BuildProfileProxyServer({.scheme = prefs::kProfileProxySchemeSocks5,
+                               .host = "proxy.example",
+                               .port = 1080,
+                               .username = "user",
+                               .password = std::string(256, 'p')}));
+}
+
+TEST(ProfileProxyConfigTest,
+     AuthenticatedSocks5EncryptedCredentialsKeepDerivedPrefs) {
+  TestingPrefServiceSimple prefs;
+  RegisterPrefs(&prefs);
+  RegisterWebRTCPrefs(&prefs);
+  RegisterAcceptLanguagePrefs(&prefs);
+
+  prefs.SetString(kWebRTCIPHandlingPolicyPref,
+                  kWebRTCIPHandlingDefaultPublicInterfaceOnly);
+  prefs.SetString(kAcceptLanguagesPref, kAcceptLanguagesJapanese);
+  prefs.SetBoolean(prefs::kProfileProxyEnabled, true);
+  SetProfileProxyPrefs(&prefs, prefs::kProfileProxySchemeSocks5,
+                       "proxy.example", 1080, "socks-user");
+  prefs.SetString(prefs::kProfileProxyEncryptedPassword, "encrypted-password");
+
+  ProfileProxyGeo geo;
+  geo.country_code = "GB";
+  geo.timezone = "Europe/London";
+  geo.latitude = 51.5074;
+  geo.longitude = -0.1278;
+  geo.accept_languages = kAcceptLanguagesBritish;
+  PrepareVerifiedProfileProxyDerivedPrefs(prefs, geo);
+  SyncProfileProxyDerivedPrefs(prefs);
+
+  EXPECT_TRUE(ShouldUseProfileProxy(prefs));
+  EXPECT_EQ(kWebRTCIPHandlingDisableNonProxiedUdp,
+            prefs.GetString(kWebRTCIPHandlingPolicyPref));
+  EXPECT_EQ(kAcceptLanguagesBritish, prefs.GetString(kAcceptLanguagesPref));
+  const auto stored_languages = GetProfileProxyAcceptLanguagesForPrefs(prefs);
+  ASSERT_TRUE(stored_languages);
+  EXPECT_EQ(kAcceptLanguagesBritish, *stored_languages);
+  const auto stored_geo = GetProfileProxyGeoForPrefs(prefs);
+  ASSERT_TRUE(stored_geo);
+  EXPECT_EQ("GB", stored_geo->country_code);
+  EXPECT_EQ("Europe/London", stored_geo->timezone);
+}
+
 TEST(ProfileProxyConfigTest, RejectsInvalidProxyServerPrefs) {
   TestingPrefServiceSimple prefs;
   RegisterPrefs(&prefs);

@@ -64,7 +64,7 @@ WebRTC 防漏。L4 保持原生**(见 ADR-0003:UA 始终 Chrome
 - **一致性 /
   crowd-blending**:检测器不单看单值,看各信号是否互相自洽 + 是否跟出口 IP 一致,且是否在真实人群中常见。随机唯一值 = 反而是破绽。矛盾示例:UA=Windows 但 renderer=Apple
   M2;IP 在德国但 timezone=Asia/Shanghai;desktop UA 但 maxTouchPoints>0。
-- **代理绑定**:一个 Profile → 一个上游代理(HTTP/SOCKS5 +
+- **代理绑定**:一个 Profile → 一个上游代理(HTTP/HTTPS/SOCKS5 CONNECT +
   user/pass)+ 由该代理 IP 自动推导的timezone/经纬度/Accept-Language +
   WebRTC 防漏策略。四者必须同步,否则代理制造矛盾比不加更糟。
 

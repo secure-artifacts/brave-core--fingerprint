@@ -5,6 +5,7 @@
 
 #include "brave/components/fingerprint_browser/browser/profile_proxy_config.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <string>
@@ -28,6 +29,7 @@ constexpr char kWebRTCIPHandlingPolicyPref[] = "webrtc.ip_handling_policy";
 constexpr char kWebRTCIPHandlingDisableNonProxiedUdp[] =
     "disable_non_proxied_udp";
 constexpr char kAcceptLanguagesPref[] = "intl.accept_languages";
+constexpr size_t kMaxSocks5CredentialLength = 255;
 constexpr char kGeoLookupWarning[] =
     "Proxy IP could not be located. Enter manual country, time zone, "
     "latitude, and longitude to avoid host geo leakage.";
@@ -44,6 +46,41 @@ std::optional<net::ProxyServer::Scheme> SchemeFromPref(
     return net::ProxyServer::SCHEME_SOCKS5;
   }
   return std::nullopt;
+}
+
+bool HasValidSocks5Credentials(const ProfileProxyDraft& draft) {
+  if (draft.scheme != prefs::kProfileProxySchemeSocks5) {
+    return true;
+  }
+
+  const bool has_username = !draft.username.empty();
+  const bool has_password = !draft.password.empty();
+  return has_username == has_password &&
+         draft.username.size() <= kMaxSocks5CredentialLength &&
+         draft.password.size() <= kMaxSocks5CredentialLength;
+}
+
+bool HasValidStoredProfileProxyConfig(const PrefService& prefs) {
+  ProfileProxyDraft draft{
+      .scheme = prefs.GetString(prefs::kProfileProxyScheme),
+      .host = prefs.GetString(prefs::kProfileProxyHost),
+      .port = prefs.GetInteger(prefs::kProfileProxyPort),
+      .username = prefs.GetString(prefs::kProfileProxyUsername),
+      .password = prefs.GetString(prefs::kProfileProxyPassword)};
+  if (draft.scheme == prefs::kProfileProxySchemeSocks5) {
+    const bool has_username = !draft.username.empty();
+    const bool has_password =
+        !draft.password.empty() ||
+        !prefs.GetString(prefs::kProfileProxyEncryptedPassword).empty();
+    if (has_username != has_password ||
+        draft.username.size() > kMaxSocks5CredentialLength ||
+        draft.password.size() > kMaxSocks5CredentialLength) {
+      return false;
+    }
+    draft.username.clear();
+    draft.password.clear();
+  }
+  return BuildProfileProxyServer(draft).has_value();
 }
 
 void ApplyProfileProxyWebRTCPolicy(PrefService& prefs) {
@@ -198,7 +235,8 @@ std::optional<net::ProxyServer> BuildProfileProxyServer(
     const ProfileProxyDraft& draft) {
   const std::optional<net::ProxyServer::Scheme> scheme =
       SchemeFromPref(draft.scheme);
-  if (!scheme || draft.host.empty() || draft.port <= 0 || draft.port > 65535) {
+  if (!scheme || !HasValidSocks5Credentials(draft) || draft.host.empty() ||
+      draft.port <= 0 || draft.port > 65535) {
     return std::nullopt;
   }
 
@@ -243,7 +281,7 @@ bool ShouldUseProfileProxy(const PrefService& prefs) {
   return IsProfileProxyEnabled(prefs) &&
          GetProfileProxyConfigConflict(prefs) ==
              ProfileProxyConfigConflict::kNone &&
-         GetProfileProxyServerFromPrefs(prefs).has_value();
+         HasValidStoredProfileProxyConfig(prefs);
 }
 
 std::string_view ProfileProxyConfigConflictWarning(

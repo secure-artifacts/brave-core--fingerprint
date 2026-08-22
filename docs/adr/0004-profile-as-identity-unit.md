@@ -19,15 +19,17 @@ persona, 多个 Profile 可并发运行。
 
 代理注入复用 Tor 的缝:`chromium_src/chrome/browser/net/proxy_config_monitor.cc`
 里 `if (profile->IsTor()) ... CreateProxyConfigServiceTor`
-的模式,克隆出一个通用per-Profile
-`ProxyConfigService`,承载任意 HTTP/SOCKS5 地址 + 凭证。
+的模式,克隆出一个通用per-Profile `ProxyConfigService`,承载 HTTP/HTTPS/SOCKS5
+CONNECT 地址 + 凭证。
 
 ## Consequences
 
 - 存储隔离、代理隔离天然成立,无需自建隔离层。
-- SOCKS5 user/pass 认证已内置(`socks5_client_socket.cc` 的
-  `SOCKS5ClientSocketAuth`), HTTP 代理认证走 `LoginHandler::SetAuth()`/预填
+- SOCKS5 支持无认证与 RFC1929 user/pass 认证(`socks5_client_socket.cc` 的
+  `SOCKS5ClientSocketAuth`)，用户名和密码必须同时为空或同时填写，各自最多 255
+  UTF-8 字节；HTTP/HTTPS 代理认证走 `LoginHandler::SetAuth()`/预填
   `HttpAuthCache` 绕弹窗。
+- SOCKS5 仅支持 TCP CONNECT，不支持 SOCKS4、BIND 或 UDP ASSOCIATE。
 - 并发多 Profile
   = 多 NetworkContext 同时存活,内存/资源偏重,但 Chromium 原生支持。
 - persona 与 proxy 都挂在 Profile 上,天然一一对应。

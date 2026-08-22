@@ -138,7 +138,8 @@ class SettingsFingerprintProfileProxySubpageElement extends
     this.activeGeo_ = state.geo || null
 
     if (!this.initialized_) {
-      this.scheme_ = state.scheme === 'https' ? 'https' : 'http'
+      this.scheme_ = ['http', 'https', 'socks5'].includes(state.scheme) ?
+        state.scheme : 'http'
       this.host_ = state.host || ''
       this.port_ = state.port ? String(state.port) : ''
       this.username_ = state.username || ''
