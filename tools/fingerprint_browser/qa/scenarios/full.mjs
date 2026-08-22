@@ -506,6 +506,76 @@ async function verifyProxy({ config, dirs, fixture, probe, runId }) {
   }
 }
 
+async function verifyProxySwitchPersistence({ config, dirs, fixtures, runId }) {
+  const profilePath = `/tmp/fingerprint-browser-${runId}/proxy-switch`
+  let session = await startQaSession({
+    app: config.app,
+    background: config.background,
+    language: null,
+    logDir: dirs.logs,
+    name: 'proxy-switch',
+    profilePath,
+  })
+  try {
+    let page = session.context.pages()[0] || (await session.context.newPage())
+    const transitions = []
+    for (const fixture of [fixtures.http, fixtures.socks5]) {
+      const saved = await setProfileProxy(page, { ...fixture, enabled: true })
+      if (
+        !saved.enabled
+        || saved.state !== 'active'
+        || saved.scheme !== fixture.scheme
+        || saved.egressIp !== fixture.expectedIp
+      ) {
+        throw new Error(`Could not switch to ${fixture.scheme}`)
+      }
+      const response = await page.goto(fixture.verifyUrl, {
+        timeout: 60000,
+        waitUntil: 'domcontentloaded',
+      })
+      const ip = response?.ok()
+        ? observedIpFromBody(await page.locator('body').innerText())
+        : null
+      if (ip !== fixture.expectedIp) {
+        throw new Error(`${fixture.scheme} switch exit IP mismatch`)
+      }
+      transitions.push({ ip, scheme: fixture.scheme })
+    }
+
+    const screenshot = path.join(dirs.page, 'full-proxy-switch-socks5.png')
+    await page.goto('brave://settings/fingerprintProfileProxy', {
+      waitUntil: 'domcontentloaded',
+    })
+    await page.screenshot({ path: screenshot, fullPage: false })
+    await assertCurrentWebUi(page, 'SOCKS5 switch state')
+
+    await session.close()
+    session = await startQaSession({
+      app: config.app,
+      background: config.background,
+      language: null,
+      logDir: dirs.logs,
+      name: 'proxy-switch-restart',
+      profilePath,
+    })
+    page = session.context.pages()[0] || (await session.context.newPage())
+    const persisted = await readProfileProxyState(page)
+    if (!persisted.enabled || persisted.scheme !== 'socks5') {
+      throw new Error('Switched SOCKS5 proxy did not persist across restart')
+    }
+    const observed = await collectProxySurfaceProbe(page)
+    await setProfileProxy(page, { enabled: false })
+    return {
+      observed,
+      persisted,
+      screenshots: [screenshot],
+      transitions,
+    }
+  } finally {
+    await session.close()
+  }
+}
+
 function thirdPartyLieSignals(bodyText) {
   const signals = []
   const patterns = [
@@ -1103,30 +1173,51 @@ export async function runProxyFixtures({ config, dirs, probe, report, runId }) {
     proxyFixtures = await loadProxyFixtures(config.proxyFixtures)
     if (proxyFixtures.status === 'BLOCKED') {
       return {
-        fixtures: proxyFixtures.http
-          ? [publicProxyRecord(proxyFixtures.http)]
-          : [],
+        fixtures: ['http', 'socks5']
+          .filter((scheme) => proxyFixtures[scheme])
+          .map((scheme) => publicProxyRecord(proxyFixtures[scheme])),
         reason: proxyFixtures.reason,
         status: 'BLOCKED',
       }
     }
     return {
-      fixtures: [publicProxyRecord(proxyFixtures.http)],
+      fixtures: [
+        publicProxyRecord(proxyFixtures.http),
+        publicProxyRecord(proxyFixtures.socks5),
+      ],
     }
   })
-  if (proxyFixtures?.http) {
-    await runScenario(
-      report,
-      'full-proxy-http',
-      async () =>
-        await verifyProxy({
-          config,
-          dirs,
-          fixture: proxyFixtures.http,
-          probe,
-          runId,
-        }),
+  if (proxyFixtures) {
+    const availableSchemes = ['http', 'socks5'].filter(
+      (scheme) => proxyFixtures[scheme],
     )
+    for (const scheme of availableSchemes) {
+      await runScenario(
+        report,
+        `full-proxy-${scheme}`,
+        async () =>
+          await verifyProxy({
+            config,
+            dirs,
+            fixture: proxyFixtures[scheme],
+            probe,
+            runId,
+          }),
+      )
+    }
+    if (availableSchemes.length === 2) {
+      await runScenario(
+        report,
+        'full-proxy-switch-persistence',
+        async () =>
+          await verifyProxySwitchPersistence({
+            config,
+            dirs,
+            fixtures: proxyFixtures,
+            runId,
+          }),
+      )
+    }
   }
   return proxyFixtures
 }

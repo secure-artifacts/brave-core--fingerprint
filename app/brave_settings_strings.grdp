@@ -1300,7 +1300,7 @@
     启用用户配置文件代理
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_ENABLED_DESC" desc="The description for enabling the per-profile proxy feature">
-    让当前用户配置文件通过独立的 HTTP 或 HTTPS 代理连接网络。
+    让当前用户配置文件通过独立的 HTTP、HTTPS 或 SOCKS5 代理连接网络。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_NO_PROXY_RISK_TITLE" desc="The title shown when a fingerprint persona is active but the per-profile proxy is disabled">
     代理尚未配置
@@ -1312,13 +1312,16 @@
     代理类型
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SCHEME_DESC" desc="The description for the per-profile proxy protocol selector">
-    支持 HTTP 和 HTTPS 代理。
+    支持 HTTP、HTTPS 和 SOCKS5 代理。
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTP" desc="The HTTP proxy type option">
     HTTP
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HTTPS" desc="The HTTPS proxy type option">
     HTTPS
+  </message>
+  <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_SOCKS5" desc="The SOCKS5 proxy type option">
+    SOCKS5
   </message>
   <message name="IDS_SETTINGS_FINGERPRINT_PROFILE_PROXY_HOST_LABEL" desc="The label for the per-profile proxy host input">
     代理地址

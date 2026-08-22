@@ -48,7 +48,8 @@ namespace {
 
 bool IsSupportedProductProxyScheme(std::string_view scheme) {
   return scheme == prefs::kProfileProxySchemeHttp ||
-         scheme == prefs::kProfileProxySchemeHttps;
+         scheme == prefs::kProfileProxySchemeHttps ||
+         scheme == prefs::kProfileProxySchemeSocks5;
 }
 
 constexpr base::TimeDelta kVerificationTimeout = base::Seconds(6);
@@ -419,8 +420,7 @@ std::optional<net::ProxyServer> FingerprintProxyService::GetProxyServer()
   }
 
   ProfileProxyDraft draft = GetAppliedDraft();
-  if (!IsSupportedProductProxyScheme(draft.scheme) ||
-      HasCredentialFailure()) {
+  if (!IsSupportedProductProxyScheme(draft.scheme) || HasCredentialFailure()) {
     return BlockingProxyServer();
   }
   const std::optional<net::ProxyServer> proxy_server =

@@ -99,7 +99,7 @@ namespace net {
 std::string ProxyServerToProxyUri(const ProxyServer& proxy_server) {
   std::string proxy_uri = ProxyServerToProxyUri_ChromiumImpl(proxy_server);
 
-  // We only inject AUTH information for SOCKS5 proxies (Tor-only).
+  // We only inject AUTH information for SOCKS5 proxies.
   if (proxy_server.scheme() != ProxyServer::SCHEME_SOCKS5)
     return proxy_uri;
 
@@ -120,7 +120,7 @@ std::string ProxyServerToPacResultElement(const ProxyServer& proxy_server) {
   std::string proxy_pac =
       ProxyServerToPacResultElement_ChromiumImpl(proxy_server);
 
-  // We only inject AUTH information for SOCKS5 proxies (Tor-only).
+  // We only inject AUTH information for SOCKS5 proxies.
   if (proxy_server.scheme() != ProxyServer::SCHEME_SOCKS5)
     return proxy_pac;
 

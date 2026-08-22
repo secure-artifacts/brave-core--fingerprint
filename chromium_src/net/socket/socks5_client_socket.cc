@@ -47,6 +47,7 @@ namespace net {
 namespace {
 
 constexpr size_t kSOCKSAuthUsernamePasswordResponseLen = 2;
+constexpr size_t kMaxSOCKS5CredentialLength = 255;
 
 HostPortPair ToLegacyDestinationEndpoint(
     const TransportSocketParams::Endpoint& endpoint) {
@@ -121,6 +122,11 @@ int SOCKS5ClientSocketAuth::Authenticate(
   if (!do_auth()) {
     DCHECK_EQ(OK, rv);
     return OK;
+  }
+  if (username().empty() || password().empty() ||
+      username().size() > kMaxSOCKS5CredentialLength ||
+      password().size() > kMaxSOCKS5CredentialLength) {
+    return ERR_INVALID_ARGUMENT;
   }
   do {
     switch (next_state_) {

@@ -107,7 +107,8 @@ export async function loadProxyFixtures(file) {
   }
   const parsed = JSON.parse(await fs.readFile(file, 'utf8'))
   const http = parsed.http ? validateProxy('http', parsed.http) : null
-  const missing = [!http && 'http'].filter(Boolean)
+  const socks5 = parsed.socks5 ? validateProxy('socks5', parsed.socks5) : null
+  const missing = [!http && 'http', !socks5 && 'socks5'].filter(Boolean)
   return {
     file,
     http,
@@ -116,6 +117,7 @@ export async function loadProxyFixtures(file) {
       missing.length > 0
         ? `Proxy fixture is missing: ${missing.join(', ')}`
         : undefined,
+    socks5,
     status: missing.length > 0 ? 'BLOCKED' : 'PASS',
   }
 }

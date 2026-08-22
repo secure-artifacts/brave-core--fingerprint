@@ -39,6 +39,7 @@ source_set("browser_tests") {
     deps += [
       "//brave/components/ai_chat/core/common/buildflags",
       "//brave/components/brave_search/common",
+      "//brave/components/fingerprint_browser/browser",
       "//chrome/browser/ui/webui/searchbox",
       "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",
       "//third_party/zlib",

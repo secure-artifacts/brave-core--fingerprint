@@ -30,6 +30,8 @@ if (!is_android) {
       "brave_webaudio_farbling_browsertest.cc",
       "brave_webgl_farbling_browsertest.cc",
       "brave_webgpu_farbling_browsertest.cc",
+      "local_socks5_test_server.cc",
+      "local_socks5_test_server.h",
     ]
 
     deps = [

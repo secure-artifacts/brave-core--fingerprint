@@ -123,8 +123,11 @@
       的优先级：扩注入缝会绕过标准
       `CreateProxyConfigService`（该路径也承载扩展/策略代理，Tor 因不跑扩展才安全，新身份 Profile 无此前提）；至少当扩展/策略已管控该 Profile 代理时给出可见警告而非静默覆盖
 - [x] 5.2 实现 Profile 级 `FingerprintProxyService` 并接入
-      `proxy_config_monitor.cc`，承载 HTTP/HTTPS server + 凭证；Tor-first
-- [x] 5.3 收口 v1 协议范围：设置页仅提供 HTTP/HTTPS，产品服务在网络请求前拒绝 SOCKS5；底层 SOCKS5 代码保留但不启用、不纳入交付验收
+      `proxy_config_monitor.cc`，承载 HTTP/HTTPS/SOCKS5 CONNECT
+      server + 凭证；Tor-first
+- [x] 5.3 设置页和产品服务支持 SOCKS5
+      CONNECT；支持无认证和 RFC1929 用户名/密码认证，不支持 SOCKS4、BIND 或 UDP
+      ASSOCIATE
 - [x] 5.4 HTTP 代理认证无弹窗：NetworkContext 建立时预填 `HttpAuthCache` 或直调
       `LoginHandler::SetAuth()`
 - [x] 5.5 per-Profile pref 承载代理配置与状态；密码通过 `OSCryptAsync`
@@ -132,7 +135,8 @@
 - [x] 5.6 browsertest：Profile
       A 走代理、B 直连互不影响；认证无弹窗；重启后代理保持；**Tor
       Profile 行为不受注入缝扩展影响**
-- [x] 5.7 检测运行时代理认证失败（HTTP 407 反复失败）并经设置页给出可见错误反馈（对应 spec「认证失败可见反馈」，区别于 7.3 的静态字段校验）；补 browsertest
+- [x] 5.7 检测运行时代理认证失败（HTTP
+      407 反复失败）并经设置页给出可见错误反馈（对应 spec「认证失败可见反馈」，区别于 7.3 的静态字段校验）；补 browsertest
 - [x] 5.8 审计其他
       `IsTor()`-gated 保护是否应扩展到 per-Profile 代理身份（非 Tor 但需同类防泄漏）：如
       `media_router_feature.cc:19-22` 在 Tor 窗口禁用 Media
@@ -177,7 +181,7 @@
 - [x] 7.1 后端 handler 接入 Profile 服务并提供
       `getState/verifyDraft/applyVerified/revalidate/disable`
 - [x] 7.2 注册 handler 于 `brave/browser/ui/webui/brave_settings_ui.cc`
-- [x] 7.3 前端设置页实现“输入代理 → 验证代理 → 查看结果并确认应用”三阶段，覆盖 HTTP/HTTPS、凭证和字段校验
+- [x] 7.3 前端设置页实现“输入代理 → 验证代理 → 查看结果并确认应用”三阶段，覆盖 HTTP/HTTPS/SOCKS5、凭证和字段校验
 - [x] 7.4 前后端联动：草稿变化/令牌过期/重复确认拒绝；显示出口、国家/城市、时区、坐标、语言与 WebRTC 状态
 - [ ] 7.5 chrome-mcp 实测截图自证：填代理→保存→开关→页面指纹/IP/时区正确
 - [x] 7.6 工具栏在 VPN 后增加固定状态按钮和弹窗；本地 flag-icons 图集；未配置、验证中、active、stale、error、conflict 状态适配深浅主题
@@ -217,8 +221,10 @@
       resource pack、完整 locale 集与 codesign；仅操作唯一
       `/tmp/fingerprint-browser-*` 进程树
 - [x] 10.3 Full 接入 persona/proxy/farbling/WebUI C++ 测试、`net_unittests`
-      HTTP 代理认证回归、Profile/代理/MV3/CWS 生命周期和第三方扫描证据
+      HTTP 与 SOCKS5 代理认证回归、Profile/代理/MV3/CWS 生命周期和第三方扫描证据
 - [x] 10.4 实现浅色/深色与三窗口尺寸截图矩阵、WCAG/布局/纯红连通域检查、批准 baseline 和产物绑定人工复核门禁
 - [x] 10.5 实现 60 分钟三 Profile/20 标签/200 导航/20 代理切换/10
       Profile 周期/10 扩展周期 Soak，逐分钟采集进程/RSS/CDP 健康
-- [ ] 10.6 提供真实 HTTP `0600` fixture、批准 baseline/native evidence 后执行 Full 与 Soak 并归档 0 失败报告；Chrome Web Store 安装由用户人工确认通过，不再要求原崩溃插件 URL
+- [ ] 10.6 提供真实 HTTP 与 SOCKS5 `0600` fixture、批准 baseline/native
+      evidence 后执行 Full 与 Soak 并归档 0 失败报告；Chrome Web
+      Store 安装由用户人工确认通过，不再要求原崩溃插件 URL

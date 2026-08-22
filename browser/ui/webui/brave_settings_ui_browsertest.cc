@@ -6,10 +6,13 @@
 #include "brave/browser/ui/webui/brave_settings_ui.h"
 
 #include "base/command_line.h"
+#include "brave/components/fingerprint_browser/browser/pref_names.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "ui/base/ui_base_switches.h"
@@ -65,6 +68,12 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest, LoadsBraveSettingsUI) {
 
 IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
                        LoadsFingerprintProfileProxySettings) {
+  auto* prefs = browser()->profile()->GetPrefs();
+  prefs->SetString(fingerprint_browser::prefs::kProfileProxyScheme,
+                   fingerprint_browser::prefs::kProfileProxySchemeSocks5);
+  prefs->SetString(fingerprint_browser::prefs::kProfileProxyHost, "proxy.test");
+  prefs->SetInteger(fingerprint_browser::prefs::kProfileProxyPort, 1080);
+
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
                                            GURL("chrome://settings/privacy")));
 
@@ -144,8 +153,12 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
           }
           const schemes = [...proxyPage.shadowRoot.querySelectorAll(
               '#scheme option')].map(option => option.value);
-          if (schemes.join(',') !== 'http,https') {
+          if (schemes.join(',') !== 'http,https,socks5') {
             return `unexpected-schemes:${schemes.join(',')}`;
+          }
+          if (proxyPage.shadowRoot.querySelector('#scheme').value !==
+              'socks5') {
+            return 'socks5-state-not-restored';
           }
           const strings = {
             title: loadTimeData.getString('profileProxyTitle'),
@@ -169,6 +182,42 @@ IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,
   )")
                               .ExtractString();
   EXPECT_EQ(visibility, "visible");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("chrome://settings/fingerprintProfileProxy")));
+  web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_NE(web_contents, nullptr);
+  EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+  EXPECT_EQ(content::EvalJs(web_contents, R"(
+    (async () => {
+      const findProxyPage = (root) => {
+        const direct = root.querySelector(
+            'settings-fingerprint-profile-proxy-subpage');
+        if (direct) {
+          return direct;
+        }
+        for (const element of root.querySelectorAll('*')) {
+          if (element.shadowRoot) {
+            const result = findProxyPage(element.shadowRoot);
+            if (result) {
+              return result;
+            }
+          }
+        }
+        return null;
+      };
+      for (let attempt = 0; attempt < 100; ++attempt) {
+        const proxyPage = findProxyPage(document);
+        const scheme = proxyPage?.shadowRoot?.querySelector('#scheme');
+        if (scheme) {
+          return scheme.value;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return 'missing';
+    })()
+  )"),
+            "socks5");
 }
 
 IN_PROC_BROWSER_TEST_F(BraveSettingsUIBrowserTest,

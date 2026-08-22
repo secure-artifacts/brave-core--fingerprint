@@ -156,7 +156,8 @@ export async function runSoak({ config, dirs, probe, report, runId }) {
         if (counters.proxyToggles < dueCount(20)) {
           const toggle = counters.proxyToggles
           const enabled = toggle % 2 === 0
-          const fixture = fixtures.http
+          const fixture =
+            Math.floor(toggle / 2) % 2 === 0 ? fixtures.http : fixtures.socks5
           const proxyPage = pagesBySession[0][0]
           const state = await setProfileProxy(
             proxyPage,

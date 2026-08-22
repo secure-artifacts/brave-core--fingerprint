@@ -21,9 +21,10 @@ const BRAVE_UNIT_FILTER = [
   'ProfileProxyConfigServiceTest.*',
 ].join(':')
 
-const NET_FILTER = [
+export const NET_FILTER = [
   '*ConfiguredProxyAuthCredentialsRetryNoTunnel*',
   '*RejectedConfiguredProxyAuthCredentialsFailNoTunnel*',
+  'SOCKS5ClientSocketTest.*',
 ].join(':')
 
 const PERFORMANCE_MANAGER_FILTER =
@@ -67,7 +68,7 @@ const CODE_TEST_SOURCE_EXTENSIONS = new Set([
   '.patch',
 ])
 
-const TEST_SOURCE_GROUPS = {
+export const TEST_SOURCE_GROUPS = {
   braveComponents: [
     'components/brave_shields/core/browser/brave_shields_settings_service.cc',
     'components/brave_shields/core/browser/brave_shields_settings_service.h',
@@ -102,9 +103,21 @@ const TEST_SOURCE_GROUPS = {
     '../net/http/http_network_transaction.cc',
     '../net/http/http_network_transaction.h',
     '../net/http/http_network_transaction_unittest.cc',
+    '../net/socket/socks5_client_socket.cc',
+    '../net/socket/socks5_client_socket.h',
+    '../net/socket/socks5_client_socket_unittest.cc',
+    '../net/socket/socks_connect_job.cc',
+    '../net/socket/socks_connect_job.h',
+    'chromium_src/net/socket/socks5_client_socket.cc',
+    'chromium_src/net/socket/socks5_client_socket.h',
+    'chromium_src/net/socket/socks5_client_socket_unittest.h',
     'patches/net-http-http_network_transaction.cc.patch',
     'patches/net-http-http_network_transaction.h.patch',
     'patches/net-http-http_network_transaction_unittest.cc.patch',
+    'patches/net-socket-socks5_client_socket.cc.patch',
+    'patches/net-socket-socks5_client_socket.h.patch',
+    'patches/net-socket-socks5_client_socket_unittest.cc.patch',
+    'patches/net-socket-socks_connect_job.cc.patch',
   ],
   performanceManager: [
     '../components/performance_manager/worker_watcher.cc',

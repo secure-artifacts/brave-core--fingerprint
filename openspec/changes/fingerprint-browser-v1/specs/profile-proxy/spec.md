@@ -38,23 +38,38 @@ SHALL 保持原网络行为，不被本功能接管。
 - **AND** SHALL 让标准代理路径继续处理既有配置
 - **AND** MUST NOT 静默覆盖
 
-### Requirement: 支持 HTTP 与 HTTPS 认证代理
+### Requirement: 支持 HTTP、HTTPS 与 SOCKS5 代理
 
-系统 SHALL 支持 HTTP 与 HTTPS 代理，均支持用户名/密码认证。认证 MUST
-NOT 弹出交互式登录框。产品服务 MUST 在建立网络请求前拒绝其他协议。底层 SOCKS5
-实现可保留，但不属于 v1 产品能力或交付门禁。
+系统 SHALL 支持 HTTP、HTTPS 与 SOCKS5
+CONNECT 代理。HTTP 与 HTTPS 支持用户名/密码认证；SOCKS5 支持无认证和 RFC1929 用户名/密码认证。认证 MUST
+NOT 弹出交互式登录框。产品服务 MUST 在建立网络请求前拒绝 SOCKS4、SOCKS5
+BIND、UDP ASSOCIATE 与其他协议。
 
-#### Scenario: 不支持的代理协议
+#### Scenario: SOCKS5 无认证连接
 
-- **WHEN** 页面或调用方提交 SOCKS5 或其他未支持协议
+- **WHEN** 页面或调用方提交用户名和密码均为空的 SOCKS5 配置
+- **THEN** 浏览器 SHALL 使用 SOCKS5 CONNECT 并由代理解析目标域名
+- **AND** 验证、确认、启动恢复和复检 SHALL 使用同一代理配置
+
+#### Scenario: SOCKS5 RFC1929 认证连接
+
+- **WHEN** 配置同时提供合法的 SOCKS5 用户名和密码
+- **THEN** 浏览器 SHALL 使用 RFC1929 完成认证
+- **AND** 全程无认证弹窗
+
+#### Scenario: SOCKS5 凭证字段无效
+
+- **WHEN** SOCKS5 用户名和密码仅填写一项，或任一字段超过 255 UTF-8 字节
 - **THEN** 产品服务 SHALL 返回配置无效
+- **AND** 底层序列化层 SHALL 防御性拒绝
 - **AND** SHALL NOT 发起代理验证请求或启用该配置
 
-#### Scenario: 旧 Profile 保存了不支持的协议
+#### Scenario: 旧 Profile 保存了 SOCKS5 配置
 
 - **WHEN** 浏览器启动时发现已启用的旧 SOCKS5 配置
-- **THEN** 产品服务 SHALL 进入错误状态并使用阻断代理
-- **AND** MUST NOT 恢复 DIRECT，直到用户明确禁用代理或重新配置 HTTP/HTTPS
+- **THEN** 产品服务 SHALL 自动解密凭证并通过 SOCKS5 复检
+- **AND** 复检成功后 SHALL 进入 `active`
+- **AND** 复检失败时 SHALL 进入 `error` 并保持 fail-closed
 
 #### Scenario: HTTP 或 HTTPS 带认证连接
 

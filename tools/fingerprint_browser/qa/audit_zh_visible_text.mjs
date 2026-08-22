@@ -23,6 +23,7 @@ const ALLOWED_TECHNICAL_TERMS = [
   'WebGL',
   'UA-CH',
   'Profile',
+  'SOCKS5',
   'HTTPS',
   'HTTP',
   'IANA',
