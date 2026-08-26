@@ -326,6 +326,9 @@
       <message name="IDS_FINGERPRINT_PROXY_STATUS_ACTIVE" desc="Profile proxy is active">
         代理已生效。
       </message>
+      <message name="IDS_FINGERPRINT_PROXY_STATUS_REVALIDATION_RETRYING" desc="Profile proxy status is temporarily uncertain and will be checked again">
+        代理状态暂时无法确认，正在自动重试。
+      </message>
       <message name="IDS_FINGERPRINT_PROXY_STATUS_AWAITING_CONFIRMATION" desc="Profile proxy is verified and awaits confirmation">
         代理验证成功，请确认并应用。
       </message>

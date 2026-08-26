@@ -78,6 +78,7 @@ constexpr std::array kStableStatuses = {
     std::string_view(kProxyMessageWaiting),
     std::string_view(kProxyMessageChecking),
     std::string_view(kProxyMessageActive),
+    std::string_view(kProxyMessageRevalidationRetrying),
     std::string_view(kProxyMessageAwaitingConfirmation),
     std::string_view(kProxyMessageControlChanged),
     std::string_view(kProxyMessageNoActiveProxy),

@@ -6,6 +6,7 @@
 #ifndef BRAVE_BROWSER_FINGERPRINT_BROWSER_FINGERPRINT_PROXY_SERVICE_H_
 #define BRAVE_BROWSER_FINGERPRINT_BROWSER_FINGERPRINT_PROXY_SERVICE_H_
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -126,6 +127,10 @@ class FingerprintProxyService
   bool IsCredentialStoreReadyForTesting() const;
   bool MigratePlaintextPasswordForTesting();
   void ExpirePendingVerificationForTesting();
+  base::TimeDelta RevalidationDelayForTesting() const {
+    return revalidation_timer_.GetCurrentDelay();
+  }
+  void FireRevalidationTimerForTesting() { revalidation_timer_.FireNow(); }
 
  private:
   struct PendingVerification {
@@ -166,6 +171,7 @@ class FingerprintProxyService
   void NotifyObservers();
   void OnProxyControlChanged();
   void ScheduleRevalidation();
+  void ScheduleRevalidation(base::TimeDelta delay);
   void OnRevalidationTimer();
   bool HasCredentialFailure() const;
 
@@ -179,6 +185,7 @@ class FingerprintProxyService
   bool apply_in_progress_ = false;
   bool verification_in_progress_ = false;
   bool verification_is_revalidation_ = false;
+  size_t consecutive_transient_revalidation_failures_ = 0;
   std::string state_before_verification_;
   std::string status_before_verification_;
   std::string warning_before_verification_;
@@ -192,7 +199,7 @@ class FingerprintProxyService
       verification_url_loader_factory_;
   std::unique_ptr<network::SimpleURLLoader> verification_loader_;
 
-  base::RepeatingTimer revalidation_timer_;
+  base::OneShotTimer revalidation_timer_;
   base::ObserverList<Observer> observers_;
   base::WeakPtrFactory<FingerprintProxyService> weak_factory_{this};
 };

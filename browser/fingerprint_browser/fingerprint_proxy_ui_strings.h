@@ -19,6 +19,8 @@ inline constexpr char kProxyMessageNone[] = "none";
 inline constexpr char kProxyMessageWaiting[] = "waiting_for_verification";
 inline constexpr char kProxyMessageChecking[] = "checking";
 inline constexpr char kProxyMessageActive[] = "active";
+inline constexpr char kProxyMessageRevalidationRetrying[] =
+    "revalidation_retrying";
 inline constexpr char kProxyMessageAwaitingConfirmation[] =
     "awaiting_confirmation";
 inline constexpr char kProxyMessageControlChanged[] = "control_changed";
