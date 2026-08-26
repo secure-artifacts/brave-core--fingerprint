@@ -636,8 +636,9 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   EXPECT_EQ(0, OriginRequestsForPath("/socks-no-auth"));
 
   socks5_server.Stop();
-  ui_test_utils::NavigateToURL(
-      proxied_browser, OriginUrl("socks-target.test", "/socks-disconnected"));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      proxied_browser,
+      OriginUrl("socks-target.test", "/socks-disconnected")));
   PrefService* prefs = profile->GetPrefs();
   ASSERT_TRUE(base::test::RunUntil([&] {
     return GetProxyService(profile)->GetState().state ==
@@ -725,11 +726,13 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
       fingerprint_browser::FingerprintProxyServiceFactory::GetInstance()
           ->SetTestingFactoryAndUse(
               profile,
-              base::BindRepeating([](content::BrowserContext* context) {
-                return std::make_unique<
-                    fingerprint_browser::FingerprintProxyService>(
-                    Profile::FromBrowserContext(context));
-              })));
+              base::BindOnce(
+                  [](content::BrowserContext* context)
+                      -> std::unique_ptr<KeyedService> {
+                    return std::make_unique<
+                        fingerprint_browser::FingerprintProxyService>(
+                        Profile::FromBrowserContext(context));
+                  })));
   ASSERT_TRUE(service);
   ASSERT_TRUE(base::test::RunUntil(
       [&] { return service->IsCredentialStoreReadyForTesting(); }));

@@ -508,7 +508,6 @@ TEST(ProfileProxyConfigTest,
   geo.longitude = -0.1278;
   geo.accept_languages = kAcceptLanguagesBritish;
   PrepareVerifiedProfileProxyDerivedPrefs(prefs, geo);
-  SyncProfileProxyDerivedPrefs(prefs);
 
   EXPECT_TRUE(ShouldUseProfileProxy(prefs));
   EXPECT_EQ(kWebRTCIPHandlingDisableNonProxiedUdp,
