@@ -233,14 +233,26 @@ TEST(DiagnosticsExporterTest, BuildsIntegrityCheckedArchive) {
   zip::ZipReader reader;
   ASSERT_TRUE(reader.Open(result.archive_path));
   std::vector<std::string> entries;
+  std::string manifest_contents;
+  std::string checksum_contents;
   while (const auto* entry = reader.Next()) {
-    entries.push_back(entry->path.AsUTF8Unsafe());
+    const std::string path = entry->path.AsUTF8Unsafe();
+    entries.push_back(path);
+    if (path == "manifest.json") {
+      ASSERT_TRUE(reader.ExtractCurrentEntryToString(&manifest_contents));
+    } else if (path == "checksums.sha256") {
+      ASSERT_TRUE(reader.ExtractCurrentEntryToString(&checksum_contents));
+    }
   }
   EXPECT_THAT(entries,
               testing::Contains(std::string("crashes/") + kReportId + ".dmp"));
   EXPECT_THAT(entries, testing::Contains("state/browser.json"));
   EXPECT_THAT(entries, testing::Contains("manifest.json"));
   EXPECT_THAT(entries, testing::Contains("checksums.sha256"));
+  EXPECT_NE(manifest_contents.find("state/browser.json"), std::string::npos);
+  EXPECT_EQ(manifest_contents.find("state\\\\browser.json"), std::string::npos);
+  EXPECT_NE(checksum_contents.find("state/browser.json"), std::string::npos);
+  EXPECT_EQ(checksum_contents.find('\\'), std::string::npos);
 }
 
 TEST(DiagnosticsExporterTest, RejectsForbiddenTextBeforeArchiveCreation) {

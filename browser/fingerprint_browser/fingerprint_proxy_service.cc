@@ -454,11 +454,42 @@ void FingerprintProxyService::ReportProxyError(int net_error) {
       !IsProxyConnectionError(net_error)) {
     return;
   }
+  const FingerprintProxyState state = GetState();
+  const bool authentication_error = IsProxyAuthenticationError(net_error);
+  const base::TimeDelta retry_delay =
+      authentication_error || state.state == kProxyStateError
+          ? kPersistentRevalidationRetryDelay
+          : kFirstRevalidationRetryDelay;
+  const bool can_accelerate_check =
+      authentication_error || state.state == kProxyStateActive;
+  const bool schedules_earlier_check =
+      !revalidation_timer_.IsRunning() ||
+      (can_accelerate_check &&
+       revalidation_timer_.GetCurrentDelay() > retry_delay);
+  if (schedules_earlier_check && state.state != kProxyStateError &&
+      state.status_code != kProxyMessageRevalidationRetrying) {
+    diagnostics::DiagnosticsEventFields fields;
+    fields.status = "proxy_request";
+    fields.proxy_scheme = state.scheme;
+    fields.error_code = net_error;
+    diagnostics::RecordDiagnosticsEvent(
+        profile_->GetPath().DirName(),
+        diagnostics::DiagnosticsEventType::kError, fields);
+  }
   SetProfileProxyLastError(*prefs_, net_error);
-  consecutive_transient_revalidation_failures_ =
-      kTransientRevalidationFailureThreshold;
-  SetState(kProxyStateError, kProxyMessageConnectionFailed);
-  ScheduleRevalidation(kPersistentRevalidationRetryDelay);
+  if (authentication_error) {
+    consecutive_transient_revalidation_failures_ =
+        kTransientRevalidationFailureThreshold;
+    SetState(kProxyStateError, kProxyMessageConnectionFailed);
+    ScheduleRevalidationIfSooner(retry_delay);
+    return;
+  }
+
+  if (!revalidation_timer_.IsRunning()) {
+    ScheduleRevalidation(retry_delay);
+  } else if (can_accelerate_check) {
+    ScheduleRevalidationIfSooner(retry_delay);
+  }
 }
 
 void FingerprintProxyService::AddObserver(Observer* observer) {
@@ -881,13 +912,18 @@ void FingerprintProxyService::SetState(std::string_view state,
                     NormalizeProxyWarningCode(warning_code));
   diagnostics::DiagnosticsEventFields fields;
   fields.status = std::string(state);
+  fields.proxy_status_code = std::string(NormalizeProxyStatusCode(status_code));
   const FingerprintProxyState current = GetState();
   fields.proxy_scheme = current.scheme;
+  if (state == kProxyStateError ||
+      status_code == kProxyMessageRevalidationRetrying) {
+    fields.error_code = prefs_->GetInteger(prefs::kProfileProxyLastErrorCode);
+  }
   if (current.geo) {
     fields.country = current.geo->country_code;
     fields.timezone = current.geo->timezone;
     if (!current.geo->accept_languages.empty()) {
-      fields.language = current.geo->accept_languages.front();
+      fields.language = current.geo->accept_languages;
     }
   }
   diagnostics::RecordDiagnosticsEvent(
@@ -974,6 +1010,14 @@ void FingerprintProxyService::ScheduleRevalidation(base::TimeDelta delay) {
       FROM_HERE, delay,
       base::BindOnce(&FingerprintProxyService::OnRevalidationTimer,
                      weak_factory_.GetWeakPtr()));
+}
+
+void FingerprintProxyService::ScheduleRevalidationIfSooner(
+    base::TimeDelta delay) {
+  if (!revalidation_timer_.IsRunning() ||
+      revalidation_timer_.GetCurrentDelay() > delay) {
+    ScheduleRevalidation(delay);
+  }
 }
 
 void FingerprintProxyService::OnRevalidationTimer() {

@@ -188,6 +188,9 @@ bool RecordDiagnosticsEventBlocking(const base::FilePath& user_data_dir,
   if (!fields.proxy_scheme.empty()) {
     event.Set("proxyScheme", SafeField(fields.proxy_scheme));
   }
+  if (!fields.proxy_status_code.empty()) {
+    event.Set("proxyStatusCode", SafeField(fields.proxy_status_code));
+  }
   if (!fields.country.empty()) {
     event.Set("country", SafeField(fields.country));
   }

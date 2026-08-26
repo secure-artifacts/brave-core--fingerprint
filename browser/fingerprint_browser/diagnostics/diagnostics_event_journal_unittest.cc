@@ -28,7 +28,9 @@ TEST_F(DiagnosticsEventJournalTest, WritesOnlyTypedFields) {
   DiagnosticsEventFields fields;
   fields.status = "active";
   fields.proxy_scheme = "http";
+  fields.proxy_status_code = "connection_failed";
   fields.country = "DE";
+  fields.error_code = -111;
   fields.persona_schema = 3;
 
   ASSERT_TRUE(RecordDiagnosticsEvent(temp_dir.GetPath(),
@@ -41,6 +43,9 @@ TEST_F(DiagnosticsEventJournalTest, WritesOnlyTypedFields) {
   ASSERT_TRUE(base::ReadFileToString(logs[0], &contents));
   EXPECT_NE(contents.find("proxy_state_changed"), std::string::npos);
   EXPECT_NE(contents.find("\"country\":\"DE\""), std::string::npos);
+  EXPECT_NE(contents.find("\"proxyStatusCode\":\"connection_failed\""),
+            std::string::npos);
+  EXPECT_NE(contents.find("\"errorCode\":-111"), std::string::npos);
   EXPECT_EQ(contents.find("password"), std::string::npos);
 }
 

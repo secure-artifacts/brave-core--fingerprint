@@ -135,7 +135,7 @@ base::DictValue CollectProxyState(Profile* profile,
     state.Set("country", proxy.geo->country_code);
     state.Set("timezone", proxy.geo->timezone);
     if (!proxy.geo->accept_languages.empty()) {
-      state.Set("language", proxy.geo->accept_languages.front());
+      state.Set("language", proxy.geo->accept_languages);
     }
     state.Set("webrtcPolicy", "disable_non_proxied_udp");
   }
