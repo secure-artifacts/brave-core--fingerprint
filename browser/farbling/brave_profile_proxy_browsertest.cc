@@ -71,6 +71,8 @@ constexpr char kProxyBody[] = "proxy";
 constexpr char kExpectedProxyAuthorization[] = "Basic Zm9vOmJhcg==";
 constexpr char kPrimaryGeoUrl[] = "http://freeipapi.test/geo-primary";
 constexpr char kFallbackGeoUrl[] = "http://ipwhois.test/geo-fallback";
+constexpr char kHttpsPrimaryGeoUrl[] = "https://freeipapi.test/geo-primary";
+constexpr char kHttpsFallbackGeoUrl[] = "https://ipwhois.test/geo-fallback";
 constexpr char kFreeIpApiAustralia[] = R"({
   "ipAddress":"1.1.1.1",
   "latitude":-33.8688,
@@ -309,6 +311,11 @@ class FingerprintBrowserProfileProxyBrowserTest
     required_proxy_authorization_ = std::move(authorization);
   }
 
+  void RejectProxyConnects(bool reject) {
+    base::AutoLock lock(lock_);
+    reject_proxy_connects_ = reject;
+  }
+
   GURL OriginUrl(std::string_view host, std::string_view path) const {
     return origin_server_.GetURL(std::string(host), std::string(path));
   }
@@ -384,6 +391,12 @@ class FingerprintBrowserProfileProxyBrowserTest
     }
 
     saw_expected_proxy_authorization_ = true;
+    if (reject_proxy_connects_ &&
+        request.method == net::test_server::METHOD_CONNECT) {
+      auto response = TextResponse("tunnel unavailable");
+      response->set_code(net::HTTP_BAD_GATEWAY);
+      return response;
+    }
     if (request.relative_url.find("/geo-primary") != std::string::npos) {
       auto response = TextResponse(primary_geo_body_);
       response->set_code(static_cast<net::HttpStatusCode>(primary_geo_status_));
@@ -406,6 +419,7 @@ class FingerprintBrowserProfileProxyBrowserTest
   std::vector<std::string> proxy_request_targets_;
   int proxy_challenge_count_ GUARDED_BY(lock_) = 0;
   bool saw_expected_proxy_authorization_ GUARDED_BY(lock_) = false;
+  bool reject_proxy_connects_ GUARDED_BY(lock_) = false;
   std::string required_proxy_authorization_ GUARDED_BY(lock_) =
       kExpectedProxyAuthorization;
   int primary_geo_status_ GUARDED_BY(lock_) = net::HTTP_OK;
@@ -607,6 +621,81 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
             GetProxyService(profile)->GetState().state);
   EXPECT_TRUE(ProxySawTargetContaining("/geo-primary"));
   EXPECT_TRUE(ProxySawTargetContaining("/geo-fallback"));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    FingerprintBrowserProfileProxyBrowserTest,
+    TransientTunnelFailureKeepsLastKnownStateAndRetriesSoon) {
+  Profile* profile = CreateTestProfile();
+  ConfigureProfileProxy(profile);
+  auto* service = GetProxyService(profile);
+  const auto healthy_state = service->GetState();
+  ASSERT_EQ(fingerprint_browser::kProxyStateActive, healthy_state.state);
+  ASSERT_TRUE(healthy_state.geo);
+
+  fingerprint_browser::FingerprintProxyService::SetGeoProviderUrlsForTesting(
+      GURL(kHttpsPrimaryGeoUrl), GURL(kHttpsFallbackGeoUrl));
+  RejectProxyConnects(true);
+  const auto revalidation = Revalidate(profile);
+
+  ASSERT_FALSE(revalidation.success);
+  EXPECT_EQ(net::ERR_TUNNEL_CONNECTION_FAILED, revalidation.net_error);
+  const auto degraded_state = service->GetState();
+  EXPECT_EQ(fingerprint_browser::kProxyStateStale, degraded_state.state);
+  EXPECT_EQ(fingerprint_browser::kProxyMessageRevalidationRetrying,
+            degraded_state.status_code);
+  EXPECT_TRUE(degraded_state.enabled);
+  EXPECT_EQ(healthy_state.egress_ip, degraded_state.egress_ip);
+  ASSERT_TRUE(degraded_state.geo);
+  EXPECT_EQ(healthy_state.geo->country_code, degraded_state.geo->country_code);
+  EXPECT_LE(service->RevalidationDelayForTesting(), base::Seconds(30));
+
+  Browser* proxied_browser = CreateBrowser(profile);
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      proxied_browser, OriginUrl("still-usable.test", "/after-tunnel-error")));
+  EXPECT_EQ(kProxyBody, BodyText(proxied_browser));
+  EXPECT_EQ(0, OriginRequestsForPath("/after-tunnel-error"));
+
+  RejectProxyConnects(false);
+  fingerprint_browser::FingerprintProxyService::SetGeoProviderUrlsForTesting(
+      GURL(kPrimaryGeoUrl), GURL(kFallbackGeoUrl));
+  service->FireRevalidationTimerForTesting();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return service->GetState().state == fingerprint_browser::kProxyStateActive;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    FingerprintBrowserProfileProxyBrowserTest,
+    RepeatedTunnelFailuresEscalateAndSuccessfulRetryResetsBackoff) {
+  Profile* profile = CreateTestProfile();
+  ConfigureProfileProxy(profile);
+  auto* service = GetProxyService(profile);
+
+  fingerprint_browser::FingerprintProxyService::SetGeoProviderUrlsForTesting(
+      GURL(kHttpsPrimaryGeoUrl), GURL(kHttpsFallbackGeoUrl));
+  RejectProxyConnects(true);
+
+  EXPECT_FALSE(Revalidate(profile).success);
+  EXPECT_EQ(fingerprint_browser::kProxyStateStale, service->GetState().state);
+  EXPECT_FALSE(Revalidate(profile).success);
+  EXPECT_EQ(fingerprint_browser::kProxyStateStale, service->GetState().state);
+  EXPECT_FALSE(Revalidate(profile).success);
+  EXPECT_EQ(fingerprint_browser::kProxyStateError, service->GetState().state);
+
+  RejectProxyConnects(false);
+  fingerprint_browser::FingerprintProxyService::SetGeoProviderUrlsForTesting(
+      GURL(kPrimaryGeoUrl), GURL(kFallbackGeoUrl));
+  EXPECT_TRUE(Revalidate(profile).success);
+  EXPECT_EQ(fingerprint_browser::kProxyStateActive, service->GetState().state);
+  EXPECT_GE(service->RevalidationDelayForTesting(), base::Minutes(10));
+
+  fingerprint_browser::FingerprintProxyService::SetGeoProviderUrlsForTesting(
+      GURL(kHttpsPrimaryGeoUrl), GURL(kHttpsFallbackGeoUrl));
+  RejectProxyConnects(true);
+  EXPECT_FALSE(Revalidate(profile).success);
+  EXPECT_EQ(fingerprint_browser::kProxyStateStale, service->GetState().state);
+  EXPECT_LE(service->RevalidationDelayForTesting(), base::Seconds(30));
 }
 
 IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,

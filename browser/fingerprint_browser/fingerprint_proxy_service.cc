@@ -55,6 +55,10 @@ bool IsSupportedProductProxyScheme(std::string_view scheme) {
 constexpr base::TimeDelta kVerificationTimeout = base::Seconds(6);
 constexpr base::TimeDelta kVerificationLifetime = base::Minutes(5);
 constexpr base::TimeDelta kRevalidationInterval = base::Minutes(15);
+constexpr base::TimeDelta kFirstRevalidationRetryDelay = base::Seconds(5);
+constexpr base::TimeDelta kSecondRevalidationRetryDelay = base::Seconds(30);
+constexpr base::TimeDelta kPersistentRevalidationRetryDelay = base::Minutes(2);
+constexpr size_t kTransientRevalidationFailureThreshold = 3;
 constexpr size_t kMaxResponseSize = 128 * 1024;
 constexpr char kFreeIpApiUrl[] = "https://free.freeipapi.com/api/json";
 constexpr char kIpWhoIsUrl[] = "https://ipwho.is/";
@@ -130,6 +134,21 @@ bool IsProxyConnectionError(int net_error) {
     default:
       return false;
   }
+}
+
+bool IsProxyAuthenticationError(int net_error) {
+  return net_error == net::ERR_INVALID_AUTH_CREDENTIALS ||
+         net_error == net::ERR_PROXY_AUTH_UNSUPPORTED;
+}
+
+base::TimeDelta RevalidationRetryDelay(size_t failure_count) {
+  if (failure_count <= 1) {
+    return kFirstRevalidationRetryDelay;
+  }
+  if (failure_count == 2) {
+    return kSecondRevalidationRetryDelay;
+  }
+  return kPersistentRevalidationRetryDelay;
 }
 
 ProfileProxyGeo ToProfileProxyGeo(const ProxyGeoLookupResult& lookup) {
@@ -340,6 +359,7 @@ void FingerprintProxyService::ApplyVerified(std::string verification_id,
       StoreLookupResult(pending.lookup, pending.geo, false);
   PrepareVerifiedProfileProxyDerivedPrefs(*prefs_, pending.geo);
   credential_failure_ = false;
+  consecutive_transient_revalidation_failures_ = 0;
   prefs_->SetBoolean(prefs::kProfileProxyEnabled, true);
   apply_in_progress_ = false;
   prefs_->SetInteger(
@@ -395,6 +415,7 @@ void FingerprintProxyService::Disable(DisableCallback callback) {
   cancelled.error_code = kProxyMessageVerificationCancelled;
   RunVerificationCallbacks(std::move(cancelled));
   revalidation_timer_.Stop();
+  consecutive_transient_revalidation_failures_ = 0;
 
   prefs_->SetBoolean(prefs::kProfileProxyEnabled, false);
   ClearProfileProxyLastError(*prefs_);
@@ -434,8 +455,10 @@ void FingerprintProxyService::ReportProxyError(int net_error) {
     return;
   }
   SetProfileProxyLastError(*prefs_, net_error);
+  consecutive_transient_revalidation_failures_ =
+      kTransientRevalidationFailureThreshold;
   SetState(kProxyStateError, kProxyMessageConnectionFailed);
-  ScheduleRevalidation();
+  ScheduleRevalidation(kPersistentRevalidationRetryDelay);
 }
 
 void FingerprintProxyService::AddObserver(Observer* observer) {
@@ -606,7 +629,9 @@ void FingerprintProxyService::StartVerification(ProfileProxyDraft draft,
   if (callback) {
     verification_callbacks_.push_back(std::move(callback));
   }
-  SetState(kProxyStateVerifying, kProxyMessageChecking);
+  if (!is_revalidation) {
+    SetState(kProxyStateVerifying, kProxyMessageChecking);
+  }
   CreateVerificationNetworkContext(verification_draft_);
   StartLookup(ProxyGeoProvider::kFreeIpApi);
 }
@@ -712,13 +737,31 @@ void FingerprintProxyService::FinishLookupFailure(std::string_view error_code,
   verification_in_progress_ = false;
 
   if (verification_is_revalidation_) {
-    if (IsProxyConnectionError(net_error)) {
+    if (IsProxyAuthenticationError(net_error)) {
+      consecutive_transient_revalidation_failures_ =
+          kTransientRevalidationFailureThreshold;
       SetProfileProxyLastError(*prefs_, net_error);
       SetState(kProxyStateError, error_code);
+      ScheduleRevalidation(kPersistentRevalidationRetryDelay);
+    } else if (IsProxyConnectionError(net_error)) {
+      if (consecutive_transient_revalidation_failures_ <
+          kTransientRevalidationFailureThreshold) {
+        ++consecutive_transient_revalidation_failures_;
+      }
+      SetProfileProxyLastError(*prefs_, net_error);
+      if (consecutive_transient_revalidation_failures_ <
+          kTransientRevalidationFailureThreshold) {
+        SetState(kProxyStateStale, kProxyMessageRevalidationRetrying);
+      } else {
+        SetState(kProxyStateError, error_code);
+      }
+      ScheduleRevalidation(
+          RevalidationRetryDelay(consecutive_transient_revalidation_failures_));
     } else {
+      consecutive_transient_revalidation_failures_ = 0;
       SetState(kProxyStateStale, error_code);
+      ScheduleRevalidation();
     }
-    ScheduleRevalidation();
   } else if (prefs_->GetBoolean(prefs::kProfileProxyEnabled) &&
              !state_before_verification_.empty()) {
     SetState(state_before_verification_, status_before_verification_,
@@ -752,6 +795,7 @@ void FingerprintProxyService::FinishLookupSuccess(ProxyGeoLookupResult lookup) {
   result.geo = geo;
 
   if (verification_is_revalidation_) {
+    consecutive_transient_revalidation_failures_ = 0;
     ClearProfileProxyLastError(*prefs_);
     ApplyLookup(lookup, geo, true);
     ScheduleRevalidation();
@@ -877,6 +921,7 @@ void FingerprintProxyService::OnProxyControlChanged() {
     const bool was_verifying = verification_in_progress_;
     verification_in_progress_ = false;
     revalidation_timer_.Stop();
+    consecutive_transient_revalidation_failures_ = 0;
     SyncProfileProxyWebRTCPolicy(*prefs_);
     ClearVerifiedProfileProxyGeo(*prefs_);
     prefs_->SetInteger(
@@ -893,6 +938,7 @@ void FingerprintProxyService::OnProxyControlChanged() {
   }
 
   if (!prefs_->GetBoolean(prefs::kProfileProxyEnabled)) {
+    consecutive_transient_revalidation_failures_ = 0;
     SyncProfileProxyWebRTCPolicy(*prefs_);
     ClearVerifiedProfileProxyGeo(*prefs_);
     content::WebContents::SyncRendererPrefsForBrowserContext(profile_);
@@ -901,6 +947,7 @@ void FingerprintProxyService::OnProxyControlChanged() {
   }
 
   SyncProfileProxyWebRTCPolicy(*prefs_);
+  consecutive_transient_revalidation_failures_ = 0;
   prefs_->SetInteger(
       prefs::kProfileProxyCredentialGeneration,
       prefs_->GetInteger(prefs::kProfileProxyCredentialGeneration) + 1);
@@ -913,6 +960,10 @@ void FingerprintProxyService::OnProxyControlChanged() {
 }
 
 void FingerprintProxyService::ScheduleRevalidation() {
+  ScheduleRevalidation(kRevalidationInterval);
+}
+
+void FingerprintProxyService::ScheduleRevalidation(base::TimeDelta delay) {
   if (!prefs_->GetBoolean(prefs::kProfileProxyEnabled) ||
       GetProfileProxyConfigConflict(*prefs_) !=
           ProfileProxyConfigConflict::kNone) {
@@ -920,12 +971,16 @@ void FingerprintProxyService::ScheduleRevalidation() {
     return;
   }
   revalidation_timer_.Start(
-      FROM_HERE, kRevalidationInterval,
-      base::BindRepeating(&FingerprintProxyService::OnRevalidationTimer,
-                          weak_factory_.GetWeakPtr()));
+      FROM_HERE, delay,
+      base::BindOnce(&FingerprintProxyService::OnRevalidationTimer,
+                     weak_factory_.GetWeakPtr()));
 }
 
 void FingerprintProxyService::OnRevalidationTimer() {
+  if (verification_in_progress_) {
+    ScheduleRevalidation(kSecondRevalidationRetryDelay);
+    return;
+  }
   Revalidate(VerificationCallback());
 }
 

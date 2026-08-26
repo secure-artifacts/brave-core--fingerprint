@@ -74,6 +74,7 @@ constexpr std::array kStableStatuses = {
     std::string_view(kProxyMessageWaiting),
     std::string_view(kProxyMessageChecking),
     std::string_view(kProxyMessageActive),
+    std::string_view(kProxyMessageRevalidationRetrying),
     std::string_view(kProxyMessageAwaitingConfirmation),
     std::string_view(kProxyMessageControlChanged),
     std::string_view(kProxyMessageNoActiveProxy),
@@ -103,6 +104,9 @@ int ResourceIdForCode(std::string_view code) {
   }
   if (code == kProxyMessageActive) {
     return IDS_FINGERPRINT_PROXY_STATUS_ACTIVE;
+  }
+  if (code == kProxyMessageRevalidationRetrying) {
+    return IDS_FINGERPRINT_PROXY_STATUS_REVALIDATION_RETRYING;
   }
   if (code == kProxyMessageAwaitingConfirmation) {
     return IDS_FINGERPRINT_PROXY_STATUS_AWAITING_CONFIRMATION;
