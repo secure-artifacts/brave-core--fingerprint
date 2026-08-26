@@ -38,6 +38,7 @@ struct DiagnosticsEventFields {
   std::string extension_id;
   std::string extension_version;
   std::string proxy_scheme;
+  std::string proxy_status_code;
   std::string country;
   std::string timezone;
   std::string language;

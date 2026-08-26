@@ -173,6 +173,10 @@ std::optional<std::vector<CrashReportDescriptor>> ReadCrashpadReports(
   return reports;
 }
 
+std::string PortableRelativePath(const base::FilePath& path) {
+  return path.NormalizePathSeparatorsTo(FILE_PATH_LITERAL('/')).AsUTF8Unsafe();
+}
+
 std::optional<std::map<std::string, std::string>> BuildFileHashInventory(
     const base::FilePath& root) {
   std::map<std::string, std::string> inventory;
@@ -186,7 +190,7 @@ std::optional<std::map<std::string, std::string>> BuildFileHashInventory(
     if (hash.empty()) {
       return std::nullopt;
     }
-    inventory.emplace(relative.AsUTF8Unsafe(), hash);
+    inventory.emplace(PortableRelativePath(relative), hash);
   }
   return inventory;
 }
@@ -445,7 +449,7 @@ DiagnosticsExportResult BuildDiagnosticsBundle(
       return result;
     }
     base::DictValue file;
-    file.Set("path", relative.AsUTF8Unsafe());
+    file.Set("path", PortableRelativePath(relative));
     file.Set("sizeBytes", base::NumberToString(*size));
     const std::string sha256 = Sha256File(path);
     if (sha256.empty()) {
@@ -481,7 +485,7 @@ DiagnosticsExportResult BuildDiagnosticsBundle(
     }
     checksums.append(sha256);
     checksums.append("  ");
-    checksums.append(relative.AsUTF8Unsafe());
+    checksums.append(PortableRelativePath(relative));
     checksums.push_back('\n');
   }
   if (!base::WriteFile(payload.GetPath().AppendASCII("checksums.sha256"),

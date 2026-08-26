@@ -172,6 +172,7 @@ class FingerprintProxyService
   void OnProxyControlChanged();
   void ScheduleRevalidation();
   void ScheduleRevalidation(base::TimeDelta delay);
+  void ScheduleRevalidationIfSooner(base::TimeDelta delay);
   void OnRevalidationTimer();
   bool HasCredentialFailure() const;
 

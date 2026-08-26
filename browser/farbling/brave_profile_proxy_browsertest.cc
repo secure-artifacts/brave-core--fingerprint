@@ -667,6 +667,41 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(
     FingerprintBrowserProfileProxyBrowserTest,
+    PageTunnelFailuresKeepHealthyStateAndTriggerOneBackgroundCheck) {
+  Profile* profile = CreateTestProfile();
+  ConfigureProfileProxy(profile);
+  auto* service = GetProxyService(profile);
+  const auto healthy_state = service->GetState();
+
+  for (int i = 0; i < 20; ++i) {
+    service->ReportProxyError(net::ERR_TUNNEL_CONNECTION_FAILED);
+  }
+
+  const auto state_after_requests = service->GetState();
+  EXPECT_EQ(fingerprint_browser::kProxyStateActive, state_after_requests.state);
+  EXPECT_EQ(healthy_state.egress_ip, state_after_requests.egress_ip);
+  ASSERT_TRUE(state_after_requests.geo);
+  EXPECT_LE(service->RevalidationDelayForTesting(), base::Seconds(5));
+
+  service->FireRevalidationTimerForTesting();
+  EXPECT_TRUE(base::test::RunUntil([&] {
+    return service->GetState().state == fingerprint_browser::kProxyStateActive;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
+                       PageProxyAuthenticationFailureIsImmediatelyVisible) {
+  Profile* profile = CreateTestProfile();
+  ConfigureProfileProxy(profile);
+  auto* service = GetProxyService(profile);
+
+  service->ReportProxyError(net::ERR_INVALID_AUTH_CREDENTIALS);
+
+  EXPECT_EQ(fingerprint_browser::kProxyStateError, service->GetState().state);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    FingerprintBrowserProfileProxyBrowserTest,
     RepeatedTunnelFailuresEscalateAndSuccessfulRetryResetsBackoff) {
   Profile* profile = CreateTestProfile();
   ConfigureProfileProxy(profile);
@@ -680,6 +715,9 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(fingerprint_browser::kProxyStateStale, service->GetState().state);
   EXPECT_FALSE(Revalidate(profile).success);
   EXPECT_EQ(fingerprint_browser::kProxyStateStale, service->GetState().state);
+  const base::TimeDelta retry_delay = service->RevalidationDelayForTesting();
+  service->ReportProxyError(net::ERR_TUNNEL_CONNECTION_FAILED);
+  EXPECT_EQ(retry_delay, service->RevalidationDelayForTesting());
   EXPECT_FALSE(Revalidate(profile).success);
   EXPECT_EQ(fingerprint_browser::kProxyStateError, service->GetState().state);
 
