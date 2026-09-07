@@ -4,7 +4,8 @@ export default defineConfig({
   lang: 'zh-CN',
   title: '指纹浏览器使用手册',
   description: '面向新用户的指纹浏览器与用户配置文件代理使用说明',
-  cleanUrls: true,
+  // cleanUrls: true,
+  base: '/crx/brave-fingerprint/docs/',
   lastUpdated: false,
   markdown: {
     lineNumbers: false,
