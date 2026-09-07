@@ -26,13 +26,14 @@ at @../docs/best_practices.md
 The primary remote is a self-hosted GitLab. Its history is **truncated**: it does
 not contain brave-core upstream history. The root commit `f39db930f3f` is a
 whole-tree snapshot of upstream master `9fca1f7` (2026-07-15). Full upstream
-history exists only in this local checkout and in the archived GitHub fork.
+history exists only in this local checkout and in the GitHub fork.
 
 - `origin` → `git@gitlab.195322.xyz:chromeextentions/software/brave-fingerprint.git`
   (primary; all custom commits are pushed here)
 - `upstream` → `https://github.com/brave/brave-core.git` (read-only, never push)
 - `github` → `https://github.com/secure-artifacts/brave-core--fingerprint.git`
-  (pre-migration fork, archived, read-only)
+  (full mirror of the same rewritten history; the Windows machine cannot reach
+  GitLab and works through this remote, so every push must go to both)
 
 Branch convention:
 
@@ -57,14 +58,16 @@ git commit -m "chore: snapshot brave-core upstream master @ $(git rev-parse mast
 
 git checkout fingerprint && git rebase upstream-snapshot   # or: git merge upstream-snapshot
 
-git push origin upstream-snapshot
-git push --force-with-lease origin fingerprint             # only if rebased
+git push origin upstream-snapshot && git push github upstream-snapshot
+git push --force-with-lease origin fingerprint && git push --force-with-lease github fingerprint
 ```
 
 The merge base is the previous snapshot commit, so three-way merges work exactly
 as they did when rebasing onto upstream directly. Each sync adds roughly 90 MB to
 the repository. Pre-migration branches are kept as local `backup/pre-gitlab-*`
-tags.
+tags, and on GitHub as `archive/pre-gitlab-*` tags. Before pushing, pull in the
+other machine's work with `git fetch github && git rebase github/fingerprint`.
+Upstream snapshots are generated on this machine only.
 
 <!--
   For any further personal preferences, create your own CLAUDE.md in a parent

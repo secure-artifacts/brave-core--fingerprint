@@ -16,7 +16,7 @@
 > | --- | --- | --- |
 > | `origin` | `git@gitlab.195322.xyz:chromeextentions/software/brave-fingerprint.git` | 主仓库，日常 push |
 > | `upstream` | `https://github.com/brave/brave-core.git` | 官方仓库，只 fetch，不 push |
-> | `github` | `https://github.com/secure-artifacts/brave-core--fingerprint.git` | 迁移前的旧 fork，留档只读 |
+> | `github` | `https://github.com/secure-artifacts/brave-core--fingerprint.git` | 新历史的完整镜像，Windows 机器连不上 GitLab，走这里 |
 >
 > 分支：
 >
@@ -46,8 +46,8 @@
 > git rebase upstream-snapshot
 >
 > # 4. 推送
-> git push origin upstream-snapshot
-> git push --force-with-lease origin fingerprint
+> git push origin upstream-snapshot && git push github upstream-snapshot
+> git push --force-with-lease origin fingerprint && git push --force-with-lease github fingerprint
 > ```
 >
 > 第 3 步的合并基准是上一次快照提交，三方合并正常工作，冲突量与直接 rebase 上游一致。不想改写自定义分支历史就换成 `git merge upstream-snapshot` 加普通 `git push`。
@@ -60,7 +60,9 @@
 >
 > ### 回滚
 >
-> 迁移前的分支保存在本地 tag `backup/pre-gitlab-*`，GitHub 备份 fork 上也仍是迁移前的完整历史。
+> 迁移前的分支保存在本地 tag `backup/pre-gitlab-*`，GitHub 上锚为 `archive/pre-gitlab-*` 三个 tag。
+>
+> 两个远程必须保持一致：GitLab 是主仓库，GitHub 是镜像，每次推送两边都要推。上游同步只在 macOS 机器上做。
 
 Brave Core is a set of changes, APIs, and scripts used for customizing Chromium
 to make the Brave browser. Please also check
