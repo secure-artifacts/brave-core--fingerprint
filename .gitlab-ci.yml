@@ -84,7 +84,7 @@ deploy_docs:
     - rm -rf ~/key_${SERVER_IP}.pem ~/_rsync_${project_name}.exclude
 
   rules:
-    - if: '$CI_COMMIT_BRANCH == "fingerprint" && $CI_COMMIT_MESSAGE =~ /^Merge branch ''(dev|dev\S*|hotfix_\S*)'' into ''fingerprint''/'
+    - if: '$CI_COMMIT_BRANCH == "fingerprint"'
       changes:
         - userDocs/**/*
 
