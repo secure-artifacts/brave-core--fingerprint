@@ -4,16 +4,63 @@
 
 > ## 本 Fork 说明
 >
-> 这是 `brave/brave-core`
-> 的 fork（`secure-artifacts/brave-core--fingerprint`），用于开发 Brave 指纹防护（fingerprinting）相关的定制功能。
+> 这是 `brave/brave-core` 的 fork，用于开发 Brave 指纹防护（fingerprinting）相关的定制功能。主仓库托管在自建 GitLab：`git@gitlab.195322.xyz:chromeextentions/software/brave-fingerprint.git`
 >
-> - `origin` → 本 fork，代码提交到这里
-> - `upstream` → 官方 `brave/brave-core`，只读，不 push
-> - `master` 分支：纯 upstream 镜像，不放任何自定义 commit
-> - `fingerprint` 分支：所有自定义改动在这里开发
+> ### 仓库结构
 >
-> 同步 upstream 更新的方法、详细约定见
-> [`.claude/CLAUDE.md`](./.claude/CLAUDE.md#fork--upstream-sync-this-checkout)。
+> GitLab 上的历史是**截断过的，不含 brave-core 上游历史**。根提交 `f39db930f3f` 是上游 master `9fca1f7`（2026-07-15）的一次整树快照，仓库体积因此从 5.05 GiB 降到 379 MiB。完整上游历史只存在于本地 checkout 和 GitHub 备份 fork。
+>
+> remote：
+>
+> | 名称 | 地址 | 用途 |
+> | --- | --- | --- |
+> | `origin` | `git@gitlab.195322.xyz:chromeextentions/software/brave-fingerprint.git` | 主仓库，日常 push |
+> | `upstream` | `https://github.com/brave/brave-core.git` | 官方仓库，只 fetch，不 push |
+> | `github` | `https://github.com/secure-artifacts/brave-core--fingerprint.git` | 迁移前的旧 fork，留档只读 |
+>
+> 分支：
+>
+> - `fingerprint` — 默认分支，所有自定义改动（persona、per-Profile proxy、L1/L2 指纹接入、L3 联动）都在这里
+> - `upstream-snapshot` — 上游整棵树的快照序列，每同步一次上游追加一个快照提交，不放任何自定义代码
+> - `master` — 只存在于本地，纯上游镜像，fast-forward only，**不要 push 到 GitLab**（会把 5 GB 上游历史带过去）
+>
+> ### 如何更新上游版本
+>
+> 只能在有完整上游历史的本地 checkout 里执行，GitLab 上没有上游历史。
+>
+> 第 2 步会用上游树覆盖工作区，开始前确认 `git status --porcelain` 无输出。
+>
+> ```bash
+> # 1. 拉上游，快进本地镜像分支
+> git fetch upstream master
+> git checkout master
+> git merge --ff-only upstream/master
+>
+> # 2. 生成新的上游快照提交
+> git checkout upstream-snapshot
+> git read-tree --reset -u master^{tree}
+> git commit -m "chore: snapshot brave-core upstream master @ $(git rev-parse master)"
+>
+> # 3. 把自定义改动挪到新快照上
+> git checkout fingerprint
+> git rebase upstream-snapshot
+>
+> # 4. 推送
+> git push origin upstream-snapshot
+> git push --force-with-lease origin fingerprint
+> ```
+>
+> 第 3 步的合并基准是上一次快照提交，三方合并正常工作，冲突量与直接 rebase 上游一致。不想改写自定义分支历史就换成 `git merge upstream-snapshot` 加普通 `git push`。
+>
+> 上游的 Chromium 版本变了的话，最后回到 checkout 根目录跑 `npm run sync` 重新应用 patch，再 `npm run build`。
+>
+> 频繁在 `upstream-snapshot` 和 `fingerprint` 之间切分支会大面积改写工作区、触发全量重建。想避免就给快照分支单开一个 worktree：`git worktree add ../brave-upstream-snapshot upstream-snapshot`。
+>
+> 每同步一次上游约给仓库增加 90 MB（按一个月上游跨度实测），同步越频繁仓库越大。体积失控时可以把旧快照压成一个新的根提交重新 baseline，代价是改写历史、所有克隆要重拉。
+>
+> ### 回滚
+>
+> 迁移前的分支保存在本地 tag `backup/pre-gitlab-*`，GitHub 备份 fork 上也仍是迁移前的完整历史。
 
 Brave Core is a set of changes, APIs, and scripts used for customizing Chromium
 to make the Brave browser. Please also check

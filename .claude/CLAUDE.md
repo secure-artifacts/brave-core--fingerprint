@@ -23,29 +23,48 @@ at @../docs/best_practices.md
 
 ## Fork & Upstream Sync (this checkout)
 
-This checkout's remotes are configured for a fork-and-track-upstream workflow:
+The primary remote is a self-hosted GitLab. Its history is **truncated**: it does
+not contain brave-core upstream history. The root commit `f39db930f3f` is a
+whole-tree snapshot of upstream master `9fca1f7` (2026-07-15). Full upstream
+history exists only in this local checkout and in the archived GitHub fork.
 
-- `origin` → `https://github.com/secure-artifacts/brave-core--fingerprint.git`
-  (this fork; all custom commits are pushed here)
+- `origin` → `git@gitlab.195322.xyz:chromeextentions/software/brave-fingerprint.git`
+  (primary; all custom commits are pushed here)
 - `upstream` → `https://github.com/brave/brave-core.git` (read-only, never push)
+- `github` → `https://github.com/secure-artifacts/brave-core--fingerprint.git`
+  (pre-migration fork, archived, read-only)
 
 Branch convention:
 
-- `master` — pure mirror of `upstream/master`, fast-forward only, no custom
-  commits ever land here (keeps future syncs conflict-free)
-- `fingerprint` — all custom/fingerprinting work lives here, branched off
-  `master`, pushed to `origin`
+- `fingerprint` — default branch; all custom/fingerprinting work lives here,
+  based on `upstream-snapshot`
+- `upstream-snapshot` — a series of whole-tree upstream snapshots, one commit per
+  upstream sync; no custom code ever lands here
+- `master` — local only, pure mirror of `upstream/master`, fast-forward only.
+  **Never push it to `origin`** — that would drag 5 GB of upstream history into
+  GitLab and undo the migration.
 
-To pull in upstream changes:
+To pull in upstream changes (only possible in a checkout that has full upstream
+history; the working tree must be clean before step 2):
 
 ```bash
 git fetch upstream master
 git checkout master && git merge --ff-only upstream/master
-git push origin master
 
-git checkout fingerprint && git rebase master   # or: git merge master
-git push --force-with-lease origin fingerprint  # only if rebased
+git checkout upstream-snapshot
+git read-tree --reset -u master^{tree}
+git commit -m "chore: snapshot brave-core upstream master @ $(git rev-parse master)"
+
+git checkout fingerprint && git rebase upstream-snapshot   # or: git merge upstream-snapshot
+
+git push origin upstream-snapshot
+git push --force-with-lease origin fingerprint             # only if rebased
 ```
+
+The merge base is the previous snapshot commit, so three-way merges work exactly
+as they did when rebasing onto upstream directly. Each sync adds roughly 90 MB to
+the repository. Pre-migration branches are kept as local `backup/pre-gitlab-*`
+tags.
 
 <!--
   For any further personal preferences, create your own CLAUDE.md in a parent
