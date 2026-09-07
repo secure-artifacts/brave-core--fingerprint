@@ -36,7 +36,7 @@ brave://settings/fingerprintProfileProxy
 ## 找到代理设置
 
 <AnnotatedScreenshot
-  src="/screenshots/proxy-settings.png"
+  src="./screenshots/proxy-settings.png"
   alt="用户配置文件代理设置页面"
   caption="代理尚未配置时的设置页面"
   :callouts="[
@@ -51,7 +51,7 @@ brave://settings/fingerprintProfileProxy
 应用成功后，页面会显示出口地区，工具栏会出现国旗和绿色状态点。
 
 <AnnotatedScreenshot
-  src="/screenshots/proxy-active.png"
+  src="./screenshots/proxy-active.png"
   alt="真实代理成功应用后的状态页面"
   caption="代理经过真实连接验证并应用后的状态，敏感连接信息已经遮盖"
   :callouts="[

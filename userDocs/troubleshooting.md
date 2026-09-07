@@ -15,7 +15,7 @@
 3. 确认代理类型与服务商提供的一致。
 
 <AnnotatedScreenshot
-  src="/screenshots/proxy-validation-error.png"
+  src="./screenshots/proxy-validation-error.png"
   alt="代理地址和端口的中文校验提示"
   caption="页面会在连接网络前先检查必填项和端口范围"
   :callouts="[

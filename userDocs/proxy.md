@@ -26,7 +26,7 @@
 4. 点击“验证代理”。
 
 <AnnotatedScreenshot
-  src="/screenshots/proxy-settings.png"
+  src="./screenshots/proxy-settings.png"
   alt="代理类型和连接信息填写区域"
   caption="先填写代理服务商提供的信息，再进行验证"
   :callouts="[
@@ -43,7 +43,7 @@
 验证成功后，核对国家和城市是否符合购买地区，再点击“确认并应用”。
 
 <AnnotatedScreenshot
-  src="/screenshots/proxy-verified.png"
+  src="./screenshots/proxy-verified.png"
   alt="真实代理验证成功后的确认页面"
   caption="真实代理验证结果，账号、密码和网络地址的敏感部分已经遮盖"
   :callouts="[
@@ -56,7 +56,7 @@
 ## 代理生效后
 
 <AnnotatedScreenshot
-  src="/screenshots/proxy-active.png"
+  src="./screenshots/proxy-active.png"
   alt="代理处于正常生效状态"
   caption="代理生效后可查看出口和最后验证时间，也可以立即复检或禁用"
   :callouts="[
@@ -92,7 +92,7 @@
 国旗代表出口国家，旁边的小圆点代表代理状态。
 
 <AnnotatedScreenshot
-  src="/screenshots/proxy-toolbar.png"
+  src="./screenshots/proxy-toolbar.png"
   alt="浏览器工具栏中的代理国旗和状态弹窗"
   caption="工具栏入口可以快速查看代理状态、复检或进入完整设置"
   :callouts="[

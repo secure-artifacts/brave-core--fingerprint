@@ -31,7 +31,7 @@ brave://fingerprint-test/
 ```
 
 <AnnotatedScreenshot
-  src="/screenshots/fingerprint-test.png"
+  src="./screenshots/fingerprint-test.png"
   alt="指纹检测页面显示各项浏览器身份匹配"
   caption="检测页会比较浏览器设定值和网页实际读取值"
   :callouts="[
