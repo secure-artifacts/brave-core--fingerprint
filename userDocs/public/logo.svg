@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">指纹浏览器标志</title>
+  <defs>
+    <linearGradient id="g" x1="18" y1="16" x2="110" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#g)" d="M64 8 111 29v31c0 29-19 50-47 60C36 110 17 89 17 60V29L64 8Z"/>
+  <path fill="none" stroke="#fff" stroke-linecap="round" stroke-width="7" d="M43 61c0-13 9-23 21-23s21 10 21 23M50 79c2-15 7-26 14-26s12 11 14 26M58 92c0-18 2-29 6-29s6 11 6 29M39 73c1-8 2-13 5-18M89 73c-1-8-2-13-5-18"/>
+</svg>
