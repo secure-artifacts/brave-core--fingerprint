@@ -30,6 +30,7 @@
     "format": "node ./build/commands/scripts/format.ts",
     "mass_rename": "node ./build/commands/scripts/commands.js mass_rename",
     "docs": "node ./build/commands/scripts/commands.js docs",
+    "user-docs:build": "npm --prefix userDocs ci && npm --prefix userDocs run docs:build",
     "test": "node ./build/commands/scripts/commands.js test",
     "list_affected_tests": "node ./build/commands/scripts/commands.js list_affected_tests",
     "test:scripts": "node ./build/commands/scripts/testScripts.ts",
