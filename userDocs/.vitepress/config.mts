@@ -20,6 +20,7 @@ export default defineConfig({
       {text: '指纹功能', link: '/fingerprint'},
       {text: '代理功能', link: '/proxy'},
       {text: '排查问题', link: '/troubleshooting'},
+      {text: '反馈问题', link: '/feedback'},
     ],
     sidebar: [
       {
@@ -40,6 +41,7 @@ export default defineConfig({
         text: '帮助',
         items: [
           {text: '常见问题与排障', link: '/troubleshooting'},
+          {text: '反馈问题', link: '/feedback'},
         ],
       },
     ],
