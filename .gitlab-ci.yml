@@ -1,0 +1,130 @@
+stages:
+  - electron_release
+  - production
+  - cleanup
+
+variables:
+  _version: "1.7.0"
+  _type: "single"
+
+  # 所有服务器通用变量
+  fastcgi_cache_path: /var/cache/nginx/fastcgi_cache_path
+  backup_purged_days: 30
+  web_rootpath: /usr/share/nginx
+  backup_dir: /usr/share/nginx/deployer_backup
+
+  # 新增项目：修改项目名，此变量用于唯一标识这个项目
+  project_name: "brave-fingerprint"
+  src_name: "dist/"
+  component_name: "html/crx/${project_name}/"
+  deploy_user: "deployer"
+  manifest_path: "package.json"
+  appid: "brave-fingerprint"
+
+# 部署到正式服务器
+stage_production:
+  stage: production
+  script:
+    # 简化 ssh 登录
+    - TIMESTAMP=$(date +%Y%m%d%H%M%S)
+    - SSH="ssh -i ~/key_${SERVER_IP}.pem -p${SERVER_PORT} ${deploy_user}@${SERVER_IP}"
+    - SSH_RSYNC="ssh -i ~/key_${SERVER_IP}.pem -p${SERVER_PORT}"
+
+    # 添加 ssh 密钥
+    - cat > ~/key_${SERVER_IP}.pem <(echo "$PRODUCTION_PRIVATE_KEY")
+    - chmod 600 ~/key_${SERVER_IP}.pem
+
+    ####################################################
+    # 前期处理
+    ####################################################
+    - mkdir -p dist
+    # - cat > crx-encryption.pem <(echo "$CRX_ENCRYPTION_KEY")
+    
+    ## 安装依赖与构建生成文档
+    - (cd userDocs/ && npm install && npm run docs:build)
+    - mv userDocs/.vitepress/dist dist/docs
+
+    ## 版本号
+    - version_num=$(grep '"version"' ${manifest_path} | head -n 1 | cut -d '"' -f 4)
+
+    ####################################################
+    ####################################################
+
+    # 复制代码到服务器
+    - ${SSH} "rm -rf ${BDIR}/_tmp_${project_name} && mkdir ${BDIR}/_tmp_${project_name}"
+    - rsync -Paqz -e "${SSH_RSYNC}" --exclude=.git/ ./${src_name} ${deploy_user}@${SERVER_IP}:${BDIR}/_tmp_${project_name}/
+    - ${SSH} "find ${BDIR}/_tmp_${project_name} -type d -print0 | xargs -0 -n 10 chmod 775"
+    - ${SSH} "find ${BDIR}/_tmp_${project_name} -type f -print0 | xargs -0 -n 10 chmod 664"
+
+    # 复制 rsync 排除文件列表
+    # 不知道为啥，只有 ${HOME} 生效
+    - cat > ~/_rsync_${project_name}.exclude <(echo "$RSYNC_EXCLUDE_LIST")
+    - rsync -Paqz -e "${SSH_RSYNC}" ${HOME}/_rsync_${project_name}.exclude ${deploy_user}@${SERVER_IP}:${BDIR}/_rsync_${project_name}.exclude
+
+    # 备份和更新代码
+    - ${SSH} "mkdir -p ${WROOT}/${SITE}/${component_name}"
+    - ${SSH} "rsync -POaq --exclude-from=${BDIR}/_rsync_${project_name}.exclude ${WROOT}/${SITE}/${component_name} ${BDIR}/${SITE}_${TIMESTAMP}/"
+    - ${SSH} "rsync -POaq --delete --exclude-from=${BDIR}/_rsync_${project_name}.exclude ${BDIR}/_tmp_${project_name}/ ${WROOT}/${SITE}/${component_name}"
+    - echo TIMESTAMP ${TIMESTAMP}
+
+    ####################################################
+    # 后期处理
+    ####################################################
+    # - rm crx-encryption.pem
+    - ${SSH} "cd ${WROOT}/${SITE}/_docker && echo sudo docker compose exec flask flask -A main:app update-version --appid ${appid} --version ${version_num}"
+    - ${SSH} "cd ${WROOT}/${SITE}/_docker && sudo docker compose exec flask flask -A main:app update-version --appid ${appid} --version ${version_num}"
+    ####################################################
+    ####################################################
+
+    # 移除不用文件
+    - ${SSH} "rm -rf ${BDIR}/_tmp_${project_name}"
+    - rm -rf ~/key_${SERVER_IP}.pem ~/_rsync_${project_name}.exclude
+
+  parallel:
+    matrix:
+      - SERVER_IP: ${CRX_SERVER}
+        SERVER_PORT: 22
+        WROOT: ${web_rootpath}
+        BDIR: ${backup_dir}
+        SITE: ${CRX_LIST}
+
+  # https://docs.gitlab.com/ee/ci/yaml/README.html#rules
+  # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "fingerprint" && $CI_COMMIT_MESSAGE =~ /^Merge branch ''(dev|dev\S*|hotfix_\S*)'' into ''fingerprint''/'
+  # 仅在有标签的 runner 上执行该阶段
+  tags:
+    - nodejs22
+
+# 清理旧备份文件
+stage_cleanup:
+  stage: cleanup
+  script:
+    # 简化 ssh 登录
+    - TIMESTAMP=$(date +%Y%m%d%H%M%S)
+    - SSH="ssh -i ~/key_${SERVER_IP}.pem -p${SERVER_PORT} ${deploy_user}@${SERVER_IP}"
+    - SSH_RSYNC="ssh -i ~/key_${SERVER_IP}.pem -p${SERVER_PORT}"
+
+    # 添加 ssh 密钥
+    - cat > ~/key_${SERVER_IP}.pem <(echo "$PRODUCTION_PRIVATE_KEY")
+    - chmod 600 ~/key_${SERVER_IP}.pem
+
+    - echo '清理旧备份'
+    - ${SSH} "find ${BDIR} -maxdepth 1 -name '${SITE}*' -mtime +${backup_purged_days} -print0 | xargs -0 -n 1 -I % bash -c 'echo deleting %; rm -rf %'"
+
+    # 移除不用文件
+    - rm -rf ~/key_${SERVER_IP}.pem
+
+  parallel:
+    matrix:
+      - SERVER_IP: ${CRX_SERVER}
+        SERVER_PORT: 22
+        BDIR: ${backup_dir}
+
+  # https://docs.gitlab.com/ee/ci/yaml/README.html#rules 
+  # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html 
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "fingerprint" && $CI_COMMIT_MESSAGE =~ /^Merge branch ''(dev|dev_\S*|hotfix_\S*)'' into ''fingerprint''/'
+  # 仅在有标签的 runner 上执行该阶段
+  tags:
+    - nodejs22
