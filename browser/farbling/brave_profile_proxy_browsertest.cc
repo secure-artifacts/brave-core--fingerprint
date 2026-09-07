@@ -762,15 +762,25 @@ IN_PROC_BROWSER_TEST_F(FingerprintBrowserProfileProxyBrowserTest,
   EXPECT_TRUE(socks5_server.SawTargetHost("socks-target.test"));
   EXPECT_EQ(0, OriginRequestsForPath("/socks-no-auth"));
 
+  const auto healthy_state = service->GetState();
   socks5_server.Stop();
   EXPECT_TRUE(ui_test_utils::NavigateToURL(
       proxied_browser,
       OriginUrl("socks-target.test", "/socks-disconnected")));
+  const auto state_after_request = service->GetState();
+  EXPECT_EQ(fingerprint_browser::kProxyStateActive,
+            state_after_request.state);
+  EXPECT_EQ(healthy_state.egress_ip, state_after_request.egress_ip);
+  EXPECT_LE(service->RevalidationDelayForTesting(), base::Seconds(5));
+
+  service->FireRevalidationTimerForTesting();
   PrefService* prefs = profile->GetPrefs();
   ASSERT_TRUE(base::test::RunUntil([&] {
     return GetProxyService(profile)->GetState().state ==
-           fingerprint_browser::kProxyStateError;
+           fingerprint_browser::kProxyStateStale;
   }));
+  EXPECT_EQ(fingerprint_browser::kProxyMessageRevalidationRetrying,
+            service->GetState().status_code);
   const int net_error =
       prefs->GetInteger(fingerprint_browser::prefs::kProfileProxyLastErrorCode);
   EXPECT_TRUE(net_error == net::ERR_PROXY_CONNECTION_FAILED ||

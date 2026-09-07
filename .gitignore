@@ -115,3 +115,7 @@ xcuserdata
 .agents/
 
 /.ignore/
+
+# Vendored Windows dev toolchain and rustc crash dumps: machine-local, never commit
+/.devtools/
+/rustc-ice-*.txt
