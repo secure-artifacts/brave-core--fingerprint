@@ -1,11 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
-  <title id="title">指纹浏览器标志</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="t">
+  <title id="t">指纹浏览器标志</title>
   <defs>
-    <linearGradient id="g" x1="18" y1="16" x2="110" y2="116" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#4f46e5"/>
-      <stop offset="1" stop-color="#0891b2"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="128" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fbfcfd"/><stop offset="1" stop-color="#dde3e8"/>
     </linearGradient>
   </defs>
-  <path fill="url(#g)" d="M64 8 111 29v31c0 29-19 50-47 60C36 110 17 89 17 60V29L64 8Z"/>
-  <path fill="none" stroke="#fff" stroke-linecap="round" stroke-width="7" d="M43 61c0-13 9-23 21-23s21 10 21 23M50 79c2-15 7-26 14-26s12 11 14 26M58 92c0-18 2-29 6-29s6 11 6 29M39 73c1-8 2-13 5-18M89 73c-1-8-2-13-5-18"/>
+  <rect x="2" y="2" width="124" height="124" rx="29" fill="url(#bg)" stroke="#c7d0d7" stroke-width="1"/>
+  <g fill="none" stroke="#2c3b4b" stroke-linecap="round">
+    <path d="M54.1 91.3A29 29 0 1 1 82.6 86.2" stroke-width="3.6"/>
+    <path d="M73.3 29.2A36 36 0 1 1 48.8 31.4" stroke-width="4.0"/>
+    <path d="M52.9 105.5A43 43 0 1 1 85.5 101.2" stroke-width="3.6"/>
+    <path d="M89.0 20.7A50 50 0 1 1 31.9 25.7" stroke-width="4.2"/>
+    <path d="M54.1 120.1A57 57 0 1 1 104.3 104.3" stroke-width="3.6"/>
+    <path d="M78.8 8.9A57 57 0 0 1 96.7 110.7" stroke-width="4.0"/>
+    <path d="M105.1 15.0A64 64 0 0 1 119.4 96.0" stroke-width="3.4"/>
+    <path d="M22.9 113.0A64 64 0 0 1 8.6 32.0" stroke-width="3.4"/>
+  </g>
+  <g stroke="#1f2c3a" stroke-width="0.8">
+    <path fill="#2b7f91" d="M64.0 42.0A22.0 22.0 0 0 1 81.6 50.8L73.5 63.5A9.5 9.5 0 0 0 69.3 56.1Z"/>
+    <path fill="#31678f" d="M83.1 53.0A22.0 22.0 0 0 1 84.3 72.6L69.2 72.0A9.5 9.5 0 0 0 73.5 64.7Z"/>
+    <path fill="#3c8a72" d="M83.1 75.0A22.0 22.0 0 0 1 66.7 85.8L59.7 72.5A9.5 9.5 0 0 0 68.2 72.5Z"/>
+    <path fill="#256a7c" d="M64.0 86.0A22.0 22.0 0 0 1 46.4 77.2L54.5 64.5A9.5 9.5 0 0 0 58.7 71.9Z"/>
+    <path fill="#3a6f9c" d="M44.9 75.0A22.0 22.0 0 0 1 43.7 55.4L58.8 56.0A9.5 9.5 0 0 0 54.5 63.3Z"/>
+    <path fill="#2f7d63" d="M44.9 53.0A22.0 22.0 0 0 1 61.3 42.2L68.3 55.5A9.5 9.5 0 0 0 59.8 55.5Z"/>
+  </g>
+  <rect x="59.5" y="19.5" width="9" height="4" rx="2" fill="#e8a33d"/>
 </svg>
