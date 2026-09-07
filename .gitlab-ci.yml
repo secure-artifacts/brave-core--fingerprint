@@ -21,9 +21,25 @@ variables:
   manifest_path: "package.json"
   appid: "brave-fingerprint"
 
-# 部署到正式服务器
-stage_production:
+# 生产环境 job 的公共配置
+.production_base:
   stage: production
+  parallel:
+    matrix:
+      - SERVER_IP: ${CRX_SERVER}
+        SERVER_PORT: 22
+        WROOT: ${web_rootpath}
+        BDIR: ${backup_dir}
+        SITE: ${CRX_LIST}
+  # 仅在有标签的 runner 上执行该阶段
+  tags:
+    - nodejs22
+
+# 构建并部署用户文档
+# https://docs.gitlab.com/ee/ci/yaml/README.html#rules
+# https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+deploy_docs:
+  extends: .production_base
   script:
     # 简化 ssh 登录
     - TIMESTAMP=$(date +%Y%m%d%H%M%S)
@@ -38,14 +54,10 @@ stage_production:
     # 前期处理
     ####################################################
     - mkdir -p dist
-    # - cat > crx-encryption.pem <(echo "$CRX_ENCRYPTION_KEY")
-    
-    ## 安装依赖与构建生成文档
-    - (cd userDocs/ && npm install && npm run docs:build)
-    - mv userDocs/.vitepress/dist dist/docs
 
-    ## 版本号
-    - version_num=$(grep '"version"' ${manifest_path} | head -n 1 | cut -d '"' -f 4)
+    ## 安装依赖与构建生成文档
+    - (cd userDocs/ && npm ci && npm run docs:build)
+    - mv userDocs/.vitepress/dist dist/docs
 
     ####################################################
     ####################################################
@@ -67,43 +79,46 @@ stage_production:
     - ${SSH} "rsync -POaq --delete --exclude-from=${BDIR}/_rsync_${project_name}.exclude ${BDIR}/_tmp_${project_name}/ ${WROOT}/${SITE}/${component_name}"
     - echo TIMESTAMP ${TIMESTAMP}
 
-    ####################################################
-    # 后期处理
-    ####################################################
-    # - rm crx-encryption.pem
-    - ${SSH} "cd ${WROOT}/${SITE}/_docker && echo sudo docker compose exec flask flask -A main:app update-version --appid ${appid} --version ${version_num}"
-    - ${SSH} "cd ${WROOT}/${SITE}/_docker && sudo docker compose exec flask flask -A main:app update-version --appid ${appid} --version ${version_num}"
-    ####################################################
-    ####################################################
-
     # 移除不用文件
     - ${SSH} "rm -rf ${BDIR}/_tmp_${project_name}"
     - rm -rf ~/key_${SERVER_IP}.pem ~/_rsync_${project_name}.exclude
 
-  parallel:
-    matrix:
-      - SERVER_IP: ${CRX_SERVER}
-        SERVER_PORT: 22
-        WROOT: ${web_rootpath}
-        BDIR: ${backup_dir}
-        SITE: ${CRX_LIST}
-
-  # https://docs.gitlab.com/ee/ci/yaml/README.html#rules
-  # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
   rules:
     - if: '$CI_COMMIT_BRANCH == "fingerprint" && $CI_COMMIT_MESSAGE =~ /^Merge branch ''(dev|dev\S*|hotfix_\S*)'' into ''fingerprint''/'
-  # 仅在有标签的 runner 上执行该阶段
-  tags:
-    - nodejs22
+      changes:
+        - userDocs/**/*
+
+# 上报浏览器版本号
+update_version:
+  extends: .production_base
+  script:
+    # 简化 ssh 登录
+    - SSH="ssh -i ~/key_${SERVER_IP}.pem -p${SERVER_PORT} ${deploy_user}@${SERVER_IP}"
+
+    # 添加 ssh 密钥
+    - cat > ~/key_${SERVER_IP}.pem <(echo "$PRODUCTION_PRIVATE_KEY")
+    - chmod 600 ~/key_${SERVER_IP}.pem
+
+    ## 版本号
+    - version_num=$(grep '"version"' ${manifest_path} | head -n 1 | cut -d '"' -f 4)
+    - echo "上报版本 ${version_num}"
+
+    - ${SSH} "cd ${WROOT}/${SITE}/_docker && sudo docker compose exec flask flask -A main:app update-version --appid ${appid} --version ${version_num}"
+
+    # 移除不用文件
+    - rm -rf ~/key_${SERVER_IP}.pem
+
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "fingerprint" && $CI_COMMIT_MESSAGE =~ /^Merge branch ''(dev|dev\S*|hotfix_\S*)'' into ''fingerprint''/'
+      changes:
+        - package.json
 
 # 清理旧备份文件
 stage_cleanup:
   stage: cleanup
   script:
     # 简化 ssh 登录
-    - TIMESTAMP=$(date +%Y%m%d%H%M%S)
     - SSH="ssh -i ~/key_${SERVER_IP}.pem -p${SERVER_PORT} ${deploy_user}@${SERVER_IP}"
-    - SSH_RSYNC="ssh -i ~/key_${SERVER_IP}.pem -p${SERVER_PORT}"
 
     # 添加 ssh 密钥
     - cat > ~/key_${SERVER_IP}.pem <(echo "$PRODUCTION_PRIVATE_KEY")
@@ -120,9 +135,10 @@ stage_cleanup:
       - SERVER_IP: ${CRX_SERVER}
         SERVER_PORT: 22
         BDIR: ${backup_dir}
+        SITE: ${CRX_LIST}
 
-  # https://docs.gitlab.com/ee/ci/yaml/README.html#rules 
-  # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html 
+  # https://docs.gitlab.com/ee/ci/yaml/README.html#rules
+  # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
   rules:
     - if: '$CI_COMMIT_BRANCH == "fingerprint" && $CI_COMMIT_MESSAGE =~ /^Merge branch ''(dev|dev_\S*|hotfix_\S*)'' into ''fingerprint''/'
   # 仅在有标签的 runner 上执行该阶段
